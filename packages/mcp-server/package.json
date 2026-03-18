@@ -1,0 +1,25 @@
+{
+  "name": "@agentgate/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for Lido stETH/wstETH, MetaMask delegations, and ENS — agent-to-agent DeFi infrastructure",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@lidofinance/lido-ethereum-sdk": "^4.1.0",
+    "@metamask/smart-accounts-kit": "^0.3.0",
+    "@ensdomains/ensjs": "^4.0.2",
+    "viem": "^2.23.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

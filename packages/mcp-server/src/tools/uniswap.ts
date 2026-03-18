@@ -1,0 +1,372 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { parseUnits, formatUnits, type Address } from "viem";
+import type { AgentGateContext } from "../index.js";
+
+// ── Uniswap Trading API ───────────────────────────────────────────────
+// Docs: https://api-docs.uniswap.org/
+// Requires a Developer Platform API key from https://app.uniswap.org/developers
+const UNISWAP_API_BASE = "https://trading-api.gateway.uniswap.org/v1";
+const UNISWAP_API_KEY = process.env.UNISWAP_API_KEY || "";
+
+// Common token addresses per chain
+const WELL_KNOWN_TOKENS: Record<string, Record<number, { address: string; decimals: number }>> = {
+  ETH: {
+    1: { address: "0x0000000000000000000000000000000000000000", decimals: 18 },
+    8453: { address: "0x0000000000000000000000000000000000000000", decimals: 18 },
+    42161: { address: "0x0000000000000000000000000000000000000000", decimals: 18 },
+  },
+  WETH: {
+    1: { address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", decimals: 18 },
+    8453: { address: "0x4200000000000000000000000000000000000006", decimals: 18 },
+    42161: { address: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", decimals: 18 },
+    17000: { address: "0x94373a4919B3240D86eA41593D5eBa789FEF3848", decimals: 18 },
+  },
+  USDC: {
+    1: { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6 },
+    8453: { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 },
+    42161: { address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
+    17000: { address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6 },
+  },
+  USDT: {
+    1: { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
+  },
+  DAI: {
+    1: { address: "0x6B175474E89094C44Da98b954EedeAC495271d0F", decimals: 18 },
+    8453: { address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", decimals: 18 },
+  },
+  stETH: {
+    1: { address: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", decimals: 18 },
+  },
+  wstETH: {
+    1: { address: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", decimals: 18 },
+    8453: { address: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452", decimals: 18 },
+    42161: { address: "0x5979D7b546E38E414F7E9822514be443A4800529", decimals: 18 },
+    17000: { address: "0x8d09a4502Cc8Cf1547aD300E066060D043f6982D", decimals: 18 },
+  },
+  cbETH: {
+    8453: { address: "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22", decimals: 18 },
+  },
+};
+
+// ── Helper: resolve token symbol or address ───────────────────────────
+function resolveToken(
+  tokenInput: string,
+  chainId: number
+): { address: string; decimals: number } | null {
+  // Check if it's a well-known symbol
+  const upper = tokenInput.toUpperCase();
+  if (WELL_KNOWN_TOKENS[upper]?.[chainId]) {
+    return WELL_KNOWN_TOKENS[upper][chainId];
+  }
+  // If it's an address, assume 18 decimals (caller can override)
+  if (tokenInput.startsWith("0x") && tokenInput.length === 42) {
+    return { address: tokenInput, decimals: 18 };
+  }
+  return null;
+}
+
+// ── Helper: call Uniswap API ──────────────────────────────────────────
+async function uniswapFetch(endpoint: string, body: object) {
+  const res = await fetch(`${UNISWAP_API_BASE}${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": UNISWAP_API_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Uniswap API ${res.status}: ${errText}`);
+  }
+
+  return res.json();
+}
+
+// ── Register Uniswap tools ────────────────────────────────────────────
+export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
+
+  // ── uniswap_quote: Get a swap quote ─────────────────────────────────
+  server.tool(
+    "uniswap_quote",
+    "Get a swap quote from Uniswap. Returns the expected output amount, route, and gas estimate. " +
+    "Supports token symbols (WETH, USDC, stETH, wstETH, DAI, USDT) or contract addresses.",
+    {
+      token_in: z.string().describe("Input token — symbol (e.g. 'wstETH') or contract address"),
+      token_out: z.string().describe("Output token — symbol (e.g. 'USDC') or contract address"),
+      amount: z.string().describe("Amount of input token to swap (human-readable, e.g. '1.5')"),
+      token_in_decimals: z.number().optional().describe("Decimals for token_in (auto-detected for known tokens)"),
+      token_out_decimals: z.number().optional().describe("Decimals for token_out (auto-detected for known tokens)"),
+      slippage_bps: z.number().optional().describe("Slippage tolerance in basis points (default: 50 = 0.5%)"),
+    },
+    async ({ token_in, token_out, amount, token_in_decimals, token_out_decimals, slippage_bps }) => {
+      const chainId = ctx.chain.id;
+      const slippage = slippage_bps || 50;
+
+      const tokenInResolved = resolveToken(token_in, chainId);
+      const tokenOutResolved = resolveToken(token_out, chainId);
+
+      if (!tokenInResolved) {
+        return {
+          content: [{ type: "text" as const, text: `Error: Cannot resolve token_in "${token_in}" on chain ${chainId}. Provide a contract address or use a known symbol.` }],
+          isError: true,
+        };
+      }
+      if (!tokenOutResolved) {
+        return {
+          content: [{ type: "text" as const, text: `Error: Cannot resolve token_out "${token_out}" on chain ${chainId}. Provide a contract address or use a known symbol.` }],
+          isError: true,
+        };
+      }
+
+      const inDecimals = token_in_decimals || tokenInResolved.decimals;
+      const outDecimals = token_out_decimals || tokenOutResolved.decimals;
+      const amountRaw = parseUnits(amount, inDecimals).toString();
+
+      if (!UNISWAP_API_KEY) {
+        // Dry run / no API key — return simulated quote
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "simulated",
+              note: "No UNISWAP_API_KEY configured. Set it in env to get real quotes.",
+              request: {
+                token_in: { symbol: token_in, address: tokenInResolved.address, decimals: inDecimals },
+                token_out: { symbol: token_out, address: tokenOutResolved.address, decimals: outDecimals },
+                amount_in: amount,
+                amount_in_raw: amountRaw,
+                chain_id: chainId,
+                slippage_bps: slippage,
+              },
+              api_endpoint: `${UNISWAP_API_BASE}/quote`,
+              how_to_get_key: "Sign up at https://app.uniswap.org/developers",
+            }, null, 2),
+          }],
+        };
+      }
+
+      try {
+        const swapper = ctx.walletClient?.account?.address || "0x0000000000000000000000000000000000000000";
+
+        const quoteResponse = await uniswapFetch("/quote", {
+          type: "EXACT_INPUT",
+          tokenInChainId: chainId,
+          tokenOutChainId: chainId,
+          tokenIn: tokenInResolved.address,
+          tokenOut: tokenOutResolved.address,
+          amount: amountRaw,
+          swapper,
+          slippageTolerance: slippage / 10000,
+        });
+
+        const amountOut = quoteResponse.quote?.amountOut
+          ? formatUnits(BigInt(quoteResponse.quote.amountOut), outDecimals)
+          : "unknown";
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "live_quote",
+              token_in: { symbol: token_in, address: tokenInResolved.address },
+              token_out: { symbol: token_out, address: tokenOutResolved.address },
+              amount_in: amount,
+              amount_out: amountOut,
+              gas_estimate: quoteResponse.quote?.gasEstimate || "unknown",
+              route: quoteResponse.quote?.route || [],
+              slippage_bps: slippage,
+              chain_id: chainId,
+              quote_id: quoteResponse.quote?.quoteId,
+            }, null, 2),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{ type: "text" as const, text: `Uniswap quote error: ${e instanceof Error ? e.message : "unknown"}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── uniswap_swap: Execute a swap ────────────────────────────────────
+  server.tool(
+    "uniswap_swap",
+    "Execute a token swap on Uniswap via the Trading API. Gets a quote and submits the transaction. " +
+    "Returns the transaction hash as proof of execution (required for the bounty).",
+    {
+      token_in: z.string().describe("Input token — symbol or contract address"),
+      token_out: z.string().describe("Output token — symbol or contract address"),
+      amount: z.string().describe("Amount of input token to swap"),
+      slippage_bps: z.number().optional().describe("Slippage tolerance in basis points (default: 50)"),
+      dry_run: z.boolean().optional(),
+    },
+    async ({ token_in, token_out, amount, slippage_bps, dry_run }) => {
+      const isDry = dry_run ?? ctx.dryRun;
+      const chainId = ctx.chain.id;
+      const slippage = slippage_bps || 50;
+
+      const tokenInResolved = resolveToken(token_in, chainId);
+      const tokenOutResolved = resolveToken(token_out, chainId);
+
+      if (!tokenInResolved || !tokenOutResolved) {
+        return {
+          content: [{ type: "text" as const, text: "Error: Cannot resolve one or both tokens." }],
+          isError: true,
+        };
+      }
+
+      const amountRaw = parseUnits(amount, tokenInResolved.decimals).toString();
+
+      if (isDry) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "dry_run",
+              action: "uniswap_swap",
+              token_in: { symbol: token_in, address: tokenInResolved.address },
+              token_out: { symbol: token_out, address: tokenOutResolved.address },
+              amount_in: amount,
+              slippage_bps: slippage,
+              chain_id: chainId,
+              steps: [
+                "1. Call /quote to get optimal route and expected output",
+                "2. If permit2 signature required, sign the permit",
+                "3. Call /swap to get the transaction calldata",
+                "4. Submit transaction via wallet",
+                "5. Return tx hash as proof of execution",
+              ],
+            }, null, 2),
+          }],
+        };
+      }
+
+      if (!ctx.walletClient?.account) {
+        return { content: [{ type: "text" as const, text: "Error: No wallet configured. Set PRIVATE_KEY." }], isError: true };
+      }
+      if (!UNISWAP_API_KEY) {
+        return { content: [{ type: "text" as const, text: "Error: No UNISWAP_API_KEY configured." }], isError: true };
+      }
+
+      try {
+        const swapper = ctx.walletClient.account.address;
+
+        // Step 1: Get quote
+        const quoteResponse = await uniswapFetch("/quote", {
+          type: "EXACT_INPUT",
+          tokenInChainId: chainId,
+          tokenOutChainId: chainId,
+          tokenIn: tokenInResolved.address,
+          tokenOut: tokenOutResolved.address,
+          amount: amountRaw,
+          swapper,
+          slippageTolerance: slippage / 10000,
+        });
+
+        const quoteId = quoteResponse.quote?.quoteId;
+        if (!quoteId) {
+          return {
+            content: [{ type: "text" as const, text: `Error: No quoteId returned. Response: ${JSON.stringify(quoteResponse)}` }],
+            isError: true,
+          };
+        }
+
+        // Step 2: Sign permit2 if needed
+        let permit2Signature: string | undefined;
+        if (quoteResponse.permitData) {
+          const { domain, types, values } = quoteResponse.permitData;
+          permit2Signature = await ctx.walletClient.signTypedData({
+            domain,
+            types,
+            primaryType: "PermitSingle",
+            message: values,
+          });
+        }
+
+        // Step 3: Get swap calldata
+        const swapBody: Record<string, unknown> = {
+          quote: quoteResponse.quote,
+          simulateTransaction: false,
+        };
+        if (permit2Signature) {
+          swapBody.signature = permit2Signature;
+        }
+
+        const swapResponse = await uniswapFetch("/swap", swapBody);
+
+        // Step 4: Submit the transaction
+        const tx = swapResponse.swap;
+        if (!tx) {
+          return {
+            content: [{ type: "text" as const, text: `Error: No swap tx data returned. Response: ${JSON.stringify(swapResponse)}` }],
+            isError: true,
+          };
+        }
+
+        const hash = await ctx.walletClient.sendTransaction({
+          to: tx.to as Address,
+          data: tx.data as `0x${string}`,
+          value: tx.value ? BigInt(tx.value) : 0n,
+        });
+
+        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "executed",
+              action: "uniswap_swap",
+              token_in: { symbol: token_in, address: tokenInResolved.address },
+              token_out: { symbol: token_out, address: tokenOutResolved.address },
+              amount_in: amount,
+              tx_hash: hash,
+              block_number: receipt.blockNumber.toString(),
+              status: receipt.status,
+              chain_id: chainId,
+              explorer: `https://${chainId === 1 ? "" : "holesky."}etherscan.io/tx/${hash}`,
+            }, null, 2),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{ type: "text" as const, text: `Uniswap swap error: ${e instanceof Error ? e.message : "unknown"}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── uniswap_tokens: List common tokens for a chain ──────────────────
+  server.tool(
+    "uniswap_tokens",
+    "List well-known tokens available for Uniswap swaps on the current chain, with their addresses and decimals.",
+    {},
+    async () => {
+      const chainId = ctx.chain.id;
+      const tokens: Record<string, { address: string; decimals: number }> = {};
+
+      for (const [symbol, chains] of Object.entries(WELL_KNOWN_TOKENS)) {
+        if (chains[chainId]) {
+          tokens[symbol] = chains[chainId];
+        }
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            chain_id: chainId,
+            chain_name: ctx.chain.name,
+            tokens,
+            note: "You can also pass any ERC-20 contract address directly to uniswap_quote/uniswap_swap.",
+          }, null, 2),
+        }],
+      };
+    }
+  );
+}

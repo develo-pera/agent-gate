@@ -1,0 +1,16 @@
+{
+  "name": "agentgate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent-to-agent DeFi infrastructure — MCP server + Solidity primitives for Lido, MetaMask Delegations, and ENS",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "cd packages/mcp-server && npm run build",
+    "start": "cd packages/mcp-server && npm start",
+    "dev": "cd packages/mcp-server && npm run dev",
+    "test:contracts": "cd packages/treasury-contract && forge test -vvv"
+  },
+  "license": "MIT"
+}

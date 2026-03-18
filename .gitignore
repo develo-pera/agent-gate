@@ -1,0 +1,18 @@
+node_modules/
+dist/
+out/
+cache/
+.env
+*.log
+
+# Foundry
+packages/treasury-contract/lib/
+packages/treasury-contract/out/
+packages/treasury-contract/cache/
+broadcast/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
