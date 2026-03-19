@@ -4,6 +4,14 @@
   "description": "MCP server for Lido stETH/wstETH, MetaMask delegations, and ENS — agent-to-agent DeFi infrastructure",
   "type": "module",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./bridge": {
+      "types": "./src/bridge.ts",
+      "import": "./src/bridge.ts",
+      "default": "./src/bridge.ts"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
