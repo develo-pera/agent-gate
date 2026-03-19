@@ -14,13 +14,6 @@ const TREASURY_ABI = [
     outputs: [],
   },
   {
-    name: "addYield",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "amount", type: "uint256" }],
-    outputs: [],
-  },
-  {
     name: "withdrawYield",
     type: "function",
     stateMutability: "nonpayable",
@@ -292,62 +285,6 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
           isError: true,
         };
       }
-    }
-  );
-
-  // ── treasury_add_yield: Inject yield into vault after off-chain calc ─
-  server.tool(
-    "treasury_add_yield",
-    "Add yield to your AgentTreasury vault. Call after off-chain yield calculation (via L1 exchange rate). Must approve wstETH first.",
-    {
-      amount_wsteth: z.string().describe("Amount of wstETH to add as yield"),
-      dry_run: z.boolean().optional(),
-    },
-    async ({ amount_wsteth, dry_run }) => {
-      const isDry = dry_run ?? ctx.dryRun;
-      const amount = parseEther(amount_wsteth);
-
-      if (isDry) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              mode: "dry_run",
-              action: "treasury_add_yield",
-              amount_wsteth,
-              contract: TREASURY_ADDR,
-              note: "Will transfer wstETH into your vault as spendable yield. Requires ERC20 approval first.",
-            }, null, 2),
-          }],
-        };
-      }
-
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
-      }
-
-      const hash = await ctx.walletClient.writeContract({
-        account: ctx.walletAccount!,
-        chain: ctx.chain,
-        address: TREASURY_ADDR,
-        abi: TREASURY_ABI,
-        functionName: "addYield",
-        args: [amount],
-      });
-      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            mode: "executed",
-            action: "treasury_add_yield",
-            amount_wsteth,
-            tx_hash: hash,
-            status: receipt.status,
-          }, null, 2),
-        }],
-      };
     }
   );
 
