@@ -10,10 +10,10 @@ Requirements for hackathon submission. Each maps to roadmap phases.
 ### Foundation
 
 - [x] **FOUN-01**: Next.js app created in `app/` as npm workspace package with Tailwind CSS
-- [ ] **FOUN-02**: Dark crypto theme applied globally (forced dark mode, glowing accents, DeFi aesthetic)
+- [x] **FOUN-02**: Dark crypto theme applied globally (forced dark mode, glowing accents, DeFi aesthetic)
 - [ ] **FOUN-03**: Wallet connect via RainbowKit — MetaMask/WalletConnect, address display, Base network badge
 - [ ] **FOUN-04**: Demo mode — app is fully explorable without connecting wallet (read-only with public RPC)
-- [ ] **FOUN-05**: HTTP/REST bridge exposing MCP tool handlers for Next.js API routes to call
+- [x] **FOUN-05**: HTTP/REST bridge exposing MCP tool handlers for Next.js API routes to call
 - [ ] **FOUN-06**: App shell with sidebar/nav linking to all dashboard sections
 
 ### Treasury
@@ -77,10 +77,10 @@ Deferred post-hackathon. Not in current roadmap.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | FOUN-01 | Phase 1 | Complete |
-| FOUN-02 | Phase 1 | Pending |
+| FOUN-02 | Phase 1 | Complete |
 | FOUN-03 | Phase 1 | Pending |
 | FOUN-04 | Phase 1 | Pending |
-| FOUN-05 | Phase 1 | Pending |
+| FOUN-05 | Phase 1 | Complete |
 | FOUN-06 | Phase 1 | Pending |
 | TREA-01 | Phase 2 | Pending |
 | TREA-02 | Phase 2 | Pending |
