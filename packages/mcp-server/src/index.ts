@@ -1,9 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { createPublicClient, createWalletClient, http, type PublicClient, type WalletClient } from "viem";
+import { createPublicClient, createWalletClient, http, type Chain } from "viem";
 import { mainnet, base, holesky, sepolia, arbitrum } from "viem/chains";
-import { privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 
 // Tool imports
 import { registerLidoTools } from "./tools/lido.js";
@@ -32,16 +32,17 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY as `0x${string}` | undefined;
 const DRY_RUN = process.env.DRY_RUN === "true";
 
 // ── Clients ───────────────────────────────────────────────────────────
-const publicClient: PublicClient = createPublicClient({
+const publicClient = createPublicClient({
   chain: CHAIN,
   transport: http(RPC_URL),
 });
 
-let walletClient: WalletClient | undefined;
+let walletClient: ReturnType<typeof createWalletClient> | undefined;
+let walletAccount: PrivateKeyAccount | undefined;
 if (PRIVATE_KEY) {
-  const account = privateKeyToAccount(PRIVATE_KEY);
+  walletAccount = privateKeyToAccount(PRIVATE_KEY);
   walletClient = createWalletClient({
-    account,
+    account: walletAccount,
     chain: CHAIN,
     transport: http(RPC_URL),
   });
@@ -49,15 +50,17 @@ if (PRIVATE_KEY) {
 
 // ── Shared context for all tools ──────────────────────────────────────
 export interface AgentGateContext {
-  publicClient: PublicClient;
-  walletClient?: WalletClient;
+  publicClient: any;
+  walletClient?: any;
+  walletAccount?: PrivateKeyAccount;
   dryRun: boolean;
-  chain: typeof mainnet | typeof holesky;
+  chain: Chain;
 }
 
 const ctx: AgentGateContext = {
   publicClient,
   walletClient,
+  walletAccount,
   dryRun: DRY_RUN,
   chain: CHAIN,
 };
@@ -66,10 +69,7 @@ const ctx: AgentGateContext = {
 const server = new McpServer({
   name: "agentgate",
   version: "0.1.0",
-  capabilities: {
-    tools: {},
-    resources: {},
-  },
+
 });
 
 // ── Register tool groups ──────────────────────────────────────────────

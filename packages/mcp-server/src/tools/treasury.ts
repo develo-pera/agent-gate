@@ -100,6 +100,8 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       }
 
       const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
         address: TREASURY_ADDR,
         abi: TREASURY_ABI,
         functionName: "deposit",
@@ -186,6 +188,8 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       }
 
       const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
         address: TREASURY_ADDR,
         abi: TREASURY_ABI,
         functionName: "withdrawYield",
@@ -299,6 +303,8 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       }
 
       const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
         address: TREASURY_ADDR,
         abi: TREASURY_ABI,
         functionName: "authorizeSpender",

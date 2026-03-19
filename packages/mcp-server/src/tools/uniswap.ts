@@ -280,6 +280,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
         if (quoteResponse.permitData) {
           const { domain, types, values } = quoteResponse.permitData;
           permit2Signature = await ctx.walletClient.signTypedData({
+          account: ctx.walletAccount!,
             domain,
             types,
             primaryType: "PermitSingle",
@@ -308,6 +309,8 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
         }
 
         const hash = await ctx.walletClient.sendTransaction({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
           to: tx.to as Address,
           data: tx.data as `0x${string}`,
           value: tx.value ? BigInt(tx.value) : 0n,

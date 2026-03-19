@@ -306,7 +306,7 @@ export function registerDelegationTools(server: McpServer, ctx: AgentGateContext
         const redeemCalldata = DelegationManager.encode.redeemDelegations({
           delegations: [[stored.delegation]],
           modes: [ExecutionMode.SingleDefault],
-          executions: [execution],
+          executions: [[execution]],
         });
 
         // Get the DelegationManager address for this chain
@@ -318,6 +318,8 @@ export function registerDelegationTools(server: McpServer, ctx: AgentGateContext
 
         // Submit as EOA transaction to DelegationManager
         const txHash = await ctx.walletClient.sendTransaction({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
           to: environment.DelegationManager as Address,
           data: redeemCalldata as `0x${string}`,
         });
@@ -425,6 +427,8 @@ export function registerDelegationTools(server: McpServer, ctx: AgentGateContext
         const environment = getSmartAccountsEnvironment(ctx.chain.id);
 
         const txHash = await ctx.walletClient.sendTransaction({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
           to: environment.DelegationManager as Address,
           data: disableCalldata as `0x${string}`,
         });

@@ -187,6 +187,8 @@ export function registerLidoTools(server: McpServer, ctx: AgentGateContext) {
       }
 
       const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
         address: addrs.stETH,
         abi: LIDO_ABI,
         functionName: "submit",
@@ -256,6 +258,8 @@ export function registerLidoTools(server: McpServer, ctx: AgentGateContext) {
         }
 
         const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
           address: addrs.wstETH,
           abi: WSTETH_ABI,
           functionName: "wrap",
@@ -298,6 +302,8 @@ export function registerLidoTools(server: McpServer, ctx: AgentGateContext) {
         }
 
         const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
           address: addrs.wstETH,
           abi: WSTETH_ABI,
           functionName: "unwrap",
@@ -656,6 +662,7 @@ export function registerLidoTools(server: McpServer, ctx: AgentGateContext) {
         };
 
         const signature = await ctx.walletClient.signTypedData({
+          account: ctx.walletAccount!,
           domain,
           types,
           primaryType: "Vote",
