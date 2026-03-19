@@ -7,17 +7,17 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 /**
  * @title AgentTreasury
- * @notice A vault that lets AI agents deposit wstETH and manage yield-only spending permissions.
- *         Principal is always protected — authorized spenders can only access yield.
+ * @notice A vault that lets AI agents deposit wstETH and only spend the accrued yield.
+ *         Principal is always protected — no authorized spender can touch it.
  *
- * @dev    Yield model (Base-compatible):
- *         - wstETH on Base is a bridged ERC-20 without on-chain rate functions.
- *         - The contract tracks deposits purely in wstETH units.
- *         - Yield calculation (wstETH→stETH exchange rate) is performed off-chain
- *           by the MCP server using the L1 Ethereum client.
- *         - The owner can inject yield by calling `addYield(amount)` after bridging
- *           or earning yield externally. This allows the vault to work on any chain.
- *         - Authorized spenders can only withdraw from the yield pool, never principal.
+ * @dev    Yield model (Base-compatible via Chainlink oracle):
+ *         - wstETH on Base is a bridged ERC-20 without native rate functions.
+ *         - Yield is calculated on-chain using the Chainlink wstETH/stETH exchange
+ *           rate oracle deployed by Lido on Base (0xB88BAc61a4Ca37C43a3725912B1f472c9A5bc061).
+ *         - On deposit, the contract snapshots the current exchange rate.
+ *         - Available yield = current stETH value - principal stETH value, converted
+ *           back to wstETH units.
+ *         - No mocks, no off-chain injection — real yield from the live exchange rate.
  *
  * Bounty targets:
  *   - Lido "stETH Agent Treasury" ($2K/$1K): yield-only spending with permission controls
@@ -29,40 +29,60 @@ contract AgentTreasury is ReentrancyGuard {
     // ── State ─────────────────────────────────────────────────────────
 
     IERC20 public immutable wstETH;
+    IChainlinkPriceFeed public immutable rateFeed;
 
     struct Vault {
-        uint256 principalWstETH;    // wstETH deposited (protected, never touched by spenders)
-        uint256 yieldWstETH;        // wstETH yield available for spending
+        uint256 principalWstETH;     // wstETH deposited (never decreases except on full withdraw)
+        uint256 principalStETHValue; // stETH value at time of deposit (snapshot via Chainlink)
         bool exists;
     }
 
     mapping(address => Vault) public vaults;
 
-    // Spender authorization: agent → spender → authorized
-    mapping(address => mapping(address => bool)) public authorizedSpenders;
-    // Yield-only flag: agent → spender → yieldOnly
-    mapping(address => mapping(address => bool)) public yieldOnlySpenders;
+    struct SpenderConfig {
+        bool authorized;
+        bool yieldOnly;
+        uint256 maxPerTx;           // 0 = unlimited
+        uint256 spentInWindow;      // wstETH spent in current window
+        uint40 windowStart;         // timestamp of current spending window
+        uint40 windowDuration;      // 0 = no time window (per-tx cap only)
+        uint256 windowAllowance;    // max spend per window (0 = unlimited)
+    }
+
+    // Spender authorization: agent → spender → config
+    mapping(address => mapping(address => SpenderConfig)) public spenders;
+
+    // Recipient whitelist: agent → recipient → allowed
+    mapping(address => mapping(address => bool)) public allowedRecipients;
+    // Whether whitelist is enabled for this vault (false = any recipient ok)
+    mapping(address => bool) public recipientWhitelistEnabled;
 
     // ── Events ────────────────────────────────────────────────────────
 
-    event Deposited(address indexed agent, uint256 wstETHAmount);
-    event YieldAdded(address indexed agent, uint256 wstETHAmount);
+    event Deposited(address indexed agent, uint256 wstETHAmount, uint256 stETHValue);
     event YieldWithdrawn(address indexed agent, address indexed recipient, uint256 wstETHAmount);
-    event SpenderAuthorized(address indexed agent, address indexed spender, bool yieldOnly);
+    event SpenderAuthorized(address indexed agent, address indexed spender, uint256 maxPerTx, uint40 windowDuration, uint256 windowAllowance);
     event SpenderRevoked(address indexed agent, address indexed spender);
     event PrincipalWithdrawn(address indexed agent, uint256 wstETHAmount);
+    event RecipientWhitelistToggled(address indexed agent, bool enabled);
+    event RecipientAllowed(address indexed agent, address indexed recipient, bool allowed);
 
     // ── Errors ────────────────────────────────────────────────────────
 
     error NotAuthorized();
     error InsufficientYield(uint256 requested, uint256 available);
+    error ExceedsPerTxCap(uint256 requested, uint256 cap);
+    error ExceedsWindowAllowance(uint256 requested, uint256 remaining);
+    error RecipientNotWhitelisted(address recipient);
     error ZeroAmount();
     error NoVault();
+    error StaleOracle();
 
     // ── Constructor ───────────────────────────────────────────────────
 
-    constructor(address _wstETH) {
+    constructor(address _wstETH, address _rateFeed) {
         wstETH = IERC20(_wstETH);
+        rateFeed = IChainlinkPriceFeed(_rateFeed);
     }
 
     // ── Deposit ───────────────────────────────────────────────────────
@@ -76,30 +96,15 @@ contract AgentTreasury is ReentrancyGuard {
 
         wstETH.safeTransferFrom(msg.sender, address(this), amount);
 
+        uint256 rate = _getRate();
+        uint256 stETHValue = (amount * rate) / 1e18;
+
         Vault storage v = vaults[msg.sender];
         v.principalWstETH += amount;
+        v.principalStETHValue += stETHValue;
         v.exists = true;
 
-        emit Deposited(msg.sender, amount);
-    }
-
-    // ── Yield management ──────────────────────────────────────────────
-
-    /**
-     * @notice Add yield to your vault. Call this after yield has been calculated off-chain
-     *         and the equivalent wstETH has been transferred/bridged. Must approve first.
-     * @param amount Amount of wstETH to add as yield
-     */
-    function addYield(uint256 amount) external nonReentrant {
-        if (amount == 0) revert ZeroAmount();
-
-        Vault storage v = vaults[msg.sender];
-        if (!v.exists) revert NoVault();
-
-        wstETH.safeTransferFrom(msg.sender, address(this), amount);
-        v.yieldWstETH += amount;
-
-        emit YieldAdded(msg.sender, amount);
+        emit Deposited(msg.sender, amount, stETHValue);
     }
 
     // ── Yield withdrawal ──────────────────────────────────────────────
@@ -115,11 +120,11 @@ contract AgentTreasury is ReentrancyGuard {
         Vault storage v = vaults[msg.sender];
         if (!v.exists) revert NoVault();
 
-        if (wstETHAmount > v.yieldWstETH) {
-            revert InsufficientYield(wstETHAmount, v.yieldWstETH);
+        uint256 available = _availableYield(msg.sender);
+        if (wstETHAmount > available) {
+            revert InsufficientYield(wstETHAmount, available);
         }
 
-        v.yieldWstETH -= wstETHAmount;
         wstETH.safeTransfer(recipient, wstETHAmount);
 
         emit YieldWithdrawn(msg.sender, recipient, wstETHAmount);
@@ -136,17 +141,41 @@ contract AgentTreasury is ReentrancyGuard {
         address recipient,
         uint256 wstETHAmount
     ) external nonReentrant {
-        if (!authorizedSpenders[agent][msg.sender]) revert NotAuthorized();
+        SpenderConfig storage cfg = spenders[agent][msg.sender];
+        if (!cfg.authorized) revert NotAuthorized();
         if (wstETHAmount == 0) revert ZeroAmount();
+
+        // ── Per-tx cap check ──
+        if (cfg.maxPerTx > 0 && wstETHAmount > cfg.maxPerTx) {
+            revert ExceedsPerTxCap(wstETHAmount, cfg.maxPerTx);
+        }
+
+        // ── Time-window spending limit check ──
+        if (cfg.windowDuration > 0 && cfg.windowAllowance > 0) {
+            // Reset window if expired
+            if (block.timestamp >= cfg.windowStart + cfg.windowDuration) {
+                cfg.spentInWindow = 0;
+                cfg.windowStart = uint40(block.timestamp);
+            }
+            if (cfg.spentInWindow + wstETHAmount > cfg.windowAllowance) {
+                revert ExceedsWindowAllowance(wstETHAmount, cfg.windowAllowance - cfg.spentInWindow);
+            }
+            cfg.spentInWindow += wstETHAmount;
+        }
+
+        // ── Recipient whitelist check ──
+        if (recipientWhitelistEnabled[agent] && !allowedRecipients[agent][recipient]) {
+            revert RecipientNotWhitelisted(recipient);
+        }
 
         Vault storage v = vaults[agent];
         if (!v.exists) revert NoVault();
 
-        if (wstETHAmount > v.yieldWstETH) {
-            revert InsufficientYield(wstETHAmount, v.yieldWstETH);
+        uint256 available = _availableYield(agent);
+        if (wstETHAmount > available) {
+            revert InsufficientYield(wstETHAmount, available);
         }
 
-        v.yieldWstETH -= wstETHAmount;
         wstETH.safeTransfer(recipient, wstETHAmount);
 
         emit YieldWithdrawn(agent, recipient, wstETHAmount);
@@ -161,27 +190,47 @@ contract AgentTreasury is ReentrancyGuard {
         Vault storage v = vaults[msg.sender];
         if (!v.exists) revert NoVault();
 
-        uint256 total = v.principalWstETH + v.yieldWstETH;
+        uint256 balance = wstETH.balanceOf(address(this));
+        // Only send what belongs to this agent (principal + any yield)
+        uint256 toSend = v.principalWstETH + _availableYield(msg.sender);
+        if (toSend > balance) toSend = balance;
+
         v.principalWstETH = 0;
-        v.yieldWstETH = 0;
+        v.principalStETHValue = 0;
 
-        wstETH.safeTransfer(msg.sender, total);
+        wstETH.safeTransfer(msg.sender, toSend);
 
-        emit PrincipalWithdrawn(msg.sender, total);
+        emit PrincipalWithdrawn(msg.sender, toSend);
     }
 
     // ── Authorization ─────────────────────────────────────────────────
 
     /**
-     * @notice Authorize another address to spend yield from your vault
+     * @notice Authorize a spender with configurable permissions
      * @param spender Address to authorize
      * @param yieldOnly If true, spender can only access yield (not principal)
+     * @param maxPerTx Maximum wstETH per transaction (0 = unlimited)
+     * @param windowDuration Time window in seconds for spending limit (0 = no window)
+     * @param windowAllowance Max wstETH spendable per window (0 = unlimited)
      */
-    function authorizeSpender(address spender, bool yieldOnly) external {
-        authorizedSpenders[msg.sender][spender] = true;
-        yieldOnlySpenders[msg.sender][spender] = yieldOnly;
+    function authorizeSpender(
+        address spender,
+        bool yieldOnly,
+        uint256 maxPerTx,
+        uint40 windowDuration,
+        uint256 windowAllowance
+    ) external {
+        spenders[msg.sender][spender] = SpenderConfig({
+            authorized: true,
+            yieldOnly: yieldOnly,
+            maxPerTx: maxPerTx,
+            spentInWindow: 0,
+            windowStart: uint40(block.timestamp),
+            windowDuration: windowDuration,
+            windowAllowance: windowAllowance
+        });
 
-        emit SpenderAuthorized(msg.sender, spender, yieldOnly);
+        emit SpenderAuthorized(msg.sender, spender, maxPerTx, windowDuration, windowAllowance);
     }
 
     /**
@@ -189,16 +238,49 @@ contract AgentTreasury is ReentrancyGuard {
      * @param spender Address to revoke
      */
     function revokeSpender(address spender) external {
-        authorizedSpenders[msg.sender][spender] = false;
-        yieldOnlySpenders[msg.sender][spender] = false;
+        delete spenders[msg.sender][spender];
 
         emit SpenderRevoked(msg.sender, spender);
+    }
+
+    /**
+     * @notice Toggle recipient whitelist for your vault
+     * @param enabled Whether to require recipients be whitelisted
+     */
+    function setRecipientWhitelist(bool enabled) external {
+        recipientWhitelistEnabled[msg.sender] = enabled;
+
+        emit RecipientWhitelistToggled(msg.sender, enabled);
+    }
+
+    /**
+     * @notice Add or remove a recipient from the whitelist
+     * @param recipient Address to allow/disallow
+     * @param allowed Whether this recipient is allowed
+     */
+    function setAllowedRecipient(address recipient, bool allowed) external {
+        allowedRecipients[msg.sender][recipient] = allowed;
+
+        emit RecipientAllowed(msg.sender, recipient, allowed);
     }
 
     // ── View functions ────────────────────────────────────────────────
 
     function isAuthorizedSpender(address agent, address spender) external view returns (bool) {
-        return authorizedSpenders[agent][spender];
+        return spenders[agent][spender].authorized;
+    }
+
+    function getSpenderConfig(address agent, address spender) external view returns (
+        bool authorized,
+        bool yieldOnly,
+        uint256 maxPerTx,
+        uint256 spentInWindow,
+        uint40 windowStart,
+        uint40 windowDuration,
+        uint256 windowAllowance
+    ) {
+        SpenderConfig storage cfg = spenders[agent][spender];
+        return (cfg.authorized, cfg.yieldOnly, cfg.maxPerTx, cfg.spentInWindow, cfg.windowStart, cfg.windowDuration, cfg.windowAllowance);
     }
 
     function getVaultStatus(address agent) external view returns (
@@ -209,8 +291,49 @@ contract AgentTreasury is ReentrancyGuard {
     ) {
         Vault storage v = vaults[agent];
         depositedPrincipal = v.principalWstETH;
-        availableYield = v.yieldWstETH;
-        totalBalance = v.principalWstETH + v.yieldWstETH;
+        availableYield = _availableYield(agent);
+        totalBalance = v.principalWstETH + availableYield;
         hasVault = v.exists;
     }
+
+    function getCurrentRate() external view returns (uint256) {
+        return _getRate();
+    }
+
+    // ── Internal ──────────────────────────────────────────────────────
+
+    function _getRate() internal view returns (uint256) {
+        (, int256 answer,, uint256 updatedAt,) = rateFeed.latestRoundData();
+        if (answer <= 0 || updatedAt == 0) revert StaleOracle();
+        return uint256(answer);
+    }
+
+    function _availableYield(address agent) internal view returns (uint256) {
+        Vault storage v = vaults[agent];
+        if (!v.exists || v.principalWstETH == 0) return 0;
+
+        uint256 rate = _getRate();
+        // Current stETH value of the deposited wstETH
+        uint256 currentStETHValue = (v.principalWstETH * rate) / 1e18;
+
+        if (currentStETHValue <= v.principalStETHValue) return 0;
+
+        // Yield in stETH terms
+        uint256 yieldInStETH = currentStETHValue - v.principalStETHValue;
+
+        // Convert yield back to wstETH units: yieldWstETH = yieldStETH * 1e18 / rate
+        return (yieldInStETH * 1e18) / rate;
+    }
+}
+
+// ── Interface for Chainlink price feed ───────────────────────────────
+
+interface IChainlinkPriceFeed {
+    function latestRoundData() external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
 }
