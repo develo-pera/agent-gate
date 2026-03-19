@@ -60,16 +60,24 @@ Exceptions:
 
 ## Typography
 
+**Inter scale (3 sizes, 2 weights):**
+
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
-| Body | 14px | 400 (regular) | 1.5 | Default text, descriptions, banner copy |
-| Label | 12px | 500 (medium) | 1.4 | Sidebar expanded labels, badge text, network name |
+| Body / Label | 14px | 400 (regular) for body, 600 (semibold) for labels | 1.5 | Default text, descriptions, banner copy, sidebar expanded labels, badge text, network name |
 | Heading | 20px | 600 (semibold) | 1.2 | Page titles, "Coming soon" card headings |
-| Display | 28px | 700 (bold) | 1.15 | AgentGate wordmark in sidebar |
+| Display | 28px | 600 (semibold) | 1.15 | AgentGate wordmark in sidebar |
+
+**Weights used:** 400 (regular) and 600 (semibold) only. No other weights permitted.
+
+- Body text, descriptions, placeholder subtitles: 14px / 400
+- Labels, badge text, sidebar nav labels: 14px / 600
+- Headings, card titles: 20px / 600
+- Wordmark display: 28px / 600
 
 **Font stack:** `Inter, ui-sans-serif, system-ui, -apple-system, sans-serif`
 
-**Monospace (addresses):** `font-mono` (Tailwind default: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`) at 13px weight 400 for wallet addresses and hex values.
+**Monospace (addresses -- separate font stack, not counted in Inter scale):** `font-mono` (Tailwind default: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`) at 13px weight 400 for wallet addresses and hex values.
 
 ---
 
@@ -128,11 +136,12 @@ Exceptions:
 | Container | Fixed left, full viewport height, `--card` background, 1px right border `--border` |
 | Collapsed state | 56px wide, icon-only, icons centered 44px touch targets |
 | Expanded state | 240px wide, triggered on hover with 200ms transition |
-| Logo | "AgentGate" wordmark at Display size, truncated to "AG" monogram when collapsed, accent glow on text-shadow |
+| Logo | "AgentGate" wordmark at Display size (28px / 600), truncated to "AG" monogram when collapsed, accent glow on text-shadow |
 | Nav items | 4 items: Treasury (Vault icon), Staking (TrendingUp icon), Delegations (Users icon), Playground (Terminal icon) |
 | Active indicator | 3px left border in accent color, icon filled in accent, label in foreground color |
 | Inactive indicator | No left border, icon in muted-foreground, label in muted-foreground |
 | Hover state | Background `--muted`, icon brightens to foreground |
+| Nav labels | 14px / 600 (semibold) when sidebar expanded |
 | Wallet section | Bottom of sidebar, separated by `--border` line. Shows avatar + truncated address when connected, "Connect Wallet" button when disconnected |
 
 ### Demo Mode Banner
@@ -141,7 +150,7 @@ Exceptions:
 |---------|--------------|
 | Container | Full width, 40px height, sticky top, background `hsl(38 92% 50% / 0.1)` (warning tint), 1px bottom border warning at 30% opacity |
 | Layout | Centered text + right-aligned CTA button |
-| Text | Body size, muted-foreground: "Demo Mode -- viewing 0x1234...abcd" (truncated treasury address) |
+| Text | 14px / 400 (regular), muted-foreground: "Demo Mode -- viewing 0x1234...abcd" (truncated treasury address) |
 | CTA | Ghost button variant, accent text: "Connect Wallet" |
 | Dismiss | Not dismissable -- persistent until wallet connects |
 | Connected state | Banner disappears entirely when wallet is connected |
@@ -151,7 +160,7 @@ Exceptions:
 | Element | Specification |
 |---------|--------------|
 | Trigger | shadcn `Button` variant="default" (accent) in sidebar bottom section |
-| Connected display | Avatar (blockie/ENS avatar) + address (mono 13px truncated) + Badge "Base" in accent variant |
+| Connected display | Avatar (blockie/ENS avatar) + address (mono 13px / 400 truncated) + Badge "Base" (14px / 600) in accent variant |
 | Theme | RainbowKit `darkTheme()` with accentColor matching `--primary` hex, borderRadius "medium" |
 
 ### Placeholder Pages (Treasury, Staking, Delegations, Playground)
@@ -161,8 +170,8 @@ Exceptions:
 | Container | Centered in main content area, max-width 480px |
 | Card | Glassmorphism card (`.glass-card`) with 32px padding |
 | Icon | Section-specific lucide icon, 48px, muted-foreground |
-| Title | Heading size, foreground: "{Section Name}" |
-| Subtitle | Body size, muted-foreground: "Coming soon" |
+| Title | 20px / 600 (semibold), foreground: "{Section Name}" |
+| Subtitle | 14px / 400 (regular), muted-foreground: "Coming soon" |
 | Layout | Vertical stack, centered text, 16px gap between elements |
 
 ### Main Content Area
