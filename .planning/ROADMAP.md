@@ -28,9 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can connect a MetaMask wallet via RainbowKit and see their address displayed with a Base network badge
   4. User can browse the entire app in demo mode without connecting a wallet, seeing read-only data from a hardcoded treasury address
   5. The HTTP bridge at `/api/mcp/[tool]` accepts POST requests and returns JSON responses from MCP tool handlers
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
+- [ ] 01-00-PLAN.md — Install Vitest and create Wave 0 test stub files
 - [ ] 01-01-PLAN.md — Scaffold Next.js app with dark crypto theme, shadcn, and MCP HTTP bridge
 - [ ] 01-02-PLAN.md — Wire wallet connect, demo mode, sidebar navigation, and placeholder pages
 
@@ -72,6 +73,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/2 | Not started | - |
+| 1. Foundation | 0/3 | Not started | - |
 | 2. Dashboard Pages | 0/3 | Not started | - |
 | 3. MCP Playground | 0/2 | Not started | - |
