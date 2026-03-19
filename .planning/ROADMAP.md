@@ -28,11 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can connect a MetaMask wallet via RainbowKit and see their address displayed with a Base network badge
   4. User can browse the entire app in demo mode without connecting a wallet, seeing read-only data from a hardcoded treasury address
   5. The HTTP bridge at `/api/mcp/[tool]` accepts POST requests and returns JSON responses from MCP tool handlers
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Scaffold Next.js app with dark crypto theme, shadcn, and MCP HTTP bridge
+- [ ] 01-02-PLAN.md — Wire wallet connect, demo mode, sidebar navigation, and placeholder pages
 
 ### Phase 2: Dashboard Pages
 **Goal**: User can view treasury vault status, staking positions, and active delegations with real on-chain data across three polished dashboard sections
