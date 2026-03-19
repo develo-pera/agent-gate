@@ -10,6 +10,7 @@ packages/treasury-contract/lib/
 packages/treasury-contract/out/
 packages/treasury-contract/cache/
 broadcast/
+mnemonic.txt
 
 # IDE
 .vscode/
