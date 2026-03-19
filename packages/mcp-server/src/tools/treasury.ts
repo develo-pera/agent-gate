@@ -1,10 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { parseEther, formatEther, type Address, getContract } from "viem";
+import { parseEther, formatEther, type Address } from "viem";
 import type { AgentGateContext } from "../index.js";
 
-// ── AgentTreasury contract ABI ────────────────────────────────────────
-// This matches the Solidity contract in packages/treasury-contract/
+// ── AgentTreasury contract ABI (Chainlink oracle + configurable spender permissions) ──
 const TREASURY_ABI = [
   {
     name: "deposit",
@@ -42,6 +41,43 @@ const TREASURY_ABI = [
     outputs: [],
   },
   {
+    name: "authorizeSpender",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "yieldOnly", type: "bool" },
+      { name: "maxPerTx", type: "uint256" },
+      { name: "windowDuration", type: "uint40" },
+      { name: "windowAllowance", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "revokeSpender",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "spender", type: "address" }],
+    outputs: [],
+  },
+  {
+    name: "setRecipientWhitelist",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "enabled", type: "bool" }],
+    outputs: [],
+  },
+  {
+    name: "setAllowedRecipient",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "recipient", type: "address" },
+      { name: "allowed", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
     name: "getVaultStatus",
     type: "function",
     stateMutability: "view",
@@ -64,34 +100,58 @@ const TREASURY_ABI = [
     outputs: [{ name: "", type: "bool" }],
   },
   {
-    name: "authorizeSpender",
+    name: "getSpenderConfig",
     type: "function",
-    stateMutability: "nonpayable",
+    stateMutability: "view",
     inputs: [
+      { name: "agent", type: "address" },
       { name: "spender", type: "address" },
-      { name: "yieldOnly", type: "bool" },
     ],
-    outputs: [],
+    outputs: [
+      { name: "authorized", type: "bool" },
+      { name: "yieldOnly", type: "bool" },
+      { name: "maxPerTx", type: "uint256" },
+      { name: "spentInWindow", type: "uint256" },
+      { name: "windowStart", type: "uint40" },
+      { name: "windowDuration", type: "uint40" },
+      { name: "windowAllowance", type: "uint256" },
+    ],
   },
   {
-    name: "revokeSpender",
+    name: "getCurrentRate",
     type: "function",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "spender", type: "address" }],
-    outputs: [],
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "recipientWhitelistEnabled",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "allowedRecipients",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "", type: "address" },
+      { name: "", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
   },
 ] as const;
 
 export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) {
-  // Treasury contract address — set via env or use default deployment
   const TREASURY_ADDR = (process.env.TREASURY_ADDRESS || "0x0000000000000000000000000000000000000000") as Address;
 
-  // ── treasury_deposit: Deposit wstETH into the agent treasury ────────
+  // ── treasury_deposit ────────────────────────────────────────────────
   server.tool(
     "treasury_deposit",
-    "Deposit wstETH into the AgentTreasury. The deposited principal is locked — only yield accrued on top can be spent.",
+    "Deposit wstETH into the AgentTreasury. Principal is locked — only yield (tracked via Chainlink oracle) can be spent by authorized agents.",
     {
-      amount_wsteth: z.string().describe("Amount of wstETH to deposit (e.g. '1.0')"),
+      amount_wsteth: z.string().describe("Amount of wstETH to deposit (e.g. '0.01')"),
       dry_run: z.boolean().optional(),
     },
     async ({ amount_wsteth, dry_run }) => {
@@ -107,7 +167,7 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
               action: "treasury_deposit",
               amount_wsteth,
               contract: TREASURY_ADDR,
-              note: "Will deposit wstETH. Principal is locked; only yield above deposit value can be withdrawn.",
+              note: "Will deposit wstETH. Principal is locked; only yield accrued via wstETH/stETH exchange rate appreciation can be withdrawn. Rate is read from Chainlink oracle on Base.",
             }, null, 2),
           }],
         };
@@ -118,8 +178,8 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       }
 
       const hash = await ctx.walletClient.writeContract({
-          account: ctx.walletAccount!,
-          chain: ctx.chain,
+        account: ctx.walletAccount!,
+        chain: ctx.chain,
         address: TREASURY_ADDR,
         abi: TREASURY_ABI,
         functionName: "deposit",
@@ -142,10 +202,196 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
     }
   );
 
-  // ── treasury_withdraw_yield: Spend only accrued yield ───────────────
+  // ── treasury_status ─────────────────────────────────────────────────
+  server.tool(
+    "treasury_status",
+    "Check an agent's vault: deposited principal, available yield (from Chainlink oracle), total balance, and current wstETH/stETH exchange rate.",
+    {
+      agent_address: z.string().describe("Agent address to check vault status for"),
+    },
+    async ({ agent_address }) => {
+      if (TREASURY_ADDR === "0x0000000000000000000000000000000000000000") {
+        return {
+          content: [{ type: "text" as const, text: "Error: TREASURY_ADDRESS not configured." }],
+          isError: true,
+        };
+      }
+
+      try {
+        const [vaultResult, rateResult] = await Promise.all([
+          ctx.publicClient.readContract({
+            address: TREASURY_ADDR,
+            abi: TREASURY_ABI,
+            functionName: "getVaultStatus",
+            args: [agent_address as Address],
+          }),
+          ctx.publicClient.readContract({
+            address: TREASURY_ADDR,
+            abi: TREASURY_ABI,
+            functionName: "getCurrentRate",
+          }),
+        ]);
+
+        const [depositedPrincipal, availableYield, totalBalance, hasVault] = vaultResult;
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              agent: agent_address,
+              has_vault: hasVault,
+              principal_wsteth: formatEther(depositedPrincipal),
+              available_yield_wsteth: formatEther(availableYield),
+              total_balance_wsteth: formatEther(totalBalance),
+              yield_percentage: depositedPrincipal > 0n
+                ? ((Number(availableYield) / Number(depositedPrincipal)) * 100).toFixed(4) + "%"
+                : "0%",
+              chainlink_rate: formatEther(rateResult),
+              rate_meaning: `1 wstETH = ${formatEther(rateResult)} stETH`,
+              contract: TREASURY_ADDR,
+              network: ctx.chain.name,
+            }, null, 2),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{ type: "text" as const, text: `Error reading treasury: ${e instanceof Error ? e.message : "unknown"}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── treasury_authorize_spender ──────────────────────────────────────
+  server.tool(
+    "treasury_authorize_spender",
+    "Authorize another agent to spend yield from your vault with configurable limits: per-tx cap, time-window budget, and optional recipient whitelist. " +
+    "Supports multi-agent yield budget delegation — parent agent sets different spending tiers for each sub-agent.",
+    {
+      spender: z.string().describe("Address to authorize as yield spender"),
+      yield_only: z.boolean().optional().describe("If true (default), spender can only access yield, never principal"),
+      max_per_tx: z.string().optional().describe("Max wstETH per transaction (e.g. '0.001'). 0 or omit = unlimited"),
+      window_duration_seconds: z.number().optional().describe("Time window in seconds for spending limit (e.g. 3600 = 1 hour). 0 or omit = no window"),
+      window_allowance: z.string().optional().describe("Max wstETH spendable per window (e.g. '0.005'). 0 or omit = unlimited"),
+      dry_run: z.boolean().optional(),
+    },
+    async ({ spender, yield_only, max_per_tx, window_duration_seconds, window_allowance, dry_run }) => {
+      const isDry = dry_run ?? ctx.dryRun;
+      const yieldOnly = yield_only ?? true;
+      const maxPerTx = max_per_tx ? parseEther(max_per_tx) : 0n;
+      const windowDuration = BigInt(window_duration_seconds ?? 0);
+      const windowAllow = window_allowance ? parseEther(window_allowance) : 0n;
+
+      if (isDry) {
+        const limits: string[] = [];
+        if (maxPerTx > 0n) limits.push(`max ${max_per_tx} wstETH per tx`);
+        if (windowDuration > 0n && windowAllow > 0n) limits.push(`max ${window_allowance} wstETH per ${windowDuration}s window`);
+        if (limits.length === 0) limits.push("unlimited");
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "dry_run",
+              action: "authorize_spender",
+              spender,
+              yield_only: yieldOnly,
+              limits: limits.join(", "),
+              note: `Will authorize ${spender} to spend ${yieldOnly ? "yield only" : "full balance"} with limits: ${limits.join(", ")}`,
+            }, null, 2),
+          }],
+        };
+      }
+
+      if (!ctx.walletClient) {
+        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      }
+
+      const hash = await ctx.walletClient.writeContract({
+        account: ctx.walletAccount!,
+        chain: ctx.chain,
+        address: TREASURY_ADDR,
+        abi: TREASURY_ABI,
+        functionName: "authorizeSpender",
+        args: [spender as Address, yieldOnly, maxPerTx, windowDuration, windowAllow],
+      });
+      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            mode: "executed",
+            action: "authorize_spender",
+            spender,
+            yield_only: yieldOnly,
+            max_per_tx: max_per_tx || "unlimited",
+            window_duration: Number(windowDuration) || "none",
+            window_allowance: window_allowance || "unlimited",
+            tx_hash: hash,
+            status: receipt.status,
+          }, null, 2),
+        }],
+      };
+    }
+  );
+
+  // ── treasury_get_spender_config ─────────────────────────────────────
+  server.tool(
+    "treasury_get_spender_config",
+    "Check a spender's authorization config for a vault: per-tx cap, window budget, spending history.",
+    {
+      agent_address: z.string().describe("Vault owner's address"),
+      spender_address: z.string().describe("Spender address to check"),
+    },
+    async ({ agent_address, spender_address }) => {
+      try {
+        const result = await ctx.publicClient.readContract({
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI,
+          functionName: "getSpenderConfig",
+          args: [agent_address as Address, spender_address as Address],
+        });
+
+        const [authorized, yieldOnly, maxPerTx, spentInWindow, windowStart, windowDuration, windowAllowance] = result;
+        const maxPerTxBig = BigInt(maxPerTx);
+        const spentBig = BigInt(spentInWindow);
+        const winDurBig = BigInt(windowDuration);
+        const winAllowBig = BigInt(windowAllowance);
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              agent: agent_address,
+              spender: spender_address,
+              authorized,
+              yield_only: yieldOnly,
+              max_per_tx: maxPerTxBig > 0n ? formatEther(maxPerTxBig) + " wstETH" : "unlimited",
+              window: winDurBig > 0n ? {
+                duration_seconds: Number(windowDuration),
+                allowance: formatEther(winAllowBig) + " wstETH",
+                spent_in_current_window: formatEther(spentBig) + " wstETH",
+                remaining: winAllowBig > spentBig ? formatEther(winAllowBig - spentBig) + " wstETH" : "0 wstETH",
+                window_started: new Date(Number(windowStart) * 1000).toISOString(),
+              } : "no time window",
+              contract: TREASURY_ADDR,
+            }, null, 2),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${e instanceof Error ? e.message : "unknown"}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── treasury_withdraw_yield ─────────────────────────────────────────
   server.tool(
     "treasury_withdraw_yield",
-    "Withdraw accrued stETH yield from the AgentTreasury. Cannot exceed available yield — principal is always protected.",
+    "Withdraw accrued yield from your own vault. Cannot exceed available yield — principal is always protected.",
     {
       recipient: z.string().describe("Address to receive the yield"),
       amount_wsteth: z.string().describe("Amount of wstETH yield to withdraw"),
@@ -156,7 +402,6 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       const amount = parseEther(amount_wsteth);
 
       if (isDry) {
-        // Check available yield
         if (TREASURY_ADDR !== "0x0000000000000000000000000000000000000000") {
           try {
             const account = ctx.walletClient?.account?.address || recipient;
@@ -176,27 +421,18 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
                   requested_amount: amount_wsteth,
                   available_yield: formatEther(result[1]),
                   principal_protected: formatEther(result[0]),
-                  total_balance: formatEther(result[2]),
                   would_succeed: result[1] >= amount,
                   recipient,
                 }, null, 2),
               }],
             };
-          } catch {
-            // Contract not deployed yet — return estimate
-          }
+          } catch { /* fallthrough */ }
         }
 
         return {
           content: [{
             type: "text" as const,
-            text: JSON.stringify({
-              mode: "dry_run",
-              action: "treasury_withdraw_yield",
-              requested_amount: amount_wsteth,
-              recipient,
-              note: "Treasury contract not yet deployed or address not configured.",
-            }, null, 2),
+            text: JSON.stringify({ mode: "dry_run", action: "treasury_withdraw_yield", requested_amount: amount_wsteth, recipient }, null, 2),
           }],
         };
       }
@@ -206,8 +442,8 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       }
 
       const hash = await ctx.walletClient.writeContract({
-          account: ctx.walletAccount!,
-          chain: ctx.chain,
+        account: ctx.walletAccount!,
+        chain: ctx.chain,
         address: TREASURY_ADDR,
         abi: TREASURY_ABI,
         functionName: "withdrawYield",
@@ -231,67 +467,10 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
     }
   );
 
-  // ── treasury_status: Check vault health ─────────────────────────────
-  server.tool(
-    "treasury_status",
-    "Check the AgentTreasury vault status: deposited principal, current value, available yield, and authorized spenders.",
-    {
-      agent_address: z.string().describe("Agent address to check vault status for"),
-    },
-    async ({ agent_address }) => {
-      if (TREASURY_ADDR === "0x0000000000000000000000000000000000000000") {
-        return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              error: "Treasury contract address not configured. Set TREASURY_ADDRESS env var.",
-              hint: "Deploy the contract from packages/treasury-contract first.",
-            }, null, 2),
-          }],
-          isError: true,
-        };
-      }
-
-      try {
-        const result = await ctx.publicClient.readContract({
-          address: TREASURY_ADDR,
-          abi: TREASURY_ABI,
-          functionName: "getVaultStatus",
-          args: [agent_address as Address],
-        });
-
-        const [depositedPrincipal, availableYield, totalBalance, hasVault] = result;
-
-        return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              agent: agent_address,
-              has_vault: hasVault,
-              principal_wsteth: formatEther(depositedPrincipal),
-              available_yield_wsteth: formatEther(availableYield),
-              total_balance_wsteth: formatEther(totalBalance),
-              yield_percentage: depositedPrincipal > 0n
-                ? ((Number(availableYield) / Number(depositedPrincipal)) * 100).toFixed(4) + "%"
-                : "0%",
-              contract: TREASURY_ADDR,
-              network: ctx.chain.name,
-            }, null, 2),
-          }],
-        };
-      } catch (e) {
-        return {
-          content: [{ type: "text" as const, text: `Error reading treasury: ${e instanceof Error ? e.message : "unknown"}` }],
-          isError: true,
-        };
-      }
-    }
-  );
-
-  // ── treasury_withdraw_yield_for: Spender withdraws yield on behalf ──
+  // ── treasury_withdraw_yield_for ─────────────────────────────────────
   server.tool(
     "treasury_withdraw_yield_for",
-    "Withdraw yield from another agent's vault as an authorized spender. Only works if the vault owner authorized you.",
+    "Withdraw yield from another agent's vault as an authorized spender. Subject to per-tx caps, window budgets, and recipient whitelists configured by the vault owner.",
     {
       agent_address: z.string().describe("Vault owner's address"),
       recipient: z.string().describe("Address to receive the yield"),
@@ -304,18 +483,28 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
 
       if (isDry) {
         try {
-          const result = await ctx.publicClient.readContract({
-            address: TREASURY_ADDR,
-            abi: TREASURY_ABI,
-            functionName: "getVaultStatus",
-            args: [agent_address as Address],
-          });
-          const isAuth = await ctx.publicClient.readContract({
-            address: TREASURY_ADDR,
-            abi: TREASURY_ABI,
-            functionName: "isAuthorizedSpender",
-            args: [agent_address as Address, (ctx.walletAccount?.address || recipient) as Address],
-          });
+          const [vaultResult, isAuth, spenderCfg] = await Promise.all([
+            ctx.publicClient.readContract({
+              address: TREASURY_ADDR,
+              abi: TREASURY_ABI,
+              functionName: "getVaultStatus",
+              args: [agent_address as Address],
+            }),
+            ctx.publicClient.readContract({
+              address: TREASURY_ADDR,
+              abi: TREASURY_ABI,
+              functionName: "isAuthorizedSpender",
+              args: [agent_address as Address, (ctx.walletAccount?.address || recipient) as Address],
+            }),
+            ctx.publicClient.readContract({
+              address: TREASURY_ADDR,
+              abi: TREASURY_ABI,
+              functionName: "getSpenderConfig",
+              args: [agent_address as Address, (ctx.walletAccount?.address || recipient) as Address],
+            }),
+          ]);
+
+          const withinPerTxCap = spenderCfg[2] === 0n || amount <= spenderCfg[2];
 
           return {
             content: [{
@@ -326,26 +515,19 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
                 agent: agent_address,
                 recipient,
                 requested_amount: amount_wsteth,
-                available_yield: formatEther(result[1]),
+                available_yield: formatEther(vaultResult[1]),
                 is_authorized: isAuth,
-                would_succeed: isAuth && result[1] >= amount,
+                within_per_tx_cap: withinPerTxCap,
+                would_succeed: isAuth && vaultResult[1] >= amount && withinPerTxCap,
               }, null, 2),
             }],
           };
-        } catch {
-          // fallthrough
-        }
+        } catch { /* fallthrough */ }
 
         return {
           content: [{
             type: "text" as const,
-            text: JSON.stringify({
-              mode: "dry_run",
-              action: "treasury_withdraw_yield_for",
-              agent: agent_address,
-              recipient,
-              requested_amount: amount_wsteth,
-            }, null, 2),
+            text: JSON.stringify({ mode: "dry_run", action: "treasury_withdraw_yield_for", agent: agent_address, recipient, requested_amount: amount_wsteth }, null, 2),
           }],
         };
       }
@@ -381,18 +563,16 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
     }
   );
 
-  // ── treasury_authorize: Authorize another agent to spend yield ──────
+  // ── treasury_set_recipient_whitelist ─────────────────────────────────
   server.tool(
-    "treasury_authorize_spender",
-    "Authorize another agent/address to spend yield from your AgentTreasury vault. They can only withdraw accrued yield, never principal.",
+    "treasury_set_recipient_whitelist",
+    "Toggle recipient whitelist for your vault. When enabled, authorized spenders can only send yield to pre-approved addresses.",
     {
-      spender: z.string().describe("Address to authorize as yield spender"),
-      yield_only: z.boolean().optional().describe("If true (default), spender can only access yield. If false, full access."),
+      enabled: z.boolean().describe("true = only whitelisted recipients allowed, false = any recipient ok"),
       dry_run: z.boolean().optional(),
     },
-    async ({ spender, yield_only, dry_run }) => {
+    async ({ enabled, dry_run }) => {
       const isDry = dry_run ?? ctx.dryRun;
-      const yieldOnly = yield_only ?? true;
 
       if (isDry) {
         return {
@@ -400,10 +580,9 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
             type: "text" as const,
             text: JSON.stringify({
               mode: "dry_run",
-              action: "authorize_spender",
-              spender,
-              yield_only: yieldOnly,
-              note: `Will authorize ${spender} to spend ${yieldOnly ? "yield only" : "full balance"} from your vault.`,
+              action: "set_recipient_whitelist",
+              enabled,
+              note: enabled ? "Spenders will only be able to send yield to whitelisted addresses." : "Any recipient will be allowed.",
             }, null, 2),
           }],
         };
@@ -414,28 +593,103 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       }
 
       const hash = await ctx.walletClient.writeContract({
-          account: ctx.walletAccount!,
-          chain: ctx.chain,
+        account: ctx.walletAccount!,
+        chain: ctx.chain,
         address: TREASURY_ADDR,
         abi: TREASURY_ABI,
-        functionName: "authorizeSpender",
-        args: [spender as Address, yieldOnly],
+        functionName: "setRecipientWhitelist",
+        args: [enabled],
       });
       const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
 
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify({
-            mode: "executed",
-            action: "authorize_spender",
-            spender,
-            yield_only: yieldOnly,
-            tx_hash: hash,
-            status: receipt.status,
-          }, null, 2),
+          text: JSON.stringify({ mode: "executed", action: "set_recipient_whitelist", enabled, tx_hash: hash, status: receipt.status }, null, 2),
         }],
       };
+    }
+  );
+
+  // ── treasury_set_allowed_recipient ──────────────────────────────────
+  server.tool(
+    "treasury_set_allowed_recipient",
+    "Add or remove an address from your vault's recipient whitelist. Only effective when recipient whitelist is enabled.",
+    {
+      recipient: z.string().describe("Address to whitelist or remove"),
+      allowed: z.boolean().describe("true = allow, false = remove from whitelist"),
+      dry_run: z.boolean().optional(),
+    },
+    async ({ recipient, allowed, dry_run }) => {
+      const isDry = dry_run ?? ctx.dryRun;
+
+      if (isDry) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "dry_run",
+              action: "set_allowed_recipient",
+              recipient,
+              allowed,
+            }, null, 2),
+          }],
+        };
+      }
+
+      if (!ctx.walletClient) {
+        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      }
+
+      const hash = await ctx.walletClient.writeContract({
+        account: ctx.walletAccount!,
+        chain: ctx.chain,
+        address: TREASURY_ADDR,
+        abi: TREASURY_ABI,
+        functionName: "setAllowedRecipient",
+        args: [recipient as Address, allowed],
+      });
+      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({ mode: "executed", action: "set_allowed_recipient", recipient, allowed, tx_hash: hash, status: receipt.status }, null, 2),
+        }],
+      };
+    }
+  );
+
+  // ── treasury_get_rate ───────────────────────────────────────────────
+  server.tool(
+    "treasury_get_rate",
+    "Get the current wstETH/stETH exchange rate from the Chainlink oracle on Base. This rate determines yield accrual in the treasury.",
+    {},
+    async () => {
+      try {
+        const rate = await ctx.publicClient.readContract({
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI,
+          functionName: "getCurrentRate",
+        });
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              chainlink_rate: formatEther(rate),
+              meaning: `1 wstETH = ${formatEther(rate)} stETH`,
+              oracle: "Chainlink wstETH/stETH on Base (0xB88BAc61a4Ca37C43a3725912B1f472c9A5bc061)",
+              note: "This rate increases over time as Lido staking yield accrues. Yield in the treasury = (current_rate - deposit_rate) * principal.",
+            }, null, 2),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${e instanceof Error ? e.message : "unknown"}` }],
+          isError: true,
+        };
+      }
     }
   );
 }
