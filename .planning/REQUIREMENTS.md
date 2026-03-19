@@ -87,22 +87,22 @@ Deferred post-hackathon. Not in current roadmap.
 | TREA-03 | Phase 2 | Pending |
 | TREA-04 | Phase 2 | Pending |
 | TREA-05 | Phase 2 | Pending |
-| PLAY-01 | Phase 2 | Pending |
-| PLAY-02 | Phase 2 | Pending |
-| PLAY-03 | Phase 2 | Pending |
-| PLAY-04 | Phase 2 | Pending |
 | DELG-01 | Phase 2 | Pending |
 | DELG-02 | Phase 2 | Pending |
 | DELG-03 | Phase 2 | Pending |
 | STAK-01 | Phase 2 | Pending |
 | STAK-02 | Phase 2 | Pending |
 | STAK-03 | Phase 2 | Pending |
+| PLAY-01 | Phase 3 | Pending |
+| PLAY-02 | Phase 3 | Pending |
+| PLAY-03 | Phase 3 | Pending |
+| PLAY-04 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 21 total
 - Mapped to phases: 21
-- Unmapped: 0 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 after roadmap creation*
