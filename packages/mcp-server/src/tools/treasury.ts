@@ -10,7 +10,14 @@ const TREASURY_ABI = [
     name: "deposit",
     type: "function",
     stateMutability: "nonpayable",
-    inputs: [{ name: "wstETHAmount", type: "uint256" }],
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "addYield",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
     outputs: [],
   },
   {
@@ -19,8 +26,26 @@ const TREASURY_ABI = [
     stateMutability: "nonpayable",
     inputs: [
       { name: "recipient", type: "address" },
-      { name: "amount", type: "uint256" },
+      { name: "wstETHAmount", type: "uint256" },
     ],
+    outputs: [],
+  },
+  {
+    name: "withdrawYieldFor",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "agent", type: "address" },
+      { name: "recipient", type: "address" },
+      { name: "wstETHAmount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "withdrawAll",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
     outputs: [],
   },
   {
@@ -29,10 +54,10 @@ const TREASURY_ABI = [
     stateMutability: "view",
     inputs: [{ name: "agent", type: "address" }],
     outputs: [
-      { name: "depositedShares", type: "uint256" },
-      { name: "currentValue", type: "uint256" },
-      { name: "principalValue", type: "uint256" },
+      { name: "depositedPrincipal", type: "uint256" },
       { name: "availableYield", type: "uint256" },
+      { name: "totalBalance", type: "uint256" },
+      { name: "hasVault", type: "bool" },
     ],
   },
   {
@@ -156,10 +181,10 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
                   mode: "dry_run",
                   action: "treasury_withdraw_yield",
                   requested_amount: amount_wsteth,
-                  available_yield: formatEther(result[3]),
-                  principal_protected: formatEther(result[2]),
-                  current_total_value: formatEther(result[1]),
-                  would_succeed: result[3] >= amount,
+                  available_yield: formatEther(result[1]),
+                  principal_protected: formatEther(result[0]),
+                  total_balance: formatEther(result[2]),
+                  would_succeed: result[1] >= amount,
                   recipient,
                 }, null, 2),
               }],
@@ -242,19 +267,19 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
           args: [agent_address as Address],
         });
 
-        const [depositedShares, currentValue, principalValue, availableYield] = result;
+        const [depositedPrincipal, availableYield, totalBalance, hasVault] = result;
 
         return {
           content: [{
             type: "text" as const,
             text: JSON.stringify({
               agent: agent_address,
-              deposited_shares: depositedShares.toString(),
-              current_value_wsteth: formatEther(currentValue),
-              principal_locked_wsteth: formatEther(principalValue),
+              has_vault: hasVault,
+              principal_wsteth: formatEther(depositedPrincipal),
               available_yield_wsteth: formatEther(availableYield),
-              yield_percentage: principalValue > 0n
-                ? ((Number(availableYield) / Number(principalValue)) * 100).toFixed(4) + "%"
+              total_balance_wsteth: formatEther(totalBalance),
+              yield_percentage: depositedPrincipal > 0n
+                ? ((Number(availableYield) / Number(depositedPrincipal)) * 100).toFixed(4) + "%"
                 : "0%",
               contract: TREASURY_ADDR,
               network: ctx.chain.name,
@@ -267,6 +292,155 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
           isError: true,
         };
       }
+    }
+  );
+
+  // ── treasury_add_yield: Inject yield into vault after off-chain calc ─
+  server.tool(
+    "treasury_add_yield",
+    "Add yield to your AgentTreasury vault. Call after off-chain yield calculation (via L1 exchange rate). Must approve wstETH first.",
+    {
+      amount_wsteth: z.string().describe("Amount of wstETH to add as yield"),
+      dry_run: z.boolean().optional(),
+    },
+    async ({ amount_wsteth, dry_run }) => {
+      const isDry = dry_run ?? ctx.dryRun;
+      const amount = parseEther(amount_wsteth);
+
+      if (isDry) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "dry_run",
+              action: "treasury_add_yield",
+              amount_wsteth,
+              contract: TREASURY_ADDR,
+              note: "Will transfer wstETH into your vault as spendable yield. Requires ERC20 approval first.",
+            }, null, 2),
+          }],
+        };
+      }
+
+      if (!ctx.walletClient) {
+        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      }
+
+      const hash = await ctx.walletClient.writeContract({
+        account: ctx.walletAccount!,
+        chain: ctx.chain,
+        address: TREASURY_ADDR,
+        abi: TREASURY_ABI,
+        functionName: "addYield",
+        args: [amount],
+      });
+      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            mode: "executed",
+            action: "treasury_add_yield",
+            amount_wsteth,
+            tx_hash: hash,
+            status: receipt.status,
+          }, null, 2),
+        }],
+      };
+    }
+  );
+
+  // ── treasury_withdraw_yield_for: Spender withdraws yield on behalf ──
+  server.tool(
+    "treasury_withdraw_yield_for",
+    "Withdraw yield from another agent's vault as an authorized spender. Only works if the vault owner authorized you.",
+    {
+      agent_address: z.string().describe("Vault owner's address"),
+      recipient: z.string().describe("Address to receive the yield"),
+      amount_wsteth: z.string().describe("Amount of wstETH yield to withdraw"),
+      dry_run: z.boolean().optional(),
+    },
+    async ({ agent_address, recipient, amount_wsteth, dry_run }) => {
+      const isDry = dry_run ?? ctx.dryRun;
+      const amount = parseEther(amount_wsteth);
+
+      if (isDry) {
+        try {
+          const result = await ctx.publicClient.readContract({
+            address: TREASURY_ADDR,
+            abi: TREASURY_ABI,
+            functionName: "getVaultStatus",
+            args: [agent_address as Address],
+          });
+          const isAuth = await ctx.publicClient.readContract({
+            address: TREASURY_ADDR,
+            abi: TREASURY_ABI,
+            functionName: "isAuthorizedSpender",
+            args: [agent_address as Address, (ctx.walletAccount?.address || recipient) as Address],
+          });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                mode: "dry_run",
+                action: "treasury_withdraw_yield_for",
+                agent: agent_address,
+                recipient,
+                requested_amount: amount_wsteth,
+                available_yield: formatEther(result[1]),
+                is_authorized: isAuth,
+                would_succeed: isAuth && result[1] >= amount,
+              }, null, 2),
+            }],
+          };
+        } catch {
+          // fallthrough
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "dry_run",
+              action: "treasury_withdraw_yield_for",
+              agent: agent_address,
+              recipient,
+              requested_amount: amount_wsteth,
+            }, null, 2),
+          }],
+        };
+      }
+
+      if (!ctx.walletClient) {
+        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      }
+
+      const hash = await ctx.walletClient.writeContract({
+        account: ctx.walletAccount!,
+        chain: ctx.chain,
+        address: TREASURY_ADDR,
+        abi: TREASURY_ABI,
+        functionName: "withdrawYieldFor",
+        args: [agent_address as Address, recipient as Address, amount],
+      });
+      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            mode: "executed",
+            action: "treasury_withdraw_yield_for",
+            agent: agent_address,
+            recipient,
+            amount_wsteth,
+            tx_hash: hash,
+            status: receipt.status,
+          }, null, 2),
+        }],
+      };
     }
   );
 
