@@ -3,137 +3,123 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import "../contracts/AgentTreasury.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-// ── Mock wstETH with controllable exchange rate ───────────────────────
-
+// Mock wstETH — simple ERC20 (no rate functions needed on Base)
 contract MockWstETH is ERC20 {
-    uint256 public rate = 1.15e18; // 1 wstETH = 1.15 stETH initially
-
     constructor() ERC20("Wrapped stETH", "wstETH") {}
 
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
-
-    function getStETHByWstETH(uint256 _wstETHAmount) external view returns (uint256) {
-        return (_wstETHAmount * rate) / 1e18;
-    }
-
-    function getWstETHByStETH(uint256 _stETHAmount) external view returns (uint256) {
-        return (_stETHAmount * 1e18) / rate;
-    }
-
-    function stEthPerToken() external view returns (uint256) {
-        return rate;
-    }
-
-    // Simulate yield accrual by increasing the exchange rate
-    function accrueYield(uint256 basisPoints) external {
-        rate = rate + (rate * basisPoints) / 10000;
-    }
 }
 
 contract AgentTreasuryTest is Test {
     AgentTreasury public treasury;
-    MockWstETH public wsteth;
+    MockWstETH public wstETH;
 
-    address public agent = makeAddr("agent");
-    address public spender = makeAddr("spender");
-    address public recipient = makeAddr("recipient");
+    address agent = address(0xA1);
+    address spender = address(0xB1);
+    address recipient = address(0xC1);
 
     function setUp() public {
-        wsteth = new MockWstETH();
-        treasury = new AgentTreasury(address(wsteth));
+        wstETH = new MockWstETH();
+        treasury = new AgentTreasury(address(wstETH));
 
-        // Give agent some wstETH
-        wsteth.mint(agent, 10 ether);
-
-        // Approve treasury
+        // Fund agent with wstETH
+        wstETH.mint(agent, 10 ether);
         vm.prank(agent);
-        wsteth.approve(address(treasury), type(uint256).max);
+        wstETH.approve(address(treasury), type(uint256).max);
     }
 
     function test_deposit() public {
         vm.prank(agent);
-        treasury.deposit(5 ether);
+        treasury.deposit(1 ether);
 
-        (uint256 deposited, uint256 current, uint256 principal, uint256 yield_) = treasury.getVaultStatus(agent);
-        assertEq(deposited, 5 ether, "deposited should be 5 wstETH");
-        assertEq(principal, 5 ether, "principal should be 5 wstETH");
-        assertEq(yield_, 0, "yield should be 0 initially");
+        (uint256 principal, uint256 yield_, uint256 total, bool exists) = treasury.getVaultStatus(agent);
+        assertEq(principal, 1 ether);
+        assertEq(yield_, 0);
+        assertEq(total, 1 ether);
+        assertTrue(exists);
     }
 
-    function test_yield_accrues() public {
+    function test_zero_deposit_reverts() public {
         vm.prank(agent);
-        treasury.deposit(5 ether);
+        vm.expectRevert(AgentTreasury.ZeroAmount.selector);
+        treasury.deposit(0);
+    }
 
-        // Simulate 5% yield (500 basis points)
-        wsteth.accrueYield(500);
+    function test_add_yield() public {
+        vm.prank(agent);
+        treasury.deposit(1 ether);
 
-        (, , , uint256 yield_) = treasury.getVaultStatus(agent);
-        assertGt(yield_, 0, "yield should be > 0 after rate increase");
+        // Agent adds yield
+        vm.prank(agent);
+        treasury.addYield(0.05 ether);
+
+        (uint256 principal, uint256 yield_, uint256 total, ) = treasury.getVaultStatus(agent);
+        assertEq(principal, 1 ether);
+        assertEq(yield_, 0.05 ether);
+        assertEq(total, 1.05 ether);
     }
 
     function test_withdraw_yield_only() public {
         vm.prank(agent);
-        treasury.deposit(5 ether);
-
-        // Accrue yield
-        wsteth.accrueYield(500);
-
-        (, , , uint256 yield_) = treasury.getVaultStatus(agent);
-        assertGt(yield_, 0);
-
-        // Withdraw yield
+        treasury.deposit(1 ether);
         vm.prank(agent);
-        treasury.withdrawYield(recipient, yield_);
+        treasury.addYield(0.05 ether);
 
-        assertGt(wsteth.balanceOf(recipient), 0, "recipient should have received yield");
+        // Agent withdraws yield
+        vm.prank(agent);
+        treasury.withdrawYield(recipient, 0.03 ether);
+
+        assertEq(wstETH.balanceOf(recipient), 0.03 ether);
+
+        (, uint256 yield_, ,) = treasury.getVaultStatus(agent);
+        assertEq(yield_, 0.02 ether);
     }
 
     function test_cannot_withdraw_more_than_yield() public {
         vm.prank(agent);
-        treasury.deposit(5 ether);
-
-        // No yield accrued yet — trying to withdraw should fail
+        treasury.deposit(1 ether);
         vm.prank(agent);
-        vm.expectRevert();
-        treasury.withdrawYield(recipient, 1 ether);
+        treasury.addYield(0.01 ether);
+
+        vm.prank(agent);
+        vm.expectRevert(abi.encodeWithSelector(AgentTreasury.InsufficientYield.selector, 0.02 ether, 0.01 ether));
+        treasury.withdrawYield(recipient, 0.02 ether);
     }
 
     function test_authorize_spender() public {
         vm.prank(agent);
-        treasury.deposit(5 ether);
+        treasury.deposit(1 ether);
+        vm.prank(agent);
+        treasury.addYield(0.05 ether);
 
         // Authorize spender
         vm.prank(agent);
         treasury.authorizeSpender(spender, true);
-
         assertTrue(treasury.isAuthorizedSpender(agent, spender));
-
-        // Accrue yield
-        wsteth.accrueYield(500);
-
-        (, , , uint256 yield_) = treasury.getVaultStatus(agent);
 
         // Spender withdraws yield on behalf of agent
         vm.prank(spender);
-        treasury.withdrawYieldFor(agent, recipient, yield_);
+        treasury.withdrawYieldFor(agent, recipient, 0.02 ether);
 
-        assertGt(wsteth.balanceOf(recipient), 0);
+        assertEq(wstETH.balanceOf(recipient), 0.02 ether);
+        (, uint256 yield_, ,) = treasury.getVaultStatus(agent);
+        assertEq(yield_, 0.03 ether);
     }
 
     function test_unauthorized_spender_reverts() public {
         vm.prank(agent);
-        treasury.deposit(5 ether);
-
-        wsteth.accrueYield(500);
+        treasury.deposit(1 ether);
+        vm.prank(agent);
+        treasury.addYield(0.05 ether);
 
         // Unauthorized spender tries to withdraw
         vm.prank(spender);
         vm.expectRevert(AgentTreasury.NotAuthorized.selector);
-        treasury.withdrawYieldFor(agent, recipient, 0.1 ether);
+        treasury.withdrawYieldFor(agent, recipient, 0.01 ether);
     }
 
     function test_revoke_spender() public {
@@ -148,20 +134,34 @@ contract AgentTreasuryTest is Test {
 
     function test_withdraw_all_as_owner() public {
         vm.prank(agent);
-        treasury.deposit(5 ether);
+        treasury.deposit(1 ether);
+        vm.prank(agent);
+        treasury.addYield(0.05 ether);
 
-        uint256 balBefore = wsteth.balanceOf(agent);
-
+        uint256 balBefore = wstETH.balanceOf(agent);
         vm.prank(agent);
         treasury.withdrawAll();
 
-        uint256 balAfter = wsteth.balanceOf(agent);
-        assertEq(balAfter - balBefore, 5 ether, "should get back full principal");
+        assertEq(wstETH.balanceOf(agent) - balBefore, 1.05 ether);
+        (uint256 principal, uint256 yield_, ,) = treasury.getVaultStatus(agent);
+        assertEq(principal, 0);
+        assertEq(yield_, 0);
     }
 
-    function test_zero_deposit_reverts() public {
+    function test_add_yield_no_vault_reverts() public {
         vm.prank(agent);
-        vm.expectRevert(AgentTreasury.ZeroAmount.selector);
-        treasury.deposit(0);
+        vm.expectRevert(AgentTreasury.NoVault.selector);
+        treasury.addYield(0.01 ether);
+    }
+
+    function test_multiple_deposits_accumulate() public {
+        vm.prank(agent);
+        treasury.deposit(1 ether);
+        vm.prank(agent);
+        treasury.deposit(0.5 ether);
+
+        (uint256 principal, , uint256 total, ) = treasury.getVaultStatus(agent);
+        assertEq(principal, 1.5 ether);
+        assertEq(total, 1.5 ether);
     }
 }
