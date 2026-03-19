@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { createPublicClient, createWalletClient, http, type Chain } from "viem";
-import { mainnet, base, holesky, sepolia, arbitrum } from "viem/chains";
+import { base } from "viem/chains";
 import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 
 // Tool imports
@@ -13,21 +13,9 @@ import { registerEnsTools } from "./tools/ens.js";
 import { registerMonitorTools } from "./tools/monitor.js";
 import { registerUniswapTools } from "./tools/uniswap.js";
 
-// ── Config ────────────────────────────────────────────────────────────
-const CHAIN_MAP = { mainnet, base, holesky, sepolia, arbitrum } as const;
-type ChainName = keyof typeof CHAIN_MAP;
-
-const chainName = (process.env.CHAIN || "base") as ChainName;
-const CHAIN = CHAIN_MAP[chainName] || base;
-
-const RPC_DEFAULTS: Record<number, string> = {
-  1: "https://eth.llamarpc.com",
-  8453: "https://mainnet.base.org",
-  17000: "https://ethereum-holesky-rpc.publicnode.com",
-  11155111: "https://rpc.sepolia.org",
-  42161: "https://arb1.arbitrum.io/rpc",
-};
-const RPC_URL = process.env.RPC_URL || RPC_DEFAULTS[CHAIN.id] || "https://mainnet.base.org";
+// ── Config (Base mainnet only) ───────────────────────────────────────
+const CHAIN = base;
+const RPC_URL = process.env.RPC_URL || "https://mainnet.base.org";
 const PRIVATE_KEY = process.env.PRIVATE_KEY as `0x${string}` | undefined;
 const DRY_RUN = process.env.DRY_RUN === "true";
 
@@ -88,19 +76,9 @@ server.resource("lido-contracts", "lido://contracts", async (uri) => ({
       mimeType: "application/json",
       text: JSON.stringify(
         {
-          network: ctx.chain.name,
-          stETH: ctx.chain.id === 1
-            ? "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
-            : "0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034",
-          wstETH: ctx.chain.id === 1
-            ? "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
-            : "0x8d09a4502Cc8Cf1547aD300E066060D043f6982D",
-          withdrawalQueue: ctx.chain.id === 1
-            ? "0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1"
-            : "0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50",
-          lidoLocator: ctx.chain.id === 1
-            ? "0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb"
-            : "0x28FAB2059C713A7F9D8c86Db49f9bb0e96Af1ef8",
+          network: "Base",
+          wstETH: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+          note: "stETH is not natively available on Base — use wstETH (bridged via canonical Lido bridge)",
         },
         null,
         2
@@ -111,10 +89,8 @@ server.resource("lido-contracts", "lido://contracts", async (uri) => ({
 
 server.resource("lido-apr", "lido://apr", async (uri) => {
   try {
-    const apiBase = ctx.chain.id === 1
-      ? "https://eth-api.lido.fi"
-      : "https://eth-api-hoodi.testnet.fi";
-    const res = await fetch(`${apiBase}/v1/protocol/steth/apr/last`);
+    // APR data comes from L1 — Base wstETH earns the same rate
+    const res = await fetch("https://eth-api.lido.fi/v1/protocol/steth/apr/last");
     const data = await res.json();
     return {
       contents: [

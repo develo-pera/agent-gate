@@ -9,44 +9,14 @@ import type { AgentGateContext } from "../index.js";
 const UNISWAP_API_BASE = "https://trading-api.gateway.uniswap.org/v1";
 const UNISWAP_API_KEY = process.env.UNISWAP_API_KEY || "";
 
-// Common token addresses per chain
+// Base mainnet token addresses
 const WELL_KNOWN_TOKENS: Record<string, Record<number, { address: string; decimals: number }>> = {
-  ETH: {
-    1: { address: "0x0000000000000000000000000000000000000000", decimals: 18 },
-    8453: { address: "0x0000000000000000000000000000000000000000", decimals: 18 },
-    42161: { address: "0x0000000000000000000000000000000000000000", decimals: 18 },
-  },
-  WETH: {
-    1: { address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", decimals: 18 },
-    8453: { address: "0x4200000000000000000000000000000000000006", decimals: 18 },
-    42161: { address: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", decimals: 18 },
-    17000: { address: "0x94373a4919B3240D86eA41593D5eBa789FEF3848", decimals: 18 },
-  },
-  USDC: {
-    1: { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6 },
-    8453: { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 },
-    42161: { address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", decimals: 6 },
-    17000: { address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6 },
-  },
-  USDT: {
-    1: { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
-  },
-  DAI: {
-    1: { address: "0x6B175474E89094C44Da98b954EedeAC495271d0F", decimals: 18 },
-    8453: { address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", decimals: 18 },
-  },
-  stETH: {
-    1: { address: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", decimals: 18 },
-  },
-  wstETH: {
-    1: { address: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", decimals: 18 },
-    8453: { address: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452", decimals: 18 },
-    42161: { address: "0x5979D7b546E38E414F7E9822514be443A4800529", decimals: 18 },
-    17000: { address: "0x8d09a4502Cc8Cf1547aD300E066060D043f6982D", decimals: 18 },
-  },
-  cbETH: {
-    8453: { address: "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22", decimals: 18 },
-  },
+  ETH:    { 8453: { address: "0x0000000000000000000000000000000000000000", decimals: 18 } },
+  WETH:   { 8453: { address: "0x4200000000000000000000000000000000000006", decimals: 18 } },
+  USDC:   { 8453: { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 } },
+  DAI:    { 8453: { address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", decimals: 18 } },
+  wstETH: { 8453: { address: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452", decimals: 18 } },
+  cbETH:  { 8453: { address: "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22", decimals: 18 } },
 };
 
 // ── Helper: resolve token symbol or address ───────────────────────────
@@ -331,7 +301,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
               block_number: receipt.blockNumber.toString(),
               status: receipt.status,
               chain_id: chainId,
-              explorer: `https://${chainId === 1 ? "" : "holesky."}etherscan.io/tx/${hash}`,
+              explorer: `https://basescan.org/tx/${hash}`,
             }, null, 2),
           }],
         };

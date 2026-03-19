@@ -24,9 +24,8 @@ const WSTETH_ABI_VIEW = [
 ] as const;
 
 export function registerMonitorTools(server: McpServer, ctx: AgentGateContext) {
-  const wstETHAddr = (ctx.chain.id === 1
-    ? "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
-    : "0x8d09a4502Cc8Cf1547aD300E066060D043f6982D") as Address;
+  // Base mainnet wstETH (bridged via canonical Lido bridge)
+  const wstETHAddr = "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as Address;
 
   // ── vault_health: Plain-language vault health report ─────────────────
   server.tool(
@@ -47,10 +46,8 @@ export function registerMonitorTools(server: McpServer, ctx: AgentGateContext) {
           functionName: "stEthPerToken",
         });
 
-        // Fetch APR from Lido API
-        const apiBase = ctx.chain.id === 1
-          ? "https://eth-api.lido.fi"
-          : "https://eth-api-hoodi.testnet.fi";
+        // APR data comes from L1 Lido API — Base wstETH earns the same rate
+        const apiBase = "https://eth-api.lido.fi";
 
         let currentApr = BENCHMARK_APR;
         try {
@@ -73,23 +70,8 @@ export function registerMonitorTools(server: McpServer, ctx: AgentGateContext) {
           args: [addr],
         });
 
-        // Fetch stETH balance
-        const stETHAddr = (ctx.chain.id === 1
-          ? "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
-          : "0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034") as Address;
-
-        const stethBal = await ctx.publicClient.readContract({
-          address: stETHAddr,
-          abi: [{
-            name: "balanceOf",
-            type: "function",
-            stateMutability: "view",
-            inputs: [{ name: "_account", type: "address" }],
-            outputs: [{ name: "", type: "uint256" }],
-          }] as const,
-          functionName: "balanceOf",
-          args: [addr],
-        });
+        // stETH doesn't exist natively on Base — only wstETH
+        const stethBal = 0n;
 
         // Calculate values
         const wstethStethValue = wstethBal > 0n

@@ -94,42 +94,19 @@ const WSTETH_ABI = [
   },
 ] as const;
 
-// ── Address helpers ───────────────────────────────────────────────────
-function getAddresses(chainId: number) {
-  if (chainId === 1) {
-    return {
-      stETH: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84" as Address,
-      wstETH: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0" as Address,
-      withdrawalQueue: "0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1" as Address,
-    };
-  }
-  if (chainId === 8453) {
-    // Base — wstETH bridged via canonical Lido bridge
-    return {
-      stETH: "0x0000000000000000000000000000000000000000" as Address, // no native stETH on Base
-      wstETH: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as Address,
-      withdrawalQueue: "0x0000000000000000000000000000000000000000" as Address, // withdrawals via L1
-    };
-  }
-  if (chainId === 42161) {
-    // Arbitrum — wstETH bridged via canonical Lido bridge
-    return {
-      stETH: "0x0000000000000000000000000000000000000000" as Address,
-      wstETH: "0x5979D7b546E38E414F7E9822514be443A4800529" as Address,
-      withdrawalQueue: "0x0000000000000000000000000000000000000000" as Address,
-    };
-  }
-  // Holesky testnet (fallback)
+// ── Base mainnet addresses ────────────────────────────────────────────
+// stETH is not natively available on Base — only wstETH (bridged via canonical Lido bridge)
+function getAddresses() {
   return {
-    stETH: "0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034" as Address,
-    wstETH: "0x8d09a4502Cc8Cf1547aD300E066060D043f6982D" as Address,
-    withdrawalQueue: "0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50" as Address,
+    stETH: "0x0000000000000000000000000000000000000000" as Address, // not on Base
+    wstETH: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as Address,
+    withdrawalQueue: "0x0000000000000000000000000000000000000000" as Address, // withdrawals via L1
   };
 }
 
 // ── Register all Lido tools ───────────────────────────────────────────
 export function registerLidoTools(server: McpServer, ctx: AgentGateContext) {
-  const addrs = getAddresses(ctx.chain.id);
+  const addrs = getAddresses();
 
   // ── lido_stake: Stake ETH to receive stETH ──────────────────────────
   server.tool(
@@ -328,9 +305,8 @@ export function registerLidoTools(server: McpServer, ctx: AgentGateContext) {
     {},
     async () => {
       try {
-        const apiBase = ctx.chain.id === 1
-          ? "https://eth-api.lido.fi"
-          : "https://eth-api-hoodi.testnet.fi";
+        // APR data comes from L1 Lido API — Base wstETH earns the same rate
+        const apiBase = "https://eth-api.lido.fi";
         const res = await fetch(`${apiBase}/v1/protocol/steth/apr/last`);
         const data = await res.json();
 
@@ -424,9 +400,8 @@ export function registerLidoTools(server: McpServer, ctx: AgentGateContext) {
     },
     async ({ address, limit }) => {
       try {
-        const apiBase = ctx.chain.id === 1
-          ? "https://eth-api.lido.fi"
-          : "https://eth-api-hoodi.testnet.fi";
+        // APR data comes from L1 Lido API — Base wstETH earns the same rate
+        const apiBase = "https://eth-api.lido.fi";
         const url = `${apiBase}/v1/protocol/steth/rewards?address=${address}&limit=${limit || 10}&onlyRewards=true`;
         const res = await fetch(url);
         const data = await res.json();
