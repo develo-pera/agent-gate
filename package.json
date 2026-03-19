@@ -7,9 +7,10 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "cd packages/mcp-server && npm run build",
+    "build": "npm run build --workspace=@agentgate/mcp-server && npm run build --workspace=@agentgate/app",
     "start": "cd packages/mcp-server && npm start",
-    "dev": "cd packages/mcp-server && npm run dev",
+    "dev": "cd packages/app && npm run dev",
+    "dev:mcp": "cd packages/mcp-server && npm run dev",
     "test:contracts": "cd packages/treasury-contract && forge test -vvv"
   },
   "license": "MIT"
