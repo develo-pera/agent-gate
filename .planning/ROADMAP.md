@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-00-PLAN.md — Install Vitest and create Wave 0 test stub files
+- [x] 01-00-PLAN.md — Install Vitest and create Wave 0 test stub files
 - [ ] 01-01-PLAN.md — Scaffold Next.js app with dark crypto theme, shadcn, and MCP HTTP bridge
 - [ ] 01-02-PLAN.md — Wire wallet connect, demo mode, sidebar navigation, and placeholder pages
 
@@ -73,6 +73,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
+| 1. Foundation | 1/3 | In Progress | - |
 | 2. Dashboard Pages | 0/3 | Not started | - |
 | 3. MCP Playground | 0/2 | Not started | - |
