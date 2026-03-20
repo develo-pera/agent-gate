@@ -141,7 +141,24 @@ const TREASURY_ABI = [
     ],
     outputs: [{ name: "", type: "bool" }],
   },
+  // ── Custom errors ────────────────────────────────────────────────
+  { name: "NotAuthorized", type: "error", inputs: [] },
+  { name: "InsufficientYield", type: "error", inputs: [{ name: "requested", type: "uint256" }, { name: "available", type: "uint256" }] },
+  { name: "ExceedsPerTxCap", type: "error", inputs: [{ name: "requested", type: "uint256" }, { name: "cap", type: "uint256" }] },
+  { name: "ExceedsWindowAllowance", type: "error", inputs: [{ name: "requested", type: "uint256" }, { name: "remaining", type: "uint256" }] },
+  { name: "RecipientNotWhitelisted", type: "error", inputs: [{ name: "recipient", type: "address" }] },
+  { name: "ZeroAmount", type: "error", inputs: [] },
+  { name: "NoVault", type: "error", inputs: [] },
+  { name: "StaleOracle", type: "error", inputs: [] },
 ] as const;
+
+// ── Human-readable error decoder ──────────────────────────────────
+function decodeTreasuryError(e: any): string {
+  const msg = e?.shortMessage || e?.message || e?.toString() || "unknown error";
+  // Clean up viem verbose errors
+  const short = msg.split("\nContract Call:")[0].split("\nDocs:")[0].trim();
+  return short.length < 500 ? short : msg.slice(0, 500) + "...";
+}
 
 export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) {
   const TREASURY_ADDR = (process.env.TREASURY_ADDRESS || "0x0000000000000000000000000000000000000000") as Address;
@@ -336,6 +353,39 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
     }
   );
 
+  // ── treasury_revoke_spender ──────────────────────────────────────────
+  server.tool(
+    "treasury_revoke_spender",
+    "Revoke a spender's authorization to withdraw yield from your vault. Immediately blocks all future withdrawals by this spender.",
+    {
+      spender: z.string().describe("Address of the spender to revoke"),
+      dry_run: z.boolean().optional(),
+    },
+    async ({ spender, dry_run }) => {
+      const isDry = dry_run ?? ctx.dryRun;
+      if (isDry) {
+        return { content: [{ type: "text" as const, text: JSON.stringify({ mode: "dry_run", action: "revoke_spender", spender, note: `Will revoke ${spender}'s authorization.` }, null, 2) }] };
+      }
+      if (!ctx.walletClient) {
+        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      }
+      try {
+        const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI,
+          functionName: "revokeSpender",
+          args: [spender as Address],
+        });
+        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+        return { content: [{ type: "text" as const, text: JSON.stringify({ mode: "executed", action: "revoke_spender", spender, tx_hash: hash, status: receipt.status, note: `${spender} can no longer withdraw yield from your vault.` }, null, 2) }] };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const, text: `Revoke failed: ${decodeTreasuryError(e)}` }], isError: true };
+      }
+    }
+  );
+
   // ── treasury_get_spender_config ─────────────────────────────────────
   server.tool(
     "treasury_get_spender_config",
@@ -441,29 +491,33 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
       }
 
-      const hash = await ctx.walletClient.writeContract({
-        account: ctx.walletAccount!,
-        chain: ctx.chain,
-        address: TREASURY_ADDR,
-        abi: TREASURY_ABI,
-        functionName: "withdrawYield",
-        args: [recipient as Address, amount],
-      });
-      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+      try {
+        const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI,
+          functionName: "withdrawYield",
+          args: [recipient as Address, amount],
+        });
+        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
 
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            mode: "executed",
-            action: "treasury_withdraw_yield",
-            amount_wsteth,
-            recipient,
-            tx_hash: hash,
-            status: receipt.status,
-          }, null, 2),
-        }],
-      };
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "executed",
+              action: "treasury_withdraw_yield",
+              amount_wsteth,
+              recipient,
+              tx_hash: hash,
+              status: receipt.status,
+            }, null, 2),
+          }],
+        };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const, text: `Withdrawal failed: ${decodeTreasuryError(e)}` }], isError: true };
+      }
     }
   );
 
@@ -536,30 +590,34 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
       }
 
-      const hash = await ctx.walletClient.writeContract({
-        account: ctx.walletAccount!,
-        chain: ctx.chain,
-        address: TREASURY_ADDR,
-        abi: TREASURY_ABI,
-        functionName: "withdrawYieldFor",
-        args: [agent_address as Address, recipient as Address, amount],
-      });
-      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+      try {
+        const hash = await ctx.walletClient.writeContract({
+          account: ctx.walletAccount!,
+          chain: ctx.chain,
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI,
+          functionName: "withdrawYieldFor",
+          args: [agent_address as Address, recipient as Address, amount],
+        });
+        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
 
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            mode: "executed",
-            action: "treasury_withdraw_yield_for",
-            agent: agent_address,
-            recipient,
-            amount_wsteth,
-            tx_hash: hash,
-            status: receipt.status,
-          }, null, 2),
-        }],
-      };
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "executed",
+              action: "treasury_withdraw_yield_for",
+              agent: agent_address,
+              recipient,
+              amount_wsteth,
+              tx_hash: hash,
+              status: receipt.status,
+            }, null, 2),
+          }],
+        };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const, text: `Withdrawal failed: ${decodeTreasuryError(e)}` }], isError: true };
+      }
     }
   );
 

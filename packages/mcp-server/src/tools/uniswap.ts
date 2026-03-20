@@ -6,7 +6,7 @@ import type { AgentGateContext } from "../index.js";
 // ── Uniswap Trading API ───────────────────────────────────────────────
 // Docs: https://api-docs.uniswap.org/
 // Requires a Developer Platform API key from https://app.uniswap.org/developers
-const UNISWAP_API_BASE = "https://trading-api.gateway.uniswap.org/v1";
+const UNISWAP_API_BASE = "https://trade-api.gateway.uniswap.org/v1";
 const UNISWAP_API_KEY = process.env.UNISWAP_API_KEY || "";
 
 // Base mainnet token addresses
@@ -24,10 +24,12 @@ function resolveToken(
   tokenInput: string,
   chainId: number
 ): { address: string; decimals: number } | null {
-  // Check if it's a well-known symbol
-  const upper = tokenInput.toUpperCase();
-  if (WELL_KNOWN_TOKENS[upper]?.[chainId]) {
-    return WELL_KNOWN_TOKENS[upper][chainId];
+  // Check if it's a well-known symbol (case-insensitive)
+  const match = Object.keys(WELL_KNOWN_TOKENS).find(
+    (k) => k.toLowerCase() === tokenInput.toLowerCase()
+  );
+  if (match && WELL_KNOWN_TOKENS[match]?.[chainId]) {
+    return WELL_KNOWN_TOKENS[match][chainId];
   }
   // If it's an address, assume 18 decimals (caller can override)
   if (tokenInput.startsWith("0x") && tokenInput.length === 42) {
@@ -43,6 +45,7 @@ async function uniswapFetch(endpoint: string, body: object) {
     headers: {
       "Content-Type": "application/json",
       "x-api-key": UNISWAP_API_KEY,
+      "x-universal-router-version": "2.0",
     },
     body: JSON.stringify(body),
   });
@@ -129,7 +132,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           tokenOut: tokenOutResolved.address,
           amount: amountRaw,
           swapper,
-          slippageTolerance: slippage / 10000,
+          slippageTolerance: slippage / 100,
         });
 
         const amountOut = quoteResponse.quote?.amountOut
@@ -224,6 +227,28 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
 
       try {
         const swapper = ctx.walletClient.account.address;
+        const PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address;
+
+        // Step 0: Ensure token is approved to Permit2 (required for all Uniswap swaps)
+        if (tokenInResolved.address !== "0x0000000000000000000000000000000000000000") {
+          const allowance = await ctx.publicClient.readContract({
+            address: tokenInResolved.address as Address,
+            abi: [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] }],
+            functionName: "allowance",
+            args: [swapper, PERMIT2],
+          });
+          if (allowance < BigInt(amountRaw)) {
+            const approveTx = await ctx.walletClient.writeContract({
+              account: ctx.walletAccount!,
+              chain: ctx.chain,
+              address: tokenInResolved.address as Address,
+              abi: [{ name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }] }],
+              functionName: "approve",
+              args: [PERMIT2, BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")],
+            });
+            await ctx.publicClient.waitForTransactionReceipt({ hash: approveTx });
+          }
+        }
 
         // Step 1: Get quote
         const quoteResponse = await uniswapFetch("/quote", {
@@ -234,7 +259,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           tokenOut: tokenOutResolved.address,
           amount: amountRaw,
           swapper,
-          slippageTolerance: slippage / 10000,
+          slippageTolerance: slippage / 100,
         });
 
         const quoteId = quoteResponse.quote?.quoteId;
@@ -259,12 +284,23 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
         }
 
         // Step 3: Get swap calldata
+        // API expects quote response fields spread into body, not nested under {quote: ...}
+        const { permitData: pd, ...cleanQuote } = quoteResponse;
         const swapBody: Record<string, unknown> = {
-          quote: quoteResponse.quote,
+          ...cleanQuote,
           simulateTransaction: false,
         };
-        if (permit2Signature) {
-          swapBody.signature = permit2Signature;
+
+        const isUniswapX = ["DUTCH_V2", "DUTCH_V3", "PRIORITY"].includes(quoteResponse.routing);
+        if (isUniswapX) {
+          // UniswapX: signature only — permitData must NOT go to /swap
+          if (permit2Signature) swapBody.signature = permit2Signature;
+        } else {
+          // CLASSIC: both signature and permitData, or neither
+          if (permit2Signature && pd && typeof pd === "object") {
+            swapBody.signature = permit2Signature;
+            swapBody.permitData = pd;
+          }
         }
 
         const swapResponse = await uniswapFetch("/swap", swapBody);
