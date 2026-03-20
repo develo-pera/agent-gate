@@ -97,8 +97,15 @@ None yet.
 - [Phase 1]: Confirm treasury contract address on Base mainnet has real deposits for demo mode
 - [Phase 2]: Contract ABIs must be available from treasury-contract package for viem reads
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260320-lh2 | Rebrand colors to Uniswap-inspired theme: background #131313, primary #FF37C7 | 2026-03-20 | 9407099 | [260320-lh2-rebrand-colors-to-uniswap-inspired-theme](./quick/260320-lh2-rebrand-colors-to-uniswap-inspired-theme/) |
+
 ## Session Continuity
 
+Last activity: 2026-03-20 - Completed quick task 260320-lh2: Rebrand colors to Uniswap-inspired theme
 Last session: 2026-03-20T14:32:33.212Z
 Stopped at: Completed quick/260320-lh2 (rebrand colors)
 Resume file: None
