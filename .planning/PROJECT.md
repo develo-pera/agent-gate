@@ -20,8 +20,13 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 
 ### Active
 
-- [ ] MCP Playground — interactive tool caller showing request/response JSON
-- [ ] HTTP bridge layer on MCP server for Next.js to call tools via REST
+- (none remaining — all phases complete)
+
+### Validated in Phase 3: mcp-playground
+
+- ✓ MCP Playground — interactive tool caller with 25-tool selector, dynamic parameter forms, JSON request/response viewer
+- ✓ Tool schema registry covering all domains (Lido, Treasury, Delegation, ENS, Monitor)
+- ✓ Bridge expanded to 25 handlers with real read implementations and dry-run stubs for writes
 
 ### Validated in Phase 1: app-shell
 
@@ -80,4 +85,4 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 | Skip Uniswap/ENS dedicated pages | No real swap tx yet, ENS too simple for own page — focus on treasury + delegations + MCP | — Pending |
 
 ---
-*Last updated: 2026-03-20 after Phase 2 completion*
+*Last updated: 2026-03-20 after Phase 3 completion (all phases complete)*
