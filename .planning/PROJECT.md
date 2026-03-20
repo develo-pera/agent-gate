@@ -22,6 +22,13 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 
 - (none remaining — all phases complete)
 
+### Validated in Phase 4: Foundation Verification & Config Fix
+
+- ✓ NEXT_PUBLIC_TREASURY_ADDRESS env var configured so wagmi reads resolve real treasury
+- ✓ Dead code removed (useDelegationActions, getAvailableTools)
+- ✓ Phase 1 retroactive VERIFICATION.md with evidence for all 6 FOUN-* requirements
+- ✓ REQUIREMENTS.md and ROADMAP.md traceability fully updated
+
 ### Validated in Phase 3: mcp-playground
 
 - ✓ MCP Playground — interactive tool caller with 25-tool selector, dynamic parameter forms, JSON request/response viewer
@@ -85,4 +92,4 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 | Skip Uniswap/ENS dedicated pages | No real swap tx yet, ENS too simple for own page — focus on treasury + delegations + MCP | — Pending |
 
 ---
-*Last updated: 2026-03-20 after Phase 3 completion (all phases complete)*
+*Last updated: 2026-03-20 after Phase 4 completion (all milestone phases complete)*
