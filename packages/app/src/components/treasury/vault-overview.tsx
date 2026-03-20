@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { formatEther } from "viem";
 import { useVaultStatus, useOracleRate } from "@/lib/hooks/use-treasury";
 import { DonutChart } from "@/components/shared/donut-chart";
@@ -25,7 +26,10 @@ export function VaultOverview() {
   } = useVaultStatus();
   const { data: rateData, isLoading: rateLoading } = useOracleRate();
 
-  if (vaultLoading || rateLoading) {
+  const hasResolved = useRef(false);
+  if (vaultData !== undefined || vaultError) hasResolved.current = true;
+
+  if (!hasResolved.current && (vaultLoading || rateLoading)) {
     return <Skeleton className="h-[200px] rounded-xl" />;
   }
 
