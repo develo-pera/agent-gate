@@ -149,10 +149,66 @@ Demo address updated across all `.env` and `.env.example` files (root + packages
 
 ---
 
+## Mar 20–21 — Day 3–4: Demo Environment & Production Deploy
+
+### Petar ↔ Claude Code (Claude Opus 4.6, CLI)
+
+**~21:00 UTC Mar 20** — Petar shares a demo plan from his other agent: split-screen recording with two Claude Code terminals (Hackaclaw + Merkle) and a live dashboard on Vercel. 8-step demo flow showing vault inspection, spender authorization, yield withdrawal, Uniswap swap, and revocation. 6 TODOs identified: Tenderly setup, dashboard changes, hosted MCP server, Vercel deploy, agent setup, recording.
+
+> **Decision:** Work through TODOs sequentially without GSD framework — ops/infra work better suited to interactive prompting.
+
+**~21:15 UTC** — TODO 1: Tenderly Virtual TestNet. Created `tenderly-demo-setup.sh` adapted from the existing Anvil-based `demo-setup.sh`. Key changes: Tenderly RPC instead of local Anvil, `tenderly_setBalance`/`tenderly_setStorageAt` instead of `anvil_*` RPCs, fund both agent wallets. First run hit 403 on public RPC (state-modifying calls need admin RPC). Petar provides admin RPC URL.
+
+**~21:30 UTC** — Deployment issues: forge-std and openzeppelin-contracts git submodules were empty (not initialized). Reinstalled both. OpenZeppelin latest (v5.2+) uses `evm_version = 'osaka'` which local Foundry doesn't support — pinned to v5.1.0.
+
+**~21:40 UTC** — Contract deployed to Tenderly fork at `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380`. Deposit and yield simulation worked, but yield was 0 — discovered storage slot bug in both setup scripts: `vaults` mapping is at **slot 1** (not slot 0) because `ReentrancyGuard._status` occupies slot 0. Fixed via `forge inspect AgentTreasury storage-layout`. Yield simulation now shows 0.05 wstETH principal + ~0.0025 wstETH yield (5%).
+
+> **Bug fix:** Both `demo-setup.sh` and `tenderly-demo-setup.sh` used wrong storage slot for vault mapping. Root cause: ReentrancyGuard inheritance shifts all storage slots by 1.
+
+**~22:00 UTC** — TODO 2: Dashboard changes. Three modifications:
+1. Added `refetchInterval: 5000` + `keepPreviousData` to treasury hooks (polls every 5s without skeleton flash)
+2. Added address input on treasury page — paste any vault address without wallet connect
+3. Added `NEXT_PUBLIC_RPC_URL` and `NEXT_PUBLIC_CHAIN_ID` env vars to wagmi config for Tenderly fork support
+
+**~22:15 UTC** — Dashboard still showed "No Vault Position" after restart. Investigation: Next.js reads `.env` from `packages/app/`, not monorepo root. The app's `.env` had old addresses and no RPC URL. Fixed.
+
+**~22:20 UTC** — Still broken. Deeper investigation: wagmi was configured with `base` chain (ID 8453) but Tenderly Virtual TestNet returns chain ID `28061389`. Wagmi silently refuses RPC calls with mismatched chain IDs. Fix: define custom chain via `defineChain()` using `NEXT_PUBLIC_CHAIN_ID` env var.
+
+**~22:30 UTC** — Skeleton flashing on polls. Root cause: when RPC call errors (contract doesn't exist), there's no cached data, so `isLoading` becomes true on every refetch. Fix: `useRef` to track first resolution — skeleton only shows on initial page load, never on subsequent polls.
+
+**~22:45 UTC** — TODO 3: Hosted MCP server (main work). Architecture:
+- Extracted `AgentGateContext` interface to `context.ts` (was in `index.ts` which starts stdio server on import)
+- Created `hosted.ts` — factory that creates per-request MCP server with `WebStandardStreamableHTTPServerTransport` (stateless mode)
+- Bearer auth: `Authorization: Bearer hackaclaw` → maps to `PRIVATE_KEY` env var, `Bearer merkle` → `MERKLE_KEY`
+- New Next.js API route at `/api/mcp-agent` handling GET/POST/DELETE
+- Dashboard bridge at `/api/mcp/[tool]` left untouched (still read-only/dry-run)
+
+**~23:00 UTC** — Build issues: tool files used `.js` extensions for local imports (ESM convention) but Next.js/Turbopack can't resolve `.js` → `.ts`. Fixed by using extensionless imports in `hosted.ts`. TypeScript target bumped from ES2017 to ES2020 for BigInt literal support.
+
+**~23:15 UTC** — TODO 4: Vercel deploy. First attempt failed — root directory was `packages/app` so workspace package `@agentgate/mcp-server` couldn't be resolved. Created `vercel.json` at monorepo root with workspace-aware build command. Vercel scope issue: first deploy went to personal scope instead of Team Blockops. Deleted and recreated project under correct scope.
+
+> **Vercel lesson:** Root directory setting in Vercel project takes precedence over `vercel.json`. Must be set to `.` (monorepo root) for workspace packages to resolve.
+
+**~23:30 UTC** — Env var trailing newline issues. `echo` piped to `vercel env add` adds `\n` to values, causing "invalid private key" and "address is invalid" errors. Fixed by using `printf '%s'` instead.
+
+**~23:45 UTC** — Production verification. All write operations tested on Vercel:
+- Hackaclaw authorizes Merkle as spender ✅ (tx executed)
+- Merkle reads its spender config ✅ (authorized, 0.001/tx cap, 0.005/day)
+- Merkle withdraws 0.0005 yield from Hackaclaw's vault ✅ (tx executed)
+- Hackaclaw revokes Merkle ✅ (tx executed)
+
+State reset for demo by revoking Merkle's access.
+
+**Production URLs:**
+- Dashboard: https://agent-gate-three.vercel.app
+- MCP endpoint: https://agent-gate-three.vercel.app/api/mcp-agent
+
+---
+
 ## Viraj ↔ merkle
 
 *(Viraj's conversation log to be merged here)*
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 20, 2026 16:15 UTC*
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 00:00 UTC*
