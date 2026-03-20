@@ -33,7 +33,7 @@ export function Sidebar() {
       <div className="flex h-14 items-center overflow-hidden whitespace-nowrap px-3">
         <span
           className="text-xl font-semibold text-primary"
-          style={{ textShadow: "0 0 20px hsl(270 95% 65% / 0.5)" }}
+          style={{ textShadow: "0 0 20px hsl(319 100% 61% / 0.5)" }}
         >
           <span className="inline group-hover:hidden group-focus-within:hidden">
             AG

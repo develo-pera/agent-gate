@@ -7,6 +7,7 @@ import { Copy, Download, WrapText, Check } from "lucide-react";
 interface JsonViewerProps {
   data: unknown;
   maxInitialDepth?: number;
+  filename?: string;
 }
 
 function getInitialCollapsed(
@@ -74,7 +75,7 @@ const JsonNode = React.memo(function JsonNode({
   if (data === null) {
     return (
       <span>
-        <span className="text-[hsl(270,60%,70%)]">null</span>
+        <span className="text-[hsl(319,80%,70%)]">null</span>
         <span className="text-muted-foreground">{comma}</span>
       </span>
     );
@@ -83,7 +84,7 @@ const JsonNode = React.memo(function JsonNode({
   if (typeof data === "boolean") {
     return (
       <span>
-        <span className="text-[hsl(270,60%,70%)]">{String(data)}</span>
+        <span className="text-[hsl(319,80%,70%)]">{String(data)}</span>
         <span className="text-muted-foreground">{comma}</span>
       </span>
     );
@@ -184,7 +185,7 @@ const JsonNode = React.memo(function JsonNode({
   );
 });
 
-export function JsonViewer({ data, maxInitialDepth = 3 }: JsonViewerProps) {
+export function JsonViewer({ data, maxInitialDepth = 3, filename = "response.json" }: JsonViewerProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() =>
     getInitialCollapsed(data, maxInitialDepth)
   );
@@ -216,7 +217,7 @@ export function JsonViewer({ data, maxInitialDepth = 3 }: JsonViewerProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "response.json";
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }, [jsonString]);

@@ -17,7 +17,7 @@ export function StatCard({ label, value, subValue, glow }: StatCardProps) {
         className={cn(
           "text-3xl font-semibold",
           glow &&
-            "text-primary [text-shadow:0_0_20px_hsl(270_95%_65%/0.5)]",
+            "text-primary [text-shadow:0_0_20px_hsl(319_100%_61%/0.5)]",
         )}
       >
         {value}
