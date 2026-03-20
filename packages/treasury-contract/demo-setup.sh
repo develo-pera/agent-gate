@@ -77,7 +77,8 @@ cast call "$TREASURY_ADDR" "getVaultStatus(address)(uint256,uint256,uint256,bool
 #   slot+2 = exists (bool)
 echo ""
 echo "═══ Simulating ~5% yield ═══"
-VAULT_BASE=$(cast keccak "$(cast abi-encode 'f(address,uint256)' "$DEPLOYER" 0)")
+# vaults mapping is at slot 1 (slot 0 is ReentrancyGuard._status)
+VAULT_BASE=$(cast keccak "$(cast abi-encode 'f(address,uint256)' "$DEPLOYER" 1)")
 STETH_VALUE_SLOT=$(python3 -c "print(hex(int('$VAULT_BASE', 16) + 1))")
 
 # Read current principalStETHValue

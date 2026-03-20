@@ -1,11 +1,13 @@
 import { VaultOverview } from "@/components/treasury/vault-overview";
 import { DepositForm } from "@/components/treasury/deposit-form";
 import { WithdrawForm } from "@/components/treasury/withdraw-form";
+import { AddressInput } from "@/components/treasury/address-input";
 
 export default function TreasuryPage() {
   return (
     <div className="flex flex-col gap-8">
       <h1 className="text-xl font-semibold">Treasury Vault</h1>
+      <AddressInput />
       <VaultOverview />
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <DepositForm />

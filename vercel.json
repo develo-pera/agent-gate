@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build --workspace=@agentgate/app",
+  "outputDirectory": "packages/app/.next",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+}

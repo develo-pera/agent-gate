@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { parseEther, formatEther, type Address } from "viem";
-import type { AgentGateContext } from "../index.js";
+import type { AgentGateContext } from "../context.js";
 
 // ── Lido contract ABIs (minimal) ──────────────────────────────────────
 const LIDO_ABI = [

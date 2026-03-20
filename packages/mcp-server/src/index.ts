@@ -1,9 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { createPublicClient, createWalletClient, http, type Chain } from "viem";
+import { createPublicClient, createWalletClient, http } from "viem";
 import { base, mainnet } from "viem/chains";
-import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
+import { privateKeyToAccount } from "viem/accounts";
+import type { AgentGateContext } from "./context.js";
 
 // Tool imports
 import { registerLidoTools } from "./tools/lido.js";
@@ -44,14 +45,7 @@ if (PRIVATE_KEY) {
 }
 
 // ── Shared context for all tools ──────────────────────────────────────
-export interface AgentGateContext {
-  publicClient: any;
-  l1PublicClient: any;
-  walletClient?: any;
-  walletAccount?: PrivateKeyAccount;
-  dryRun: boolean;
-  chain: Chain;
-}
+export type { AgentGateContext } from "./context.js";
 
 const ctx: AgentGateContext = {
   publicClient,

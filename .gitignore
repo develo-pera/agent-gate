@@ -19,3 +19,4 @@ mnemonic.txt
 .DS_Store
 packages/app/.next/
 test-mcp-flow.mjs
+.vercel
