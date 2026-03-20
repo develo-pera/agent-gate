@@ -15,6 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - App shell, dark theme, wallet connect, demo mode, HTTP bridge, and navigation
 - [ ] **Phase 2: Dashboard Pages** - Treasury vault UI, staking overview, and delegation viewer with direct on-chain reads
 - [ ] **Phase 3: MCP Playground** - Interactive tool caller with parameter forms, execution, and JSON response viewer
+- [ ] **Phase 4: Foundation Verification & Config Fix** - Retroactive Phase 1 verification, env var fix, doc cleanup, dead code removal
 
 ## Phase Details
 
@@ -68,6 +69,19 @@ Plans:
 - [ ] 03-01-PLAN.md — Tool schema registry and bridge expansion for all 25 visible MCP tools
 - [ ] 03-02-PLAN.md — Playground UI: three-column layout with tool selector, parameter form, and JSON viewer
 
+### Phase 4: Foundation Verification & Config Fix
+**Goal**: Close all audit gaps — retroactively verify Phase 1, fix NEXT_PUBLIC_TREASURY_ADDRESS env var so wagmi reads work, update stale doc checkboxes, and remove dead code
+**Depends on**: Phase 3
+**Requirements**: FOUN-01, FOUN-02, FOUN-03, FOUN-04, FOUN-05, FOUN-06
+**Gap Closure:** Closes gaps from audit
+**Success Criteria** (what must be TRUE):
+  1. Phase 1 VERIFICATION.md exists confirming all 6 FOUN-* requirements pass
+  2. NEXT_PUBLIC_TREASURY_ADDRESS is set in .env and .env.example, and wagmi hooks resolve the correct treasury address
+  3. All FOUN-* checkboxes are checked in REQUIREMENTS.md with Complete status in the traceability table
+  4. ROADMAP.md plan checkboxes for Phases 2 and 3 are updated to [x]
+  5. Dead code (useDelegationActions, getAvailableTools) is removed
+**Plans**: 0 plans
+
 ## Progress
 
 **Execution Order:**
@@ -78,3 +92,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 1. Foundation | 3/3 | Complete | 2026-03-19 |
 | 2. Dashboard Pages | 0/4 | Not started | - |
 | 3. MCP Playground | 0/3 | Not started | - |
+| 4. Foundation Verification & Config Fix | 0/0 | Not started | - |
