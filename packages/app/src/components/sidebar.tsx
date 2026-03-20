@@ -6,7 +6,6 @@ import { Vault, TrendingUp, Users, Terminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-import { WalletDisplay } from "@/components/wallet-display";
 
 interface NavItem {
   href: string;
@@ -31,9 +30,9 @@ export function Sidebar() {
       aria-label="Main navigation"
     >
       {/* Logo section */}
-      <div className="flex h-14 items-center overflow-hidden whitespace-nowrap px-4">
+      <div className="flex h-14 items-center overflow-hidden whitespace-nowrap px-3">
         <span
-          className="text-[28px] font-semibold text-primary"
+          className="text-xl font-semibold text-primary"
           style={{ textShadow: "0 0 20px hsl(270 95% 65% / 0.5)" }}
         >
           <span className="inline group-hover:hidden group-focus-within:hidden">
@@ -87,11 +86,6 @@ export function Sidebar() {
         })}
       </div>
 
-      {/* Wallet section */}
-      <Separator />
-      <div className="overflow-hidden px-3 py-3">
-        <WalletDisplay />
-      </div>
     </nav>
   );
 }

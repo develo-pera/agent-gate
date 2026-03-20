@@ -29,12 +29,16 @@ export default function RootLayout({
       >
         <Web3Provider>
           <AppProvider>
-            <DemoBanner />
             <div className="flex min-h-screen">
               <Sidebar />
-              <main className="flex-1 ml-14 p-8 max-w-[1200px] mx-auto transition-all duration-200">
-                {children}
-              </main>
+              <div className="flex-1 ml-14 flex flex-col min-h-screen">
+                <div className="w-full px-8 pt-4 pb-2">
+                  <DemoBanner />
+                </div>
+                <main className="flex-1 px-8 pb-8 max-w-[1200px] mx-auto w-full">
+                  {children}
+                </main>
+              </div>
             </div>
           </AppProvider>
         </Web3Provider>
