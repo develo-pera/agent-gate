@@ -13,6 +13,7 @@ import {
   type Address,
 } from "viem";
 import { base, mainnet } from "viem/chains";
+import { normalize } from "viem/ens";
 
 // ── Bridge Context ──────────────────────────────────────────────────
 
@@ -46,6 +47,23 @@ export type ToolHandler = (
   params: Record<string, unknown>,
   ctx: BridgeContext,
 ) => Promise<Record<string, unknown>>;
+
+// ── ERC20 ABI (for balance checks) ──────────────────────────────────
+
+const ERC20_BALANCE_ABI = [
+  {
+    name: "balanceOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
+const STETH_ADDRESS =
+  "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84" as Address;
+const BASE_WSTETH_ADDRESS =
+  "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as Address;
 
 // ── Treasury ABI (inline copy — no imports from tool files) ─────────
 
@@ -254,12 +272,192 @@ export const toolRegistry: Record<string, ToolHandler> = {
 
   // Delegation tools (dry-run stubs)
   delegate_create: dryRunStub("delegate_create"),
+  delegate_create_account: dryRunStub("delegate_create_account"),
   delegate_redeem: dryRunStub("delegate_redeem"),
   delegate_revoke: dryRunStub("delegate_revoke"),
   delegate_list: async (_params, _ctx) => ({
     delegations: [],
     note: "Delegation list retrieved from bridge (demo mode returns empty — client manages session state)",
   }),
+
+  // ── Lido read-only tools (real implementations) ──────────────────
+
+  lido_get_apr: async (_params, _ctx) => {
+    try {
+      const res = await fetch(
+        "https://eth-api.lido.fi/v1/protocol/steth/apr/last",
+      );
+      const data = await res.json();
+      return { apr: data, source: "Lido API", network: "Ethereum L1" };
+    } catch (e) {
+      return {
+        error: `Failed to fetch APR: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
+  },
+
+  lido_balance: async (params, ctx) => {
+    const address = params.address as Address;
+    try {
+      const [l1Steth, baseWsteth] = await Promise.all([
+        ctx.l1PublicClient.readContract({
+          address: STETH_ADDRESS,
+          abi: ERC20_BALANCE_ABI,
+          functionName: "balanceOf",
+          args: [address],
+        }),
+        ctx.publicClient.readContract({
+          address: BASE_WSTETH_ADDRESS,
+          abi: ERC20_BALANCE_ABI,
+          functionName: "balanceOf",
+          args: [address],
+        }),
+      ]);
+      return {
+        address,
+        l1_steth: formatEther(l1Steth),
+        base_wsteth: formatEther(baseWsteth),
+      };
+    } catch (e) {
+      return {
+        error: `Failed to fetch balances: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
+  },
+
+  lido_rewards: async (params, _ctx) => {
+    try {
+      const address = params.address as string;
+      const limit = (params.limit as number) || 10;
+      const res = await fetch(
+        `https://eth-api.lido.fi/v1/protocol/steth/rewards?address=${address}&limit=${limit}&onlyRewards=true`,
+      );
+      const data = await res.json();
+      return data;
+    } catch (e) {
+      return {
+        error: `Failed to fetch rewards: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
+  },
+
+  lido_governance: async (params, _ctx) => {
+    try {
+      const state = (params.state as string) || "active";
+      const limit = (params.limit as number) || 5;
+      const query = {
+        query: `{
+          proposals(
+            first: ${limit},
+            skip: 0,
+            where: {
+              space_in: ["lido-snapshot.eth"]
+              ${state !== "all" ? `, state: "${state}"` : ""}
+            },
+            orderBy: "created",
+            orderDirection: desc
+          ) {
+            id title state start end scores scores_total votes link
+          }
+        }`,
+      };
+      const res = await fetch("https://hub.snapshot.org/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(query),
+      });
+      const data = await res.json();
+      return { proposals: data?.data?.proposals || [] };
+    } catch (e) {
+      return {
+        error: `Failed to fetch governance: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
+  },
+
+  // ── Lido write tools (dry-run stubs) ─────────────────────────────
+
+  lido_stake: dryRunStub("lido_stake"),
+  lido_wrap: dryRunStub("lido_wrap"),
+  lido_governance_vote: dryRunStub("lido_governance_vote"),
+
+  // ── ENS tools (real implementations using L1 client) ─────────────
+
+  ens_resolve: async (params, ctx) => {
+    try {
+      const name = params.name as string;
+      const address = await ctx.l1PublicClient.getEnsAddress({
+        name: normalize(name),
+      });
+      return { name, address: address || null, resolved: !!address };
+    } catch (e) {
+      return {
+        error: `Failed to resolve ENS: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
+  },
+
+  ens_reverse: async (params, ctx) => {
+    try {
+      const address = params.address as Address;
+      const name = await ctx.l1PublicClient.getEnsName({ address });
+      return { address, ens_name: name || null, has_ens: !!name };
+    } catch (e) {
+      return {
+        error: `Failed to reverse-resolve: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
+  },
+
+  // ── Monitor tool (real implementation) ───────────────────────────
+
+  vault_health: async (params, ctx) => {
+    try {
+      const address = params.address as Address;
+      const wstethBalance = await ctx.publicClient.readContract({
+        address: BASE_WSTETH_ADDRESS,
+        abi: ERC20_BALANCE_ABI,
+        functionName: "balanceOf",
+        args: [address],
+      });
+
+      let currentApr = 0;
+      try {
+        const aprRes = await fetch(
+          "https://eth-api.lido.fi/v1/protocol/steth/apr/last",
+        );
+        const aprData = await aprRes.json();
+        currentApr = aprData?.data?.apr || 0;
+      } catch {
+        /* APR fetch optional */
+      }
+
+      const balNum = Number(formatEther(wstethBalance));
+      const healthStatus =
+        balNum === 0
+          ? "no_position"
+          : currentApr > 0
+            ? "healthy"
+            : "warning";
+
+      const alerts: string[] = [];
+      if (balNum === 0) alerts.push("No wstETH position detected");
+      if (currentApr === 0 && balNum > 0) alerts.push("APR data unavailable");
+      if (healthStatus === "healthy") alerts.push("Position healthy, yield accruing normally");
+
+      return {
+        address,
+        wsteth_balance: formatEther(wstethBalance),
+        current_apr: currentApr,
+        health_status: healthStatus,
+        alerts,
+      };
+    } catch (e) {
+      return {
+        error: `Failed to generate health report: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
+  },
 };
 
 // ── Utility ─────────────────────────────────────────────────────────
