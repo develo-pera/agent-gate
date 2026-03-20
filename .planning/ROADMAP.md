@@ -12,7 +12,7 @@ Transform the existing AgentGate MCP server into a demo-ready dashboard for the 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - App shell, dark theme, wallet connect, demo mode, HTTP bridge, and navigation
+- [x] **Phase 1: Foundation** - App shell, dark theme, wallet connect, demo mode, HTTP bridge, and navigation
 - [ ] **Phase 2: Dashboard Pages** - Treasury vault UI, staking overview, and delegation viewer with direct on-chain reads
 - [ ] **Phase 3: MCP Playground** - Interactive tool caller with parameter forms, execution, and JSON response viewer
 
@@ -32,8 +32,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-00-PLAN.md — Install Vitest and create Wave 0 test stub files
-- [ ] 01-01-PLAN.md — Scaffold Next.js app with dark crypto theme, shadcn, and MCP HTTP bridge
-- [ ] 01-02-PLAN.md — Wire wallet connect, demo mode, sidebar navigation, and placeholder pages
+- [x] 01-01-PLAN.md — Scaffold Next.js app with dark crypto theme, shadcn, and MCP HTTP bridge
+- [x] 01-02-PLAN.md — Wire wallet connect, demo mode, sidebar navigation, and placeholder pages
 
 ### Phase 2: Dashboard Pages
 **Goal**: User can view treasury vault status, staking positions, and active delegations with real on-chain data across three polished dashboard sections
@@ -73,6 +73,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In Progress | - |
+| 1. Foundation | 3/3 | Complete | 2026-03-19 |
 | 2. Dashboard Pages | 0/3 | Not started | - |
 | 3. MCP Playground | 0/2 | Not started | - |
