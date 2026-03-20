@@ -20,15 +20,21 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 
 ### Active
 
-- [ ] Next.js app in `app/` package within monorepo (npm workspaces)
-- [ ] Dark crypto visual theme (Uniswap/Aave inspired, glowing accents)
-- [ ] Wallet connect (MetaMask/WalletConnect) + read-only demo mode
 - [ ] MCP Playground — interactive tool caller showing request/response JSON
-- [ ] Treasury Dashboard — vault status, deposit/withdraw UI, yield vs principal visualization
-- [ ] Delegation Viewer — active delegations list, create/redeem flow UI
-- [ ] Staking Overview — Lido positions, APR display, vault health report
 - [ ] HTTP bridge layer on MCP server for Next.js to call tools via REST
-- [ ] Direct viem reads for on-chain state (balances, vault status, positions)
+
+### Validated in Phase 1: app-shell
+
+- ✓ Next.js app in `app/` package within monorepo (npm workspaces)
+- ✓ Dark crypto visual theme (Uniswap/Aave inspired, glowing accents)
+- ✓ Wallet connect (MetaMask/WalletConnect) + read-only demo mode
+- ✓ Direct viem reads for on-chain state (balances, vault status, positions)
+
+### Validated in Phase 2: dashboard-pages
+
+- ✓ Treasury Dashboard — vault status, deposit/withdraw UI, yield vs principal donut chart, Chainlink oracle rate
+- ✓ Delegation Viewer — card/table views, create/redeem flow with dry-run support
+- ✓ Staking Overview — Lido APR display, wstETH/stETH positions, vault health report
 
 ### Out of Scope
 
@@ -74,4 +80,4 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 | Skip Uniswap/ENS dedicated pages | No real swap tx yet, ENS too simple for own page — focus on treasury + delegations + MCP | — Pending |
 
 ---
-*Last updated: 2026-03-19 after initialization*
+*Last updated: 2026-03-20 after Phase 2 completion*
