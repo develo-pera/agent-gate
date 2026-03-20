@@ -26,10 +26,10 @@ Requirements for hackathon submission. Each maps to roadmap phases.
 
 ### MCP Playground
 
-- [ ] **PLAY-01**: Tool selector listing all available MCP tools grouped by domain
-- [ ] **PLAY-02**: Dynamic parameter form generated from tool schema
-- [ ] **PLAY-03**: JSON request/response viewer showing raw MCP communication
-- [ ] **PLAY-04**: Dry-run toggle for safe demonstration of write tools
+- [x] **PLAY-01**: Tool selector listing all available MCP tools grouped by domain
+- [x] **PLAY-02**: Dynamic parameter form generated from tool schema
+- [x] **PLAY-03**: JSON request/response viewer showing raw MCP communication
+- [x] **PLAY-04**: Dry-run toggle for safe demonstration of write tools
 
 ### Delegation
 
@@ -93,10 +93,10 @@ Deferred post-hackathon. Not in current roadmap.
 | STAK-01 | Phase 2 | Complete |
 | STAK-02 | Phase 2 | Complete |
 | STAK-03 | Phase 2 | Complete |
-| PLAY-01 | Phase 3 | Pending |
-| PLAY-02 | Phase 3 | Pending |
-| PLAY-03 | Phase 3 | Pending |
-| PLAY-04 | Phase 3 | Pending |
+| PLAY-01 | Phase 3 | Complete |
+| PLAY-02 | Phase 3 | Complete |
+| PLAY-03 | Phase 3 | Complete |
+| PLAY-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total
