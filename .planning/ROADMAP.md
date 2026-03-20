@@ -61,11 +61,11 @@ Plans:
   2. Selecting a tool renders a dynamic parameter form generated from the tool's schema, pre-filled with sensible defaults
   3. Executing a tool shows the raw JSON request sent and response received, with syntax highlighting and copy functionality
   4. User can toggle dry-run mode on write tools to safely demonstrate destructive operations without executing real transactions
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — Tool schema registry and bridge expansion for all 25 visible MCP tools
+- [ ] 03-02-PLAN.md — Playground UI: three-column layout with tool selector, parameter form, and JSON viewer
 
 ## Progress
 
