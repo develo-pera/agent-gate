@@ -2,8 +2,8 @@
 phase: 3
 slug: mcp-playground
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-20
 ---
 
@@ -38,16 +38,20 @@ created: 2026-03-20
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 03-01-01 | 01 | 1 | PLAY-01 | unit | `cd packages/app && npx vitest run src/__tests__/playground-selector.test.tsx -x` | ❌ W0 | ⬜ pending |
-| 03-01-02 | 01 | 1 | PLAY-02 | unit | `cd packages/app && npx vitest run src/__tests__/playground-form.test.tsx -x` | ❌ W0 | ⬜ pending |
-| 03-02-01 | 02 | 2 | PLAY-03 | unit | `cd packages/app && npx vitest run src/__tests__/playground-json.test.tsx -x` | ❌ W0 | ⬜ pending |
-| 03-02-02 | 02 | 2 | PLAY-04 | unit | `cd packages/app && npx vitest run src/__tests__/playground-dryrun.test.tsx -x` | ❌ W0 | ⬜ pending |
+| 03-00-01 | 00 | 0 | PLAY-01..04 | stub | `cd packages/app && npx vitest run --reporter=verbose` | Wave 0 creates | ⬜ pending |
+| 03-01-01 | 01 | 1 | PLAY-01 | unit | `cd packages/app && npx vitest run src/__tests__/playground-selector.test.tsx -x` | ✅ W0 | ⬜ pending |
+| 03-01-02 | 01 | 1 | PLAY-02 | unit | `cd packages/app && npx vitest run src/__tests__/playground-form.test.tsx -x` | ✅ W0 | ⬜ pending |
+| 03-02-01 | 02 | 2 | PLAY-04 | unit | `cd packages/app && npx vitest run src/__tests__/playground-dryrun.test.tsx -x` | ✅ W0 | ⬜ pending |
+| 03-02-02 | 02 | 2 | PLAY-03 | unit | `cd packages/app && npx vitest run src/__tests__/playground-json.test.tsx -x` | ✅ W0 | ⬜ pending |
+| 03-02-03 | 02 | 2 | PLAY-01,02 | unit | `cd packages/app && npx vitest run src/__tests__/playground-selector.test.tsx src/__tests__/playground-form.test.tsx -x` | ✅ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
 
 ## Wave 0 Requirements
+
+All addressed by **03-00-PLAN.md**:
 
 - [ ] `src/__tests__/playground-selector.test.tsx` — stubs for PLAY-01 (tool listing and filtering)
 - [ ] `src/__tests__/playground-form.test.tsx` — stubs for PLAY-02 (dynamic form generation)
@@ -67,11 +71,11 @@ created: 2026-03-20
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved (revision pass)
