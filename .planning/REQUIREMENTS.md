@@ -18,11 +18,11 @@ Requirements for hackathon submission. Each maps to roadmap phases.
 
 ### Treasury
 
-- [ ] **TREA-01**: Vault status display — principal vs yield balances for connected wallet
-- [ ] **TREA-02**: Yield vs principal visualization (chart showing vault separation)
+- [x] **TREA-01**: Vault status display — principal vs yield balances for connected wallet
+- [x] **TREA-02**: Yield vs principal visualization (chart showing vault separation)
 - [ ] **TREA-03**: Deposit wstETH form with dry-run simulation toggle
 - [ ] **TREA-04**: Withdraw yield form with dry-run simulation toggle
-- [ ] **TREA-05**: Chainlink oracle exchange rate display
+- [x] **TREA-05**: Chainlink oracle exchange rate display
 
 ### MCP Playground
 
@@ -33,15 +33,15 @@ Requirements for hackathon submission. Each maps to roadmap phases.
 
 ### Delegation
 
-- [ ] **DELG-01**: Active delegations list showing scope, caveats, and status
-- [ ] **DELG-02**: Create delegation form (ERC-7710 with amount caveats)
-- [ ] **DELG-03**: Redeem delegation UI with target contract/calldata input
+- [x] **DELG-01**: Active delegations list showing scope, caveats, and status
+- [x] **DELG-02**: Create delegation form (ERC-7710 with amount caveats)
+- [x] **DELG-03**: Redeem delegation UI with target contract/calldata input
 
 ### Staking
 
-- [ ] **STAK-01**: Lido staking APR display with current rate
-- [ ] **STAK-02**: wstETH/stETH position balance display for connected wallet
-- [ ] **STAK-03**: Vault health report card (aggregated metrics, alerts)
+- [x] **STAK-01**: Lido staking APR display with current rate
+- [x] **STAK-02**: wstETH/stETH position balance display for connected wallet
+- [x] **STAK-03**: Vault health report card (aggregated metrics, alerts)
 
 ## v2 Requirements
 
@@ -82,17 +82,17 @@ Deferred post-hackathon. Not in current roadmap.
 | FOUN-04 | Phase 1 | Pending |
 | FOUN-05 | Phase 1 | Complete |
 | FOUN-06 | Phase 1 | Pending |
-| TREA-01 | Phase 2 | Pending |
-| TREA-02 | Phase 2 | Pending |
+| TREA-01 | Phase 2 | Complete |
+| TREA-02 | Phase 2 | Complete |
 | TREA-03 | Phase 2 | Pending |
 | TREA-04 | Phase 2 | Pending |
-| TREA-05 | Phase 2 | Pending |
-| DELG-01 | Phase 2 | Pending |
-| DELG-02 | Phase 2 | Pending |
-| DELG-03 | Phase 2 | Pending |
-| STAK-01 | Phase 2 | Pending |
-| STAK-02 | Phase 2 | Pending |
-| STAK-03 | Phase 2 | Pending |
+| TREA-05 | Phase 2 | Complete |
+| DELG-01 | Phase 2 | Complete |
+| DELG-02 | Phase 2 | Complete |
+| DELG-03 | Phase 2 | Complete |
+| STAK-01 | Phase 2 | Complete |
+| STAK-02 | Phase 2 | Complete |
+| STAK-03 | Phase 2 | Complete |
 | PLAY-01 | Phase 3 | Pending |
 | PLAY-02 | Phase 3 | Pending |
 | PLAY-03 | Phase 3 | Pending |
