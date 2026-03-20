@@ -65,9 +65,10 @@ export function usePlayground() {
     );
     if (!schema) return;
 
+    const hasAddressParam = schema.params.some((p) => p.isAddress);
     const requestBody: Record<string, unknown> = {
       ...formValues,
-      wallet_address: activeAddress,
+      ...(hasAddressParam ? { wallet_address: activeAddress } : {}),
     };
 
     // Inject dry_run for write tools when globalDryRun or demo mode
