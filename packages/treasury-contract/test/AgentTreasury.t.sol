@@ -198,8 +198,18 @@ contract AgentTreasuryUnitTest is Test {
         assertEq(principal, 1.5 ether);
     }
 
-    function test_stale_oracle_reverts() public {
+    function test_stale_oracle_reverts_zero_price() public {
         feed.setPrice(0); // invalid
+
+        vm.prank(agent);
+        vm.expectRevert(AgentTreasury.StaleOracle.selector);
+        treasury.deposit(1 ether);
+    }
+
+    function test_stale_oracle_reverts_old_timestamp() public {
+        // Warp time forward past the 24h staleness threshold
+        // Feed updatedAt stays at current block.timestamp, then we advance time 25h
+        vm.warp(block.timestamp + 25 hours);
 
         vm.prank(agent);
         vm.expectRevert(AgentTreasury.StaleOracle.selector);
@@ -315,6 +325,61 @@ contract AgentTreasuryUnitTest is Test {
         vm.prank(spender);
         treasury.withdrawYieldFor(agent, recipient, 0.001 ether);
         assertEq(wstETH.balanceOf(recipient), 0.001 ether);
+    }
+
+    function test_double_withdrawal_blocked() public {
+        vm.prank(agent);
+        treasury.deposit(1 ether);
+
+        feed.setPrice(INCREASED_RATE);
+
+        (, uint256 yield_, ,) = treasury.getVaultStatus(agent);
+        assertGt(yield_, 0, "yield should exist");
+
+        // Withdraw all available yield
+        vm.prank(agent);
+        treasury.withdrawYield(recipient, yield_);
+
+        // Second withdrawal of same amount should revert — yield was consumed
+        (, uint256 yieldAfter, ,) = treasury.getVaultStatus(agent);
+        assertEq(yieldAfter, 0, "yield should be zero after full withdrawal");
+
+        vm.prank(agent);
+        vm.expectRevert(abi.encodeWithSelector(
+            AgentTreasury.InsufficientYield.selector,
+            yield_,
+            0
+        ));
+        treasury.withdrawYield(recipient, yield_);
+    }
+
+    function test_double_withdrawal_blocked_for_spender() public {
+        vm.prank(agent);
+        treasury.deposit(1 ether);
+
+        feed.setPrice(INCREASED_RATE);
+
+        vm.prank(agent);
+        treasury.authorizeSpender(spender, true, 0, 0, 0);
+
+        (, uint256 yield_, ,) = treasury.getVaultStatus(agent);
+        assertGt(yield_, 0);
+
+        // Spender withdraws all yield
+        vm.prank(spender);
+        treasury.withdrawYieldFor(agent, recipient, yield_);
+
+        // Second withdrawal should revert
+        (, uint256 yieldAfter, ,) = treasury.getVaultStatus(agent);
+        assertEq(yieldAfter, 0, "yield should be zero after full withdrawal");
+
+        vm.prank(spender);
+        vm.expectRevert(abi.encodeWithSelector(
+            AgentTreasury.InsufficientYield.selector,
+            yield_,
+            0
+        ));
+        treasury.withdrawYieldFor(agent, recipient, yield_);
     }
 
     function test_get_spender_config() public {

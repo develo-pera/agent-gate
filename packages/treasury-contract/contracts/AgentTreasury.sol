@@ -125,6 +125,10 @@ contract AgentTreasury is ReentrancyGuard {
             revert InsufficientYield(wstETHAmount, available);
         }
 
+        // Advance principal snapshot so withdrawn yield cannot be re-claimed
+        uint256 rate = _getRate();
+        v.principalStETHValue += (wstETHAmount * rate) / 1e18;
+
         wstETH.safeTransfer(recipient, wstETHAmount);
 
         emit YieldWithdrawn(msg.sender, recipient, wstETHAmount);
@@ -175,6 +179,10 @@ contract AgentTreasury is ReentrancyGuard {
         if (wstETHAmount > available) {
             revert InsufficientYield(wstETHAmount, available);
         }
+
+        // Advance principal snapshot so withdrawn yield cannot be re-claimed
+        uint256 rate = _getRate();
+        v.principalStETHValue += (wstETHAmount * rate) / 1e18;
 
         wstETH.safeTransfer(recipient, wstETHAmount);
 
@@ -302,9 +310,11 @@ contract AgentTreasury is ReentrancyGuard {
 
     // ── Internal ──────────────────────────────────────────────────────
 
+    uint256 private constant MAX_ORACLE_STALENESS = 24 hours;
+
     function _getRate() internal view returns (uint256) {
         (, int256 answer,, uint256 updatedAt,) = rateFeed.latestRoundData();
-        if (answer <= 0 || updatedAt == 0) revert StaleOracle();
+        if (answer <= 0 || block.timestamp - updatedAt > MAX_ORACLE_STALENESS) revert StaleOracle();
         return uint256(answer);
     }
 
