@@ -459,9 +459,3 @@ export const toolRegistry: Record<string, ToolHandler> = {
     }
   },
 };
-
-// ── Utility ─────────────────────────────────────────────────────────
-
-export function getAvailableTools(): string[] {
-  return Object.keys(toolRegistry);
-}

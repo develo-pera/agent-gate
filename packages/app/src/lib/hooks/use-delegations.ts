@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useApp } from "@/providers/app-provider";
 
 export interface Delegation {
@@ -42,27 +42,4 @@ export function useDelegations() {
     : sessionDelegations;
 
   return { delegations, setSessionDelegations };
-}
-
-export function useDelegationActions() {
-  const [delegations, setDelegations] = useState<Delegation[]>([]);
-
-  const addDelegation = useCallback(
-    (delegation: Omit<Delegation, "id" | "createdAt">) => {
-      const newDelegation: Delegation = {
-        ...delegation,
-        id: `del_${Date.now()}`,
-        createdAt: new Date().toISOString(),
-      };
-      setDelegations((prev) => [...prev, newDelegation]);
-      return newDelegation;
-    },
-    [],
-  );
-
-  const removeDelegation = useCallback((id: string) => {
-    setDelegations((prev) => prev.filter((d) => d.id !== id));
-  }, []);
-
-  return { delegations, addDelegation, removeDelegation };
 }
