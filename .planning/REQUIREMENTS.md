@@ -20,8 +20,8 @@ Requirements for hackathon submission. Each maps to roadmap phases.
 
 - [x] **TREA-01**: Vault status display — principal vs yield balances for connected wallet
 - [x] **TREA-02**: Yield vs principal visualization (chart showing vault separation)
-- [ ] **TREA-03**: Deposit wstETH form with dry-run simulation toggle
-- [ ] **TREA-04**: Withdraw yield form with dry-run simulation toggle
+- [x] **TREA-03**: Deposit wstETH form with dry-run simulation toggle
+- [x] **TREA-04**: Withdraw yield form with dry-run simulation toggle
 - [x] **TREA-05**: Chainlink oracle exchange rate display
 
 ### MCP Playground
@@ -84,8 +84,8 @@ Deferred post-hackathon. Not in current roadmap.
 | FOUN-06 | Phase 1 | Pending |
 | TREA-01 | Phase 2 | Complete |
 | TREA-02 | Phase 2 | Complete |
-| TREA-03 | Phase 2 | Pending |
-| TREA-04 | Phase 2 | Pending |
+| TREA-03 | Phase 2 | Complete |
+| TREA-04 | Phase 2 | Complete |
 | TREA-05 | Phase 2 | Complete |
 | DELG-01 | Phase 2 | Complete |
 | DELG-02 | Phase 2 | Complete |
