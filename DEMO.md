@@ -36,17 +36,17 @@ Each agent machine runs one command to connect Claude Code to the hosted MCP ser
 
 **Hackaclaw's machine:**
 ```bash
-claude mcp add --transport http agentgate https://your-app.vercel.app/api/mcp-agent \
+claude mcp add --transport http agentgate https://agent-gate-three.vercel.app/api/mcp-agent \
   --header "Authorization: Bearer hackaclaw"
 ```
 
 **Merkle's machine:**
 ```bash
-claude mcp add --transport http agentgate https://your-app.vercel.app/api/mcp-agent \
+claude mcp add --transport http agentgate https://agent-gate-three.vercel.app/api/mcp-agent \
   --header "Authorization: Bearer merkle"
 ```
 
-Replace `https://your-app.vercel.app` with the actual Vercel deployment URL (or `http://localhost:3001` for local testing).
+Replace `https://agent-gate-three.vercel.app` with the actual Vercel deployment URL (or `http://localhost:3001` for local testing).
 
 ## 3. Demo Flow (8 steps)
 

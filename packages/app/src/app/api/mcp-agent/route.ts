@@ -7,7 +7,7 @@ function extractAgentId(request: NextRequest): string | null {
   return auth.slice(7).trim();
 }
 
-export async function GET(request: NextRequest) {
+async function handle(request: NextRequest) {
   const agentId = extractAgentId(request);
   if (!agentId) {
     return new Response(
@@ -15,27 +15,17 @@ export async function GET(request: NextRequest) {
       { status: 401, headers: { "Content-Type": "application/json" } },
     );
   }
-  return handleMcpRequest(request as unknown as Request, agentId);
+  try {
+    return await handleMcpRequest(request as unknown as Request, agentId);
+  } catch (e) {
+    console.error("MCP handler error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Internal error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
 }
 
-export async function POST(request: NextRequest) {
-  const agentId = extractAgentId(request);
-  if (!agentId) {
-    return new Response(
-      JSON.stringify({ error: "Missing Authorization: Bearer <agent_id>" }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  return handleMcpRequest(request as unknown as Request, agentId);
-}
-
-export async function DELETE(request: NextRequest) {
-  const agentId = extractAgentId(request);
-  if (!agentId) {
-    return new Response(
-      JSON.stringify({ error: "Missing Authorization: Bearer <agent_id>" }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  return handleMcpRequest(request as unknown as Request, agentId);
-}
+export const GET = handle;
+export const POST = handle;
+export const DELETE = handle;
