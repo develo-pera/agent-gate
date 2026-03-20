@@ -251,6 +251,15 @@ export const toolRegistry: Record<string, ToolHandler> = {
     "treasury_set_recipient_whitelist",
   ),
   treasury_set_allowed_recipient: dryRunStub("treasury_set_allowed_recipient"),
+
+  // Delegation tools (dry-run stubs)
+  delegate_create: dryRunStub("delegate_create"),
+  delegate_redeem: dryRunStub("delegate_redeem"),
+  delegate_revoke: dryRunStub("delegate_revoke"),
+  delegate_list: async (_params, _ctx) => ({
+    delegations: [],
+    note: "Delegation list retrieved from bridge (demo mode returns empty — client manages session state)",
+  }),
 };
 
 // ── Utility ─────────────────────────────────────────────────────────
