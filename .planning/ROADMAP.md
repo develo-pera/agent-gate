@@ -61,9 +61,10 @@ Plans:
   2. Selecting a tool renders a dynamic parameter form generated from the tool's schema, pre-filled with sensible defaults
   3. Executing a tool shows the raw JSON request sent and response received, with syntax highlighting and copy functionality
   4. User can toggle dry-run mode on write tools to safely demonstrate destructive operations without executing real transactions
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
+- [ ] 03-00-PLAN.md — Wave 0: Create vitest stub files for all 4 playground test requirements
 - [ ] 03-01-PLAN.md — Tool schema registry and bridge expansion for all 25 visible MCP tools
 - [ ] 03-02-PLAN.md — Playground UI: three-column layout with tool selector, parameter form, and JSON viewer
 
@@ -76,4 +77,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-03-19 |
 | 2. Dashboard Pages | 0/4 | Not started | - |
-| 3. MCP Playground | 0/2 | Not started | - |
+| 3. MCP Playground | 0/3 | Not started | - |
