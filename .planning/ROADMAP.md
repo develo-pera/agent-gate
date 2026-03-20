@@ -44,12 +44,13 @@ Plans:
   2. User can fill out deposit and withdraw forms with a dry-run simulation toggle that previews the outcome before execution
   3. Staking section shows current Lido APR, wstETH/stETH positions for the connected or demo wallet, and a vault health report card with color-coded metrics
   4. Delegation section lists active ERC-7710 delegations with scope and caveats, and provides forms to create and redeem delegations
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md — Shared infrastructure: shadcn components, ABIs, hooks, bridge stubs, and test scaffolds
+- [ ] 02-02-PLAN.md — Treasury page: vault overview with donut chart, deposit/withdraw forms
+- [ ] 02-03-PLAN.md — Staking page: APR hero, position card, vault health report
+- [ ] 02-04-PLAN.md — Delegations page: card/table views, create/redeem delegation forms
 
 ### Phase 3: MCP Playground
 **Goal**: User can interactively select, configure, and execute any of the 27 MCP tools and see the raw JSON request/response -- the centerpiece demo feature
@@ -74,5 +75,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-03-19 |
-| 2. Dashboard Pages | 0/3 | Not started | - |
+| 2. Dashboard Pages | 0/4 | Not started | - |
 | 3. MCP Playground | 0/2 | Not started | - |
