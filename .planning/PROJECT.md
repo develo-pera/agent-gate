@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A dark-themed, crypto-native dashboard UI for demoing the AgentGate MCP server — an agent-to-agent DeFi infrastructure on Base. The dashboard lives in `app/` as a new package in the existing monorepo, built with Next.js + Tailwind. It showcases treasury vaults, Lido staking, MetaMask delegations, and an interactive MCP tool playground — all targeting multiple bounties at the Synthesis hackathon.
+A dark-themed, crypto-native dashboard UI for demoing the AgentGate MCP server — an agent-to-agent DeFi infrastructure on Base. The dashboard lives in `packages/app/` as a package in the existing monorepo, built with Next.js + Tailwind. It showcases treasury vaults, Lido staking, MetaMask delegations, and an interactive MCP tool playground — all targeting multiple bounties at the Synthesis hackathon.
 
 ## Core Value
 
@@ -17,36 +17,22 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 - ✓ MetaMask Smart Accounts Kit integration with ERC-7710 delegation — existing
 - ✓ Dry-run simulation on all write tools — existing
 - ✓ Foundry test suite for treasury contract (9 tests passing) — existing
+- ✓ Next.js app in `packages/app/` package within monorepo (npm workspaces) — v1.0
+- ✓ Dark crypto visual theme (Uniswap-inspired, hot-pink accents) — v1.0
+- ✓ Wallet connect (MetaMask/WalletConnect) + read-only demo mode — v1.0
+- ✓ Direct viem reads for on-chain state (balances, vault status, positions) — v1.0
+- ✓ HTTP bridge exposing MCP tool handlers via REST API routes — v1.0
+- ✓ Treasury Dashboard — vault status, deposit/withdraw UI, donut chart, Chainlink oracle rate — v1.0
+- ✓ Delegation Viewer — card/table views, create/redeem flow with dry-run support — v1.0
+- ✓ Staking Overview — Lido APR display, wstETH/stETH positions, vault health report — v1.0
+- ✓ MCP Playground — interactive tool caller with 25-tool selector, dynamic parameter forms, JSON viewer — v1.0
+- ✓ Tool schema registry covering all domains with 25 bridge handlers — v1.0
+- ✓ NEXT_PUBLIC_TREASURY_ADDRESS env var for wagmi reads — v1.0
+- ✓ Phase 1 retroactive verification with evidence for all FOUN-* requirements — v1.0
 
 ### Active
 
-- (none remaining — all phases complete)
-
-### Validated in Phase 4: Foundation Verification & Config Fix
-
-- ✓ NEXT_PUBLIC_TREASURY_ADDRESS env var configured so wagmi reads resolve real treasury
-- ✓ Dead code removed (useDelegationActions, getAvailableTools)
-- ✓ Phase 1 retroactive VERIFICATION.md with evidence for all 6 FOUN-* requirements
-- ✓ REQUIREMENTS.md and ROADMAP.md traceability fully updated
-
-### Validated in Phase 3: mcp-playground
-
-- ✓ MCP Playground — interactive tool caller with 25-tool selector, dynamic parameter forms, JSON request/response viewer
-- ✓ Tool schema registry covering all domains (Lido, Treasury, Delegation, ENS, Monitor)
-- ✓ Bridge expanded to 25 handlers with real read implementations and dry-run stubs for writes
-
-### Validated in Phase 1: app-shell
-
-- ✓ Next.js app in `app/` package within monorepo (npm workspaces)
-- ✓ Dark crypto visual theme (Uniswap/Aave inspired, glowing accents)
-- ✓ Wallet connect (MetaMask/WalletConnect) + read-only demo mode
-- ✓ Direct viem reads for on-chain state (balances, vault status, positions)
-
-### Validated in Phase 2: dashboard-pages
-
-- ✓ Treasury Dashboard — vault status, deposit/withdraw UI, yield vs principal donut chart, Chainlink oracle rate
-- ✓ Delegation Viewer — card/table views, create/redeem flow with dry-run support
-- ✓ Staking Overview — Lido APR display, wstETH/stETH positions, vault health report
+- (none — planning next milestone)
 
 ### Out of Scope
 
@@ -59,22 +45,16 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 
 ## Context
 
+**Shipped v1.0** with 5,105 LOC TypeScript across 96 files in 2 days.
+**Tech stack:** Next.js 15, Tailwind CSS v4, shadcn/ui, wagmi, viem, RainbowKit, @tanstack/react-query
 **Hackathon:** Synthesis (https://synthesis.md/hack/)
-**Deadline:** ~2 days from 2026-03-19
-**Bounties targeted:** MetaMask Delegations ($3K/$1.5K/$500), Lido stETH Treasury ($2K/$1K), Lido MCP ($3K/$2K/$1K), Vault Monitor ($1.5K/$750), Uniswap ($2.5K/$1.5K), ENS ($400+), Synthesis Open Track ($25K pool)
 **Demo format:** 2-minute recorded video for judging
-**Repo structure:** Monorepo with npm workspaces — `packages/mcp-server`, `packages/treasury-contract`, new `app/` for dashboard
+**Repo structure:** Monorepo with npm workspaces — `packages/mcp-server`, `packages/treasury-contract`, `packages/app/`
 
-**Existing infrastructure:**
-- MCP server on stdio transport — needs HTTP bridge for dashboard
-- Base mainnet (chainId 8453) primary, L1 Ethereum for Lido reads
-- Environment: RPC_URL, L1_RPC_URL, PRIVATE_KEY, TREASURY_ADDRESS, UNISWAP_API_KEY
-- All MCP tools have dry_run mode for safe demo
-- Treasury contract now includes Chainlink oracle for wstETH/stETH rate
+**Known tech debt (6 items):** Dead code (WalletDisplay, PlaceholderPage, formatPercent, treasuryAddress context field), data source mismatch in health-report, undeclared workspace dependency.
 
 ## Constraints
 
-- **Timeline**: ~2 days — scope must be ruthlessly prioritized for demo impact
 - **Tech stack**: Next.js, Tailwind CSS, dark theme, same monorepo
 - **Chain**: Base mainnet + L1 Ethereum reads (existing RPC setup)
 - **Transport**: MCP server needs HTTP/SSE bridge alongside existing stdio
@@ -85,11 +65,16 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Next.js in `app/` directory | User preference, monorepo structure | — Pending |
-| Dark crypto theme | Matches DeFi ecosystem aesthetic, judges expect it | — Pending |
-| Both viem direct + HTTP bridge | Viem for fast reads, HTTP bridge for MCP playground tool calls | — Pending |
-| Wallet + demo mode | Demo mode lets judges explore without wallet, wallet mode for live tx | — Pending |
-| Skip Uniswap/ENS dedicated pages | No real swap tx yet, ENS too simple for own page — focus on treasury + delegations + MCP | — Pending |
+| Next.js in `packages/app/` directory | User preference, monorepo structure | ✓ Good |
+| Dark crypto theme → Uniswap rebrand | Matches DeFi ecosystem aesthetic, judges expect it | ✓ Good |
+| Both viem direct + HTTP bridge | Viem for fast reads, HTTP bridge for MCP playground tool calls | ✓ Good |
+| Wallet + demo mode | Demo mode lets judges explore without wallet, wallet mode for live tx | ✓ Good |
+| Skip Uniswap/ENS dedicated pages | No real swap tx yet, ENS too simple for own page — focus on treasury + delegations + MCP | ✓ Good |
+| Coarse 3-phase roadmap (+ 1 gap-closure) | Hackathon timeline demanded minimal overhead | ✓ Good |
+| Demo mode via wallet connection state | No manual toggle needed, simplifies UX | ✓ Good |
+| @agentgate/mcp-server/bridge subpath export | Turbopack blocks relative imports outside package root | ⚠️ Revisit (undeclared dep) |
+| any-typed publicClient in BridgeContext | Avoids cross-package viem type conflicts | ⚠️ Revisit |
+| Demo delegations as constants in hook | Bridge has no persistent state | ✓ Good |
 
 ---
-*Last updated: 2026-03-20 after Phase 4 completion (all milestone phases complete)*
+*Last updated: 2026-03-20 after v1.0 milestone*
