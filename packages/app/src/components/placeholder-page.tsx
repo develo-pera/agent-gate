@@ -17,7 +17,7 @@ export function PlaceholderPage({
       <div
         className={cn(
           "flex max-w-[480px] flex-col items-center gap-4 rounded-xl border border-border/50 bg-card/60 p-8 text-center backdrop-blur-lg",
-          "shadow-[0_0_24px_hsl(270_95%_65%/0.15)]"
+          "shadow-[0_0_24px_hsl(319_100%_61%/0.15)]"
         )}
       >
         <Icon className="h-12 w-12 text-muted-foreground" />
