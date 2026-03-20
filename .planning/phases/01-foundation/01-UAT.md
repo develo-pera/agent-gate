@@ -69,21 +69,38 @@ skipped: 0
   reason: "User reported: it's completely white actually"
   severity: major
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "Tailwind v4 CSS variable ordering issue — :root/.dark variables defined after @layer base uses them in compiled output. Variables undefined when body styles parsed, falling back to white."
+  artifacts:
+    - path: "packages/app/src/app/globals.css"
+      issue: "@theme inline block and :root/.dark variable definitions placed after @layer base in compiled CSS"
+  missing:
+    - "Restructure globals.css so CSS variables are defined before @layer base usage, or use Tailwind v4 @theme syntax correctly"
 
 - truth: "Without a wallet connected, a sticky banner appears at top showing Demo Mode with the demo treasury address and a connect wallet CTA."
   status: failed
   reason: "User reported: I don't see it"
   severity: major
   test: 3
-  artifacts: []
-  missing: []
+  root_cause: "Demo banner likely invisible due to white-on-white rendering (dark theme not applying). The component exists, is imported in layout.tsx, and isDemo logic is correct (true when no wallet connected). Missing NEXT_PUBLIC_DEMO_TREASURY_ADDRESS env var causes fallback to zero address but banner should still render."
+  artifacts:
+    - path: "packages/app/src/components/demo-banner.tsx"
+      issue: "Component renders but text invisible against white background due to dark theme failure"
+    - path: ".env"
+      issue: "Missing NEXT_PUBLIC_DEMO_TREASURY_ADDRESS variable"
+  missing:
+    - "Fix dark theme (Test 2) — banner text likely white-on-white"
+    - "Add NEXT_PUBLIC_DEMO_TREASURY_ADDRESS to .env"
 
 - truth: "MCP bridge API at /api/mcp/[tool] returns structured JSON for treasury tools"
   status: failed
   reason: "User reported: returns {success:false, error:'Unknown tool: get_treasury_balance'}"
   severity: major
   test: 8
-  artifacts: []
-  missing: []
+  root_cause: "Tool naming mismatch. Registered tools use 'treasury_status', 'treasury_get_rate', etc. — no tool named 'get_treasury_balance' exists. The test used wrong tool name, but this also means UAT expected behavior description was misleading. The bridge works correctly when called with the right tool names."
+  artifacts:
+    - path: "packages/mcp-server/src/bridge.ts"
+      issue: "Tool names: treasury_status, treasury_get_rate, treasury_get_spender_config (not get_treasury_balance)"
+    - path: "packages/app/src/app/api/mcp/[tool]/route.ts"
+      issue: "Route handler works correctly — lookup uses exact tool name from URL"
+  missing:
+    - "This is a test error, not a code bug. Bridge works with correct tool names (treasury_status, etc.)"
