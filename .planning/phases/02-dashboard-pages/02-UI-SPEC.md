@@ -71,7 +71,7 @@ Tailwind classes: `text-sm` (14px body), `text-xs` (12px label), `text-xl` (20px
 **Accent reserved for:**
 - Hero APR glow effect (`text-shadow: 0 0 20px hsl(270 95% 65% / 0.5)`)
 - Active nav indicator border (existing)
-- Primary CTA buttons (Deposit, Create Delegation)
+- Primary CTA buttons (Deposit wstETH, Create Delegation)
 - Donut chart principal segment fill
 - Ring/focus outlines on interactive elements
 - Chart-1 color for primary data series
@@ -151,14 +151,14 @@ All dashboard cards use this pattern. Do not use opaque `bg-card` for content ca
     [Heading: "Deposit wstETH" — 20px semibold]
     [Amount Input — full width, number type]
     [Dry-Run Toggle — switch + label "Simulate first"]
-    [Submit Button — primary accent, "Deposit"]
+    [Submit Button — primary accent, "Deposit wstETH"]
     [Dry-Run Result — conditional, appears below button]
 
   [Withdraw Card]
     [Heading: "Withdraw Yield" — 20px semibold]
     [Amount Input — full width, number type]
     [Dry-Run Toggle — switch + label "Simulate first"]
-    [Submit Button — secondary variant, "Withdraw"]
+    [Submit Button — secondary variant, "Withdraw Yield"]
     [Dry-Run Result — conditional, appears below button]
 ```
 
@@ -199,7 +199,7 @@ All dashboard cards use this pattern. Do not use opaque `bg-card` for content ca
 
 [Table View (alternate)]
   [shadcn table with columns: Delegate, Scope, Caveat, Status, Actions]
-  [Actions column: Redeem button, Revoke button]
+  [Actions column: Redeem Delegation button, Revoke Delegation button]
 
 [Empty State — when no delegations]
   [Centered in page, glassmorphism card]
@@ -219,7 +219,7 @@ All dashboard cards use this pattern. Do not use opaque `bg-card` for content ca
   [Target Contract Input — address input]
   [Calldata Input — textarea, monospace font]
   [Dry-Run Toggle]
-  [Submit: "Redeem" — primary button]
+  [Submit: "Redeem Delegation" — primary button]
 ```
 
 ---
@@ -228,9 +228,10 @@ All dashboard cards use this pattern. Do not use opaque `bg-card` for content ca
 
 | Element | Copy |
 |---------|------|
-| **Treasury primary CTA** | "Deposit" / "Withdraw" |
+| **Treasury primary CTA** | "Deposit wstETH" / "Withdraw Yield" |
 | **Staking primary CTA** | None (read-only page) |
 | **Delegation primary CTA** | "Create Delegation" |
+| **Delegation redeem CTA** | "Redeem Delegation" |
 | **Treasury empty state heading** | "No Vault Position" |
 | **Treasury empty state body** | "Connect your wallet to view vault balances, or browse in demo mode with sample data." |
 | **Staking empty state heading** | "No Staking Position" |
@@ -278,7 +279,7 @@ All dashboard cards use this pattern. Do not use opaque `bg-card` for content ca
 ### Destructive Actions
 - Revoke button uses `variant="destructive"` on the button
 - Clicking Revoke opens a confirmation dialog (shadcn `dialog`) with the revoke confirmation copy
-- Dialog has "Cancel" (secondary) and "Revoke" (destructive) buttons
+- Dialog has "Keep Delegation" (secondary) and "Revoke Delegation" (destructive) buttons
 - No confirmation needed for deposit/withdraw (dry-run toggle serves this purpose)
 
 ### Form Validation
