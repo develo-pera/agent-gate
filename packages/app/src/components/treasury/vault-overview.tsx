@@ -13,8 +13,10 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { formatWsteth, formatRate } from "@/lib/format";
+import { useApp } from "@/providers/app-provider";
 
 export function VaultOverview() {
+  const { isDemo } = useApp();
   const {
     data: vaultData,
     isLoading: vaultLoading,
@@ -52,8 +54,9 @@ export function VaultOverview() {
             No Vault Position
           </CardTitle>
           <p className="mt-2 text-sm text-muted-foreground">
-            Connect your wallet to view vault balances, or browse in demo mode
-            with sample data.
+            {isDemo
+              ? "No deposits found for the demo address on this treasury contract."
+              : "No deposits found for this wallet on the treasury contract."}
           </p>
         </CardContent>
       </Card>

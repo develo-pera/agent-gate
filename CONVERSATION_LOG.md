@@ -83,10 +83,76 @@ Human-agent collaboration log for The Synthesis hackathon.
 
 ---
 
+## Mar 19–20 — Day 2–3: Dashboard Build
+
+### Petar ↔ Claude Code (Claude Opus, CLI)
+
+Petar switches to Claude Code (Claude Opus 4.6) on his local machine for the dashboard build — a new Next.js frontend to showcase AgentGate's MCP tools for the hackathon demo video.
+
+**Mar 19 ~21:00 UTC** — Petar kicks off the dashboard project using the GSD workflow. Defines PROJECT.md: a dark-themed crypto dashboard in `packages/app/` targeting multiple hackathon bounties (MetaMask Delegations, Lido stETH Treasury, Lido MCP, Vault Monitor, Uniswap, ENS, Synthesis Open Track). Core value: "judges must see real blockchain interactions through a polished UI within a 2-minute video."
+
+> **Decision:** Next.js + Tailwind CSS in the existing monorepo. Dark crypto theme (Uniswap/Aave inspired). Both direct viem reads AND an HTTP bridge to MCP tools. Wallet connect via RainbowKit + read-only demo mode for judges without wallets.
+
+**Mar 19 ~22:00 UTC** — Requirements defined: 21 total across 5 domains (Foundation, Treasury, MCP Playground, Delegation, Staking). Roadmap created with 3 coarse phases — Foundation, Dashboard Pages, MCP Playground. Coarse granularity chosen deliberately for the 2-day hackathon timeline.
+
+**Mar 19–20 overnight** — Phase 1 (Foundation) executed: Next.js app scaffolded with dark crypto theme, shadcn/ui components, MCP HTTP bridge at `/api/mcp/[tool]`, RainbowKit wallet connect, sidebar navigation, demo mode. 3 plans, completed by ~09:00 UTC Mar 20.
+
+**Mar 20 ~10:00 UTC** — Phase 1 UAT completed. 6/9 tests passed, 3 issues found (dark theme CSS variables, demo banner text, bridge naming). Fixes applied and pushed.
+
+**Mar 20 ~12:00–13:30 UTC** — Phase 2 (Dashboard Pages) executed: Treasury vault page with donut chart and deposit/withdraw forms, staking overview with Lido APR and health report, delegation viewer with card/table views and create/redeem forms. 4 plans using shared infrastructure pattern — ABIs, hooks, and shadcn components front-loaded in plan 01.
+
+**Mar 20 ~13:30–14:30 UTC** — Phase 3 (MCP Playground) executed: Interactive tool caller with 25-tool selector grouped by domain, dynamic parameter forms generated from tool schemas, JSON request/response viewer with syntax highlighting. 3 plans. This is the centerpiece demo feature targeting 3+ bounties.
+
+**Mar 20 ~14:30 UTC** — Petar requests a color rebrand. Quick task: replace purple theme with Uniswap-inspired palette — pure neutral backgrounds (#131313) and hot-pink primary (#FF37C7). Completed in one quick task.
+
+**Mar 20 ~15:00 UTC** — Milestone audit reveals Phase 1 was never formally verified. 6 FOUN-* requirements unchecked. Phase 4 created as gap-closure: retroactive VERIFICATION.md, NEXT_PUBLIC_TREASURY_ADDRESS env var fix, dead code removal (useDelegationActions, getAvailableTools), doc checkbox updates. All gaps closed.
+
+**Mar 20 ~15:30 UTC** — Re-audit passes: 21/21 requirements satisfied, 4/4 phases passed, 7/7 E2E flows complete. Status: tech_debt (6 non-blocking items).
+
+---
+
+## Mar 20 — Day 3: Milestone Completion & Debugging
+
+### Petar ↔ Claude Code (Claude Opus, CLI)
+
+**~15:40 UTC** — Petar runs `/gsd:complete-milestone v1.0`. Claude Code archives 4 phases (12 plans) to `.planning/milestones/`, evolves PROJECT.md with validated requirements and decision outcomes, collapses ROADMAP.md to one-line milestone summary, creates RETROSPECTIVE.md with lessons learned. Git tag v1.0 created locally.
+
+**~15:45 UTC** — Petar asks to merge dev into main. Fast-forward merge (91 commits). Remote main had new commits — resolved via rebase, pushed successfully. Both branches now in sync.
+
+**~16:00 UTC** — Petar reports the treasury page shows "Failed to load vault data." Claude Code investigates: the `.env` file with `NEXT_PUBLIC_*` vars exists at the monorepo root but NOT in `packages/app/` — Next.js only reads env from its own package directory. Treasury address falls back to zero address, contract call reverts.
+
+> **Fix:** Created `packages/app/.env` and `.env.example` with the two `NEXT_PUBLIC_*` vars.
+
+**~16:05 UTC** — Petar reports "No Vault Position — Connect your wallet to view vault balances" even when wallet IS connected. Claude Code investigates: the message is hardcoded and doesn't distinguish between connected/demo states. Also, `DEMO_TREASURY_ADDRESS` was set to the treasury *contract's own address* (`0xb1C7...`) — asking "has the contract deposited into itself?" which always returns false.
+
+> **Finding:** On-chain query confirms neither treasury contract has ever received deposits. Zero wstETH balance on both.
+
+**~16:10 UTC** — Petar provides the correct demo address: `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` (the OpenClaw agent's address). Claude Code verifies — also no vault position yet, but this is the right address to use for demo mode. Vault overview message updated to be context-aware:
+- Demo mode: "No deposits found for the demo address on this treasury contract."
+- Connected: "No deposits found for this wallet on the treasury contract."
+
+Demo address updated across all `.env` and `.env.example` files (root + packages/app/).
+
+---
+
+## Technical Decisions
+
+1. **MCP over REST API** — Chose Model Context Protocol because it's the standard for agent tool discovery. Any MCP-compatible agent can plug in.
+2. **wstETH yield tracking** — Track deposits in wstETH units, use the wstETH→stETH exchange rate to calculate yield in stETH terms. Yield = current stETH value - deposited stETH value.
+3. **MetaMask Smart Accounts Kit** — Using the real SDK for delegations, not a custom implementation. ERC-7710 caveats for scoping.
+4. **Base Mainnet** — Primary deployment target (L2, low gas).
+5. **dry_run on every write tool** — Safety first for agent operations.
+6. **Coarse 3-phase roadmap** — Foundation → Dashboard Pages → MCP Playground. Minimal overhead for 2-day hackathon.
+7. **HTTP bridge pattern** — `/api/mcp/[tool]` routes wrap MCP tool handlers for frontend consumption. Direct viem reads for speed, bridge for playground tool calls.
+8. **Demo mode via wallet state** — No manual toggle. If no wallet connected, app uses `DEMO_TREASURY_ADDRESS` for all reads.
+9. **Uniswap-inspired rebrand** — Neutral backgrounds (#131313) + hot-pink primary (#FF37C7) for maximum visual impact.
+
+---
+
 ## Viraj ↔ merkle
 
 *(Viraj's conversation log to be merged here)*
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 19, 2026 09:55 UTC*
+*This log is updated as the project evolves. Last updated: Mar 20, 2026 16:15 UTC*
