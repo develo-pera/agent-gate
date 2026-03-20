@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { parseUnits, formatUnits, type Address } from "viem";
-import type { AgentGateContext } from "../index.js";
+import type { AgentGateContext } from "../context.js";
 
 // ── Uniswap Trading API ───────────────────────────────────────────────
 // Docs: https://api-docs.uniswap.org/

@@ -10,6 +10,11 @@
       "types": "./src/bridge.ts",
       "import": "./src/bridge.ts",
       "default": "./src/bridge.ts"
+    },
+    "./hosted": {
+      "types": "./src/hosted.ts",
+      "import": "./src/hosted.ts",
+      "default": "./src/hosted.ts"
     }
   },
   "scripts": {

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { formatEther, type Address } from "viem";
-import type { AgentGateContext } from "../index.js";
+import type { AgentGateContext } from "../context.js";
 
 // ── Lido staking APR benchmarks ───────────────────────────────────────
 const BENCHMARK_APR = 3.5; // ~3.5% stETH staking APR baseline

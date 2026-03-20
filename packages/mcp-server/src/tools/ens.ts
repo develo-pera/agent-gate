@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { normalize } from "viem/ens";
 import type { Address } from "viem";
-import type { AgentGateContext } from "../index.js";
+import type { AgentGateContext } from "../context.js";
 
 export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
 

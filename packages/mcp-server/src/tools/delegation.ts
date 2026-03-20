@@ -17,7 +17,7 @@ import {
 } from "@metamask/smart-accounts-kit";
 import { DelegationManager } from "@metamask/smart-accounts-kit/contracts";
 import { privateKeyToAccount } from "viem/accounts";
-import type { AgentGateContext } from "../index.js";
+import type { AgentGateContext } from "../context.js";
 
 // ── State: store signed delegations in memory ─────────────────────────
 // In production you'd persist these (IPFS, DB, etc.)
