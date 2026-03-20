@@ -80,7 +80,11 @@ Plans:
   3. All FOUN-* checkboxes are checked in REQUIREMENTS.md with Complete status in the traceability table
   4. ROADMAP.md plan checkboxes for Phases 2 and 3 are updated to [x]
   5. Dead code (useDelegationActions, getAvailableTools) is removed
-**Plans**: 0 plans
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Env var fix, dead code removal, and Phase 1 VERIFICATION.md
+- [ ] 04-02-PLAN.md — Doc updates: REQUIREMENTS.md and ROADMAP.md checkboxes
 
 ## Progress
 
@@ -92,4 +96,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 1. Foundation | 3/3 | Complete | 2026-03-19 |
 | 2. Dashboard Pages | 0/4 | Not started | - |
 | 3. MCP Playground | 0/3 | Not started | - |
-| 4. Foundation Verification & Config Fix | 0/0 | Not started | - |
+| 4. Foundation Verification & Config Fix | 0/2 | Not started | - |
