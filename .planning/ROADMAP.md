@@ -13,8 +13,8 @@ Transform the existing AgentGate MCP server into a demo-ready dashboard for the 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - App shell, dark theme, wallet connect, demo mode, HTTP bridge, and navigation
-- [ ] **Phase 2: Dashboard Pages** - Treasury vault UI, staking overview, and delegation viewer with direct on-chain reads
-- [ ] **Phase 3: MCP Playground** - Interactive tool caller with parameter forms, execution, and JSON response viewer
+- [x] **Phase 2: Dashboard Pages** - Treasury vault UI, staking overview, and delegation viewer with direct on-chain reads
+- [x] **Phase 3: MCP Playground** - Interactive tool caller with parameter forms, execution, and JSON response viewer
 - [ ] **Phase 4: Foundation Verification & Config Fix** - Retroactive Phase 1 verification, env var fix, doc cleanup, dead code removal
 
 ## Phase Details
@@ -48,10 +48,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Shared infrastructure: shadcn components, ABIs, hooks, bridge stubs, and test scaffolds
-- [ ] 02-02-PLAN.md — Treasury page: vault overview with donut chart, deposit/withdraw forms
-- [ ] 02-03-PLAN.md — Staking page: APR hero, position card, vault health report
-- [ ] 02-04-PLAN.md — Delegations page: card/table views, create/redeem delegation forms
+- [x] 02-01-PLAN.md — Shared infrastructure: shadcn components, ABIs, hooks, bridge stubs, and test scaffolds
+- [x] 02-02-PLAN.md — Treasury page: vault overview with donut chart, deposit/withdraw forms
+- [x] 02-03-PLAN.md — Staking page: APR hero, position card, vault health report
+- [x] 02-04-PLAN.md — Delegations page: card/table views, create/redeem delegation forms
 
 ### Phase 3: MCP Playground
 **Goal**: User can interactively select, configure, and execute any of the 27 MCP tools and see the raw JSON request/response -- the centerpiece demo feature
@@ -65,9 +65,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-00-PLAN.md — Wave 0: Create vitest stub files for all 4 playground test requirements
-- [ ] 03-01-PLAN.md — Tool schema registry and bridge expansion for all 25 visible MCP tools
-- [ ] 03-02-PLAN.md — Playground UI: three-column layout with tool selector, parameter form, and JSON viewer
+- [x] 03-00-PLAN.md — Wave 0: Create vitest stub files for all 4 playground test requirements
+- [x] 03-01-PLAN.md — Tool schema registry and bridge expansion for all 25 visible MCP tools
+- [x] 03-02-PLAN.md — Playground UI: three-column layout with tool selector, parameter form, and JSON viewer
 
 ### Phase 4: Foundation Verification & Config Fix
 **Goal**: Close all audit gaps — retroactively verify Phase 1, fix NEXT_PUBLIC_TREASURY_ADDRESS env var so wagmi reads work, update stale doc checkboxes, and remove dead code
@@ -94,6 +94,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-03-19 |
-| 2. Dashboard Pages | 0/4 | Not started | - |
-| 3. MCP Playground | 0/3 | Not started | - |
-| 4. Foundation Verification & Config Fix | 0/2 | Not started | - |
+| 2. Dashboard Pages | 4/4 | Complete | 2026-03-20 |
+| 3. MCP Playground | 3/3 | Complete | 2026-03-20 |
+| 4. Foundation Verification & Config Fix | 0/2 | In Progress | - |
