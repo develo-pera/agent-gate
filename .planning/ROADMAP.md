@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - App shell, dark theme, wallet connect, demo mode, HTTP bridge, and navigation
 - [x] **Phase 2: Dashboard Pages** - Treasury vault UI, staking overview, and delegation viewer with direct on-chain reads
 - [x] **Phase 3: MCP Playground** - Interactive tool caller with parameter forms, execution, and JSON response viewer
-- [ ] **Phase 4: Foundation Verification & Config Fix** - Retroactive Phase 1 verification, env var fix, doc cleanup, dead code removal
+- [x] **Phase 4: Foundation Verification & Config Fix** - Retroactive Phase 1 verification, env var fix, doc cleanup, dead code removal
 
 ## Phase Details
 
@@ -83,8 +83,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Env var fix, dead code removal, and Phase 1 VERIFICATION.md
-- [ ] 04-02-PLAN.md — Doc updates: REQUIREMENTS.md and ROADMAP.md checkboxes
+- [x] 04-01-PLAN.md — Env var fix, dead code removal, and Phase 1 VERIFICATION.md
+- [x] 04-02-PLAN.md — Doc updates: REQUIREMENTS.md and ROADMAP.md checkboxes
 
 ## Progress
 
@@ -96,4 +96,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | 1. Foundation | 3/3 | Complete | 2026-03-19 |
 | 2. Dashboard Pages | 4/4 | Complete | 2026-03-20 |
 | 3. MCP Playground | 3/3 | Complete | 2026-03-20 |
-| 4. Foundation Verification & Config Fix | 0/2 | In Progress | - |
+| 4. Foundation Verification & Config Fix | 2/2 | Complete | 2026-03-20 |
