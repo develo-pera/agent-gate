@@ -91,7 +91,7 @@ export default function PlaygroundPage() {
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                   Request
                 </h3>
-                <JsonViewer data={request} />
+                <JsonViewer data={request} filename="request.json" />
               </div>
             )}
 
