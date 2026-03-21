@@ -770,4 +770,35 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 04:00 IST / 22:00 UTC (Mar 21)*
+## Session 8 — Dashboard Write Transactions for Human Wallets (Mar 21, 2026 ~23:00 UTC)
+
+**Bug** — When a human user connected their wallet and tried to deposit wstETH or withdraw yield from the treasury page, the operation always ran as dry_run even with the "Simulate first" toggle off.
+
+**Root cause** — Two layers both forced dry_run:
+1. `bridge.ts:createBridgeContext` hardcoded `dryRun: true` ("Dashboard bridge is always read-only")
+2. All treasury write tools in the bridge were `dryRunStub` — they just echoed params back with `mode: "dry_run"` regardless
+
+The bridge was originally designed as read-only since the server has no wallet to sign with. But for connected human users, the wallet is in the browser — the bridge just needs to return unsigned transaction calldata and let the frontend sign via wagmi.
+
+**Fix — three layers, zero MCP tool changes:**
+
+1. **`bridge.ts`** — `createBridgeContext` now accepts a `dryRun` param (defaults `true` for backwards compat). Replaced 7 treasury `dryRunStub` entries with real handlers that use `encodeFunctionData` to produce calldata when `dryRun` is false. Added `unsignedTx()` helper. Delegation stubs left as-is.
+
+2. **`/api/mcp/[tool]/route.ts`** — Passes `body.dry_run` through to bridge context. Defaults to `true` unless explicitly `false`.
+
+3. **`use-mcp-action.ts`** — When bridge returns `mode: "unsigned_transaction"`, the hook submits each tx via wagmi's imperative `sendTransaction()`, waits for receipts, and returns `mode: "executed"` with tx hash. User rejection handled gracefully.
+
+**What was NOT changed** (to protect agent flows):
+- MCP tool implementations (`tools/treasury.ts`, `tools/trading.ts`, etc.)
+- `execute-or-prepare.ts` (first-party/third-party agent execution)
+- Agent registration, hosted MCP server, challenge-response auth
+- Demo mode still forces dry-run via `isDemo` check in the hook
+
+**Files modified:**
+- `packages/mcp-server/src/bridge.ts` — Dynamic dryRun, real treasury write handlers with calldata encoding
+- `packages/app/src/app/api/mcp/[tool]/route.ts` — Pass dry_run to bridge context
+- `packages/app/src/lib/hooks/use-mcp-action.ts` — Handle unsigned_transaction → wallet sign → executed
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 05:00 IST / 23:00 UTC (Mar 21)*

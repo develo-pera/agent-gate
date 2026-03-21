@@ -21,7 +21,8 @@ export async function POST(
 
   try {
     const walletAddress = body.wallet_address || body.agent_address;
-    const ctx = createBridgeContext(walletAddress);
+    const dryRun = body.dry_run !== false; // default to dry-run unless explicitly false
+    const ctx = createBridgeContext(walletAddress, dryRun);
     const result = await handler(body, ctx);
     return NextResponse.json({ success: true, data: result });
   } catch (error) {

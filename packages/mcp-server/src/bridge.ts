@@ -10,6 +10,7 @@ import {
   http,
   formatEther,
   parseEther,
+  encodeFunctionData,
   type Address,
 } from "viem";
 import { base, mainnet } from "viem/chains";
@@ -26,7 +27,7 @@ export interface BridgeContext {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export function createBridgeContext(walletAddress?: string): BridgeContext {
+export function createBridgeContext(walletAddress?: string, dryRun = true): BridgeContext {
   return {
     publicClient: createPublicClient({
       chain: base,
@@ -37,7 +38,7 @@ export function createBridgeContext(walletAddress?: string): BridgeContext {
       transport: http(process.env.L1_RPC_URL || "https://eth.llamarpc.com"),
     }),
     walletAddress,
-    dryRun: true, // Dashboard bridge is always read-only or dry-run
+    dryRun,
   };
 }
 
@@ -251,6 +252,82 @@ const dryRunStub =
     ...params,
   });
 
+// ── Unsigned Transaction Helper ─────────────────────────────────────
+
+function unsignedTx(
+  to: Address,
+  abi: readonly unknown[],
+  functionName: string,
+  args: readonly unknown[],
+  tool: string,
+  description: string,
+  value?: bigint,
+) {
+  return {
+    mode: "unsigned_transaction" as const,
+    transactions: [{
+      to,
+      data: encodeFunctionData({ abi: abi as any, functionName, args }),
+      value: (value || 0n).toString(),
+      chainId: 8453,
+      meta: { tool, description },
+    }],
+    instructions: "Sign this transaction with your wallet and submit to the network.",
+  };
+}
+
+// ── Treasury Write Handlers (dry-run or unsigned tx) ────────────────
+
+const treasuryDeposit: ToolHandler = async (params, ctx) => {
+  if (ctx.dryRun) return { mode: "dry_run", action: "treasury_deposit", ...params };
+  const amount = parseEther(String(params.amount || params.amount_wsteth || "0"));
+  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "deposit", [amount], "treasury_deposit", "Deposit wstETH into the AgentTreasury");
+};
+
+const treasuryWithdrawYield: ToolHandler = async (params, ctx) => {
+  if (ctx.dryRun) return { mode: "dry_run", action: "treasury_withdraw_yield", ...params };
+  const recipient = (params.recipient || ctx.walletAddress) as Address;
+  const amount = parseEther(String(params.amount || params.amount_wsteth || "0"));
+  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "withdrawYield", [recipient, amount], "treasury_withdraw_yield", "Withdraw accrued yield from your vault");
+};
+
+const treasuryWithdrawYieldFor: ToolHandler = async (params, ctx) => {
+  if (ctx.dryRun) return { mode: "dry_run", action: "treasury_withdraw_yield_for", ...params };
+  const agent = params.agent_address as Address;
+  const recipient = (params.recipient || ctx.walletAddress) as Address;
+  const amount = parseEther(String(params.amount || params.amount_wsteth || "0"));
+  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "withdrawYieldFor", [agent, recipient, amount], "treasury_withdraw_yield_for", "Withdraw yield from another agent's vault");
+};
+
+const treasuryAuthorizeSpender: ToolHandler = async (params, ctx) => {
+  if (ctx.dryRun) return { mode: "dry_run", action: "treasury_authorize_spender", ...params };
+  const spender = params.spender as Address;
+  const yieldOnly = params.yield_only ?? true;
+  const maxPerTx = params.max_per_tx ? parseEther(String(params.max_per_tx)) : 0n;
+  const windowDuration = BigInt(Number(params.window_duration_seconds) || 0);
+  const windowAllowance = params.window_allowance ? parseEther(String(params.window_allowance)) : 0n;
+  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "authorizeSpender", [spender, yieldOnly, maxPerTx, windowDuration, windowAllowance], "treasury_authorize_spender", "Authorize a spender on your vault");
+};
+
+const treasuryRevokeSpender: ToolHandler = async (params, ctx) => {
+  if (ctx.dryRun) return { mode: "dry_run", action: "treasury_revoke_spender", ...params };
+  const spender = params.spender as Address;
+  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "revokeSpender", [spender], "treasury_revoke_spender", "Revoke a spender's authorization");
+};
+
+const treasurySetRecipientWhitelist: ToolHandler = async (params, ctx) => {
+  if (ctx.dryRun) return { mode: "dry_run", action: "treasury_set_recipient_whitelist", ...params };
+  const enabled = Boolean(params.enabled);
+  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "setRecipientWhitelist", [enabled], "treasury_set_recipient_whitelist", "Toggle recipient whitelist");
+};
+
+const treasurySetAllowedRecipient: ToolHandler = async (params, ctx) => {
+  if (ctx.dryRun) return { mode: "dry_run", action: "treasury_set_allowed_recipient", ...params };
+  const recipient = params.recipient as Address;
+  const allowed = Boolean(params.allowed);
+  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "setAllowedRecipient", [recipient, allowed], "treasury_set_allowed_recipient", "Add or remove a whitelisted recipient");
+};
+
 // ── Tool Registry ───────────────────────────────────────────────────
 
 export const toolRegistry: Record<string, ToolHandler> = {
@@ -259,18 +336,16 @@ export const toolRegistry: Record<string, ToolHandler> = {
   treasury_get_rate: treasuryGetRate,
   treasury_get_spender_config: treasuryGetSpenderConfig,
 
-  // Write tools (dry-run stubs — dashboard bridge is read-only)
-  treasury_deposit: dryRunStub("treasury_deposit"),
-  treasury_withdraw_yield: dryRunStub("treasury_withdraw_yield"),
-  treasury_withdraw_yield_for: dryRunStub("treasury_withdraw_yield_for"),
-  treasury_authorize_spender: dryRunStub("treasury_authorize_spender"),
-  treasury_revoke_spender: dryRunStub("treasury_revoke_spender"),
-  treasury_set_recipient_whitelist: dryRunStub(
-    "treasury_set_recipient_whitelist",
-  ),
-  treasury_set_allowed_recipient: dryRunStub("treasury_set_allowed_recipient"),
+  // Treasury write tools (dry-run or unsigned tx for wallet signing)
+  treasury_deposit: treasuryDeposit,
+  treasury_withdraw_yield: treasuryWithdrawYield,
+  treasury_withdraw_yield_for: treasuryWithdrawYieldFor,
+  treasury_authorize_spender: treasuryAuthorizeSpender,
+  treasury_revoke_spender: treasuryRevokeSpender,
+  treasury_set_recipient_whitelist: treasurySetRecipientWhitelist,
+  treasury_set_allowed_recipient: treasurySetAllowedRecipient,
 
-  // Delegation tools (dry-run stubs)
+  // Delegation tools (dry-run stubs — no dashboard write support yet)
   delegate_create: dryRunStub("delegate_create"),
   delegate_create_account: dryRunStub("delegate_create_account"),
   delegate_redeem: dryRunStub("delegate_redeem"),
