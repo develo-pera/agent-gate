@@ -92,7 +92,7 @@ export function VaultOverview() {
       </div>
       <div className="grid grid-cols-1 gap-px rounded-xl border border-border/50 bg-border/50 sm:grid-cols-3">
         <div className="flex flex-col gap-1 rounded-l-xl bg-card/80 p-5">
-          <span className="text-sm text-muted-foreground">Principal</span>
+          <span className="text-sm text-muted-foreground">Your Principal</span>
           <span className="text-2xl font-semibold">
             {formatWsteth(depositedPrincipal)} wstETH
           </span>
@@ -101,7 +101,7 @@ export function VaultOverview() {
           </span>
         </div>
         <div className="flex flex-col gap-1 bg-card/80 p-5">
-          <span className="text-sm text-muted-foreground">Total Balance</span>
+          <span className="text-sm text-muted-foreground">Your Total Balance</span>
           <span className="text-2xl font-semibold">
             {formatWsteth(totalBalance)} wstETH
           </span>
