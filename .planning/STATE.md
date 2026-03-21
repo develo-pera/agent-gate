@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Live Agent Activity Dashboard
 status: unknown
-stopped_at: Completed 05-01-PLAN.md
+stopped_at: Completed 05-02-PLAN.md
 last_updated: "2026-03-21T23:47:53.324Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 
 ## Current Position
 
-Phase: 05 (activity-foundation) — EXECUTING
-Plan: 2 of 2
+Phase: 05 (activity-foundation) — COMPLETE
+Plan: 2 of 2 (all complete)
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Plan: 2 of 2
 
 *Updated after each plan completion*
 | Phase 05 P01 | 4min | 1 tasks | 4 files |
+| Phase 05 P02 | 4min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -55,6 +56,7 @@ Recent decisions affecting current work:
 - Sprite animation via CSS steps() only — no JS timers or React state for frames (from research)
 - Zero new npm dependencies for v1.1 (from research)
 - [Phase 05]: Pre-allocated array CircularBuffer for cache locality; BigInt serialized at ingestion; enrichEvent silent (no listener notify)
+- [Phase 05]: Tool callback wrapping via server.tool override; ctx.activeEventId threading for tx enrichment; enrichment guarded by != null check
 
 ### Pending Todos
 
@@ -66,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T23:47:53.319Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-21T23:53:09Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

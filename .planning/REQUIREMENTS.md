@@ -9,8 +9,8 @@ Requirements for Live Agent Activity Dashboard milestone.
 
 ### Activity Infrastructure
 
-- [ ] **INFRA-01**: Activity logging middleware captures all MCP tool calls with agent identity, tool name, parameters, result, and timestamp
-- [ ] **INFRA-02**: Activity logging captures all on-chain write operations from executeOrPrepare with tx hash and status
+- [x] **INFRA-01**: Activity logging middleware captures all MCP tool calls with agent identity, tool name, parameters, result, and timestamp
+- [x] **INFRA-02**: Activity logging captures all on-chain write operations from executeOrPrepare with tx hash and status
 - [x] **INFRA-03**: In-memory circular buffer stores last 500 activity events as a module-level singleton
 - [ ] **INFRA-04**: SSE endpoint streams new activity events to connected dashboard clients in real-time
 - [ ] **INFRA-05**: REST API endpoint returns list of registered agents with name, address, type, and registration date
@@ -64,8 +64,8 @@ Deferred to future release.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 5 | Pending |
-| INFRA-02 | Phase 5 | Pending |
+| INFRA-01 | Phase 5 | Complete |
+| INFRA-02 | Phase 5 | Complete |
 | INFRA-03 | Phase 5 | Complete |
 | INFRA-04 | Phase 6 | Pending |
 | INFRA-05 | Phase 6 | Pending |
