@@ -1,157 +1,252 @@
 # Technology Stack
 
 **Project:** AgentGate Dashboard
-**Researched:** 2026-03-19
-**Context:** DeFi dashboard + MCP playground for hackathon demo (~2 days), added to existing monorepo with MCP server using viem ^2.23.0
+**Researched:** 2026-03-21 (v1.1 additions), 2026-03-19 (v1.0 baseline)
+**Context:** v1.1 milestone adds live agent activity dashboard with pixel-art sprites, real-time SSE streaming, and activity logging middleware to the existing Next.js 15 + Tailwind v4 + shadcn/ui monorepo app.
 
-## Recommended Stack
+---
+
+## v1.1 Stack Additions (NEW)
+
+**Key finding: Zero new npm dependencies required.** Every v1.1 capability maps to built-in browser APIs, Node.js core modules, or CSS features. This is intentional — the existing stack is already comprehensive and the new features are better served by platform primitives than libraries.
+
+### Pixel-Art Sprite Animation
+
+| Technology | Version | Purpose | Why | Confidence |
+|------------|---------|---------|-----|------------|
+| CSS `steps()` + `background-position` | N/A (CSS spec) | Sprite sheet frame animation | Zero dependencies. CSS `animation-timing-function: steps(N)` with `background-position` shift is the standard technique for pixel-art sprite animation. Works with Tailwind's arbitrary value syntax. No library needed. | HIGH |
+| CSS `image-rendering: pixelated` | N/A (CSS spec) | Crisp upscaling of pixel art | Native CSS property prevents anti-aliasing blur when scaling up small sprites. Use `crisp-edges` as Firefox fallback. | HIGH |
+
+**Why no animation library:** Framer Motion (already in deps as `motion`), react-spring, and GSAP are designed for continuous/physics-based animation, not discrete sprite frame stepping. CSS `steps()` is purpose-built for this use case. The motion library already in deps is useful for UI micro-animations (card transitions, number tickers) but wrong for sprite stepping.
+
+**Sprite creation:** Use [Aseprite](https://www.aseprite.org/) ($20, industry standard) or [Pixelorama](https://orama-interactive.itch.io/pixelorama) (free, open source, Godot-based) to create sprite sheets. Export as horizontal strip PNGs with consistent frame dimensions (e.g., 48x48px per frame, 4-8 frames per animation state).
+
+**Implementation pattern:**
+```css
+/* Tailwind-compatible sprite animation */
+.sprite-idle {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  background: url('/sprites/agent-alpha.png') 0 0 no-repeat;
+  background-size: 384px 192px; /* 8 cols x 4 rows */
+  animation: sprite-idle 0.8s steps(8) infinite;
+}
+
+@keyframes sprite-idle {
+  to { background-position: -384px 0; }
+}
+```
+
+### Real-Time Event Streaming (SSE)
+
+| Technology | Version | Purpose | Why | Confidence |
+|------------|---------|---------|-----|------------|
+| `ReadableStream` in Next.js Route Handler | Built-in (Next.js 16 / Web Streams API) | SSE endpoint pushing activity events to dashboard | Next.js Route Handlers natively support streaming. Set `Content-Type: text/event-stream`, `Cache-Control: no-cache`. Use `export const dynamic = 'force-dynamic'` and `export const runtime = 'nodejs'` to prevent caching/static optimization. | HIGH |
+| Browser `EventSource` API | Built-in (all browsers) | Client-side SSE consumption | Native API for consuming SSE streams. Automatic reconnection built-in. Wrap in a custom React hook with `useEffect` cleanup. | HIGH |
+
+**Why SSE over WebSocket:** The activity feed is unidirectional (server-to-client). SSE is simpler, works over HTTP/2, auto-reconnects natively, and requires zero infrastructure. WebSocket would require a custom server setup that breaks the existing Next.js architecture — Next.js Route Handlers do not support WebSocket upgrade.
+
+**Why no `use-next-sse` library:** Only 13 GitHub stars. The native implementation is ~30 lines in the route handler and ~20 lines in a custom hook. Not worth a dependency for this.
+
+**Critical implementation detail:** The route handler must return the `Response` immediately while writing to the stream asynchronously. Do NOT `await` the event loop inside the handler function — start it in `ReadableStream.start()` without awaiting:
+
+```typescript
+// app/api/activity/stream/route.ts
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+export async function GET() {
+  const stream = new ReadableStream({
+    start(controller) {
+      const handler = (event: ActivityEvent) => {
+        controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
+      };
+      activityEmitter.on('activity', handler);
+      // Clean up when client disconnects
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+```
+
+### Activity Logging Middleware (MCP Server)
+
+| Technology | Version | Purpose | Why | Confidence |
+|------------|---------|---------|-----|------------|
+| Node.js `EventEmitter` | Built-in (`node:events`) | Pub/sub for activity events within the MCP server process | The MCP server bridge is imported directly into the Next.js app process. An `EventEmitter` singleton lets the logging middleware publish events that the SSE route handler subscribes to. Zero latency, no serialization overhead. | HIGH |
+| `crypto.randomUUID()` | Built-in (`node:crypto`) | Unique event IDs for SSE `id:` field | Enables SSE `Last-Event-ID` reconnection after disconnect. Built into Node.js. | HIGH |
+| In-memory circular buffer | Custom (~30 LOC) | Store last N activity events for history endpoint | Simple array with modulo index. ~500 events is plenty for a demo session. No persistence needed per project constraints. | HIGH |
+
+**Why not a database/queue:** Project explicitly scopes out persistent backends. Events are ephemeral — they exist only while the server is running, which is correct for a hackathon demo recording.
+
+**Middleware wrapping pattern:** Wrap each `toolRegistry` handler to emit events:
+
+```typescript
+// activity-logger.ts
+import { EventEmitter } from 'node:events';
+
+export const activityEmitter = new EventEmitter();
+const activityBuffer: ActivityEvent[] = [];
+const MAX_BUFFER = 500;
+
+export function withActivityLogging(
+  toolName: string,
+  handler: ToolHandler,
+): ToolHandler {
+  return async (params, ctx) => {
+    const event = { id: crypto.randomUUID(), tool: toolName, agent: ctx.walletAddress, params, timestamp: Date.now(), status: 'pending' };
+    activityEmitter.emit('activity', event);
+    try {
+      const result = await handler(params, ctx);
+      const completed = { ...event, status: 'success', result };
+      pushToBuffer(completed);
+      activityEmitter.emit('activity', completed);
+      return result;
+    } catch (error) {
+      const failed = { ...event, status: 'error', error: String(error) };
+      pushToBuffer(failed);
+      activityEmitter.emit('activity', failed);
+      throw error;
+    }
+  };
+}
+```
+
+### Status Indicators
+
+| Technology | Version | Purpose | Why | Confidence |
+|------------|---------|---------|-----|------------|
+| `tw-animate-css` | ^1.4.0 (already installed) | Pulse, ping animations for live status dots | Already in `package.json`. Provides `animate-pulse` for idle state, `animate-ping` for active state. No new dep. | HIGH |
+
+## What NOT to Add for v1.1
+
+| Tempting Option | Why Skip |
+|----------------|----------|
+| Framer Motion for sprites | Already have `motion` in deps for UI animations, but CSS `steps()` is the correct tool for sprite frame stepping. Motion/Framer uses spring physics — wrong paradigm. |
+| `use-next-sse` / `eventsource-parser` | 30 lines of native code vs. a nascent dependency (13 stars). |
+| Zustand / Jotai | `@tanstack/react-query` handles server state. SSE events feed a simple `useState` buffer — no global store needed. |
+| Redis pub/sub / BullMQ | Single-process demo. `EventEmitter` is correct. The existing `@upstash/redis` dep is for registry persistence, not event streaming. |
+| PixiJS / Phaser / react-three-fiber | CSS handles 4-6 small animated sprites. A game engine is absurd overkill. |
+| Socket.io / ws | SSE covers unidirectional needs. WebSocket requires custom server infrastructure that Next.js Route Handlers don't support. |
+| SQLite / Prisma / Drizzle | Out of scope. In-memory circular buffer for activity. |
+
+## Integration Points with Existing Stack
+
+### SSE Route Handler + Bridge
+The SSE endpoint at `/api/activity/stream` imports the `activityEmitter` singleton from `@agentgate/mcp-server`. The bridge (`bridge.ts`) already exports `toolRegistry` — the logging middleware wraps each handler via `Object.fromEntries(Object.entries(toolRegistry).map(...))`.
+
+### Activity Hook + @tanstack/react-query
+Use react-query for initial activity history fetch (`GET /api/activity`), then layer the SSE `EventSource` hook for real-time updates. The SSE `onmessage` handler appends to local component state — no query cache invalidation needed.
+
+### Sprite Component + Tailwind
+The `<AgentSprite>` component uses Tailwind arbitrary values: `className="w-[48px] h-[48px] [image-rendering:pixelated]"` with inline `style` for dynamic `backgroundImage`, `backgroundPosition`, and CSS animation class switching based on agent state (idle/active/error).
+
+### Agent Registry Data Model
+The existing `RegisteredAgent` interface (`{ address, name, type, createdAt }`) from `registry.ts` provides all needed agent metadata. The activity logger enriches this with runtime state (last tool call, current status). No schema changes required.
+
+## Event Flow Architecture
+
+```
+Agent calls MCP tool
+  --> toolRegistry handler wrapped by withActivityLogging()
+    --> EventEmitter.emit('activity', { agent, tool, params, result, timestamp })
+      --> SSE Route Handler receives via EventEmitter.on('activity')
+        --> controller.enqueue() writes to ReadableStream
+          --> Browser EventSource receives SSE event
+            --> useActivityStream() hook updates React state
+              --> Activity feed + agent cards re-render
+```
+
+## New Files to Create
+
+| File | Package | Purpose |
+|------|---------|---------|
+| `src/lib/activity-logger.ts` | `mcp-server` | EventEmitter singleton, logging middleware wrapper, circular buffer |
+| `src/app/api/activity/stream/route.ts` | `app` | SSE Route Handler subscribing to activity events |
+| `src/app/api/activity/route.ts` | `app` | REST endpoint for activity history + agent list |
+| `src/hooks/use-activity-stream.ts` | `app` | Custom React hook wrapping `EventSource` with auto-reconnection |
+| `src/components/agent-sprite.tsx` | `app` | Pixel-art sprite component with CSS `steps()` animation |
+| `src/app/agents/page.tsx` | `app` | Live Agent Activity dashboard page |
+| `public/sprites/*.png` | `app` | Sprite sheet PNG assets for agent characters |
+
+## Installation for v1.1
+
+```bash
+# No new npm packages required.
+# All v1.1 capabilities use:
+#   - CSS steps() + background-position (browser built-in)
+#   - EventSource API (browser built-in)
+#   - ReadableStream (Node.js / Web Streams API, built into Next.js)
+#   - EventEmitter (Node.js core: 'node:events')
+#   - crypto.randomUUID() (Node.js core: 'node:crypto')
+#
+# The only new assets are sprite sheet PNGs in public/sprites/
+```
+
+---
+
+## v1.0 Baseline Stack (reference — do not modify)
 
 ### Core Framework
 
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| Next.js | ^15.5 | App framework | Use 15, NOT 16. The monorepo already runs Node tooling and Next.js 15 is battle-tested. Next.js 16 shipped recently (Turbopack default, new caching) but is too fresh for a 2-day hackathon — risk of edge-case bugs with wallet libs. App Router for layouts/server components. | HIGH |
-| React | ^19.0 | UI library | Ships with Next.js 15. Required by wagmi 3.x and RainbowKit 2.x. | HIGH |
-| TypeScript | ^5.7.0 | Type safety | Already in monorepo. Share types between MCP server and dashboard. | HIGH |
+| Next.js | 16.2.0 | App framework | Shipped with v1.0. App Router for layouts/server components. | HIGH |
+| React | 19.2.4 | UI library | Ships with Next.js. Required by wagmi and RainbowKit. | HIGH |
+| TypeScript | ^5 | Type safety | Already in monorepo. | HIGH |
 
 ### Wallet Connection
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| wagmi | ^3.5.0 | React hooks for Ethereum | Standard for React + Ethereum. v3 pairs with viem v2 which the MCP server already uses. Hooks for balance reads, tx signing, chain switching. | HIGH |
-| viem | ^2.47.0 | Ethereum client | Already a dependency in MCP server (^2.23.0). Wagmi 3.x wraps viem natively. Share the same viem version across monorepo. | HIGH |
-| @rainbow-me/rainbowkit | ^2.2.10 | Wallet modal UI | Polished connect modal out of the box — MetaMask, WalletConnect, Coinbase, injected. Dark theme built-in. ConnectKit is lighter but less actively maintained. For a hackathon, RainbowKit's zero-config polish wins. | HIGH |
-| @tanstack/react-query | ^5.91.0 | Async state management | Required peer dependency for wagmi 3.x. Also useful for MCP tool call caching in the playground. | HIGH |
+| Technology | Version | Purpose | Confidence |
+|------------|---------|---------|------------|
+| wagmi | ^2.19.5 | React hooks for Ethereum | HIGH |
+| viem | ^2.47.5 | Ethereum client | HIGH |
+| @rainbow-me/rainbowkit | ^2.2.10 | Wallet modal UI | HIGH |
+| @tanstack/react-query | ^5.91.2 | Async state management | HIGH |
 
-### Styling & UI Components
+### Styling & UI
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Tailwind CSS | ^4.2.0 | Utility CSS | v4 is stable with CSS-first config (no tailwind.config.js needed). 5x faster builds. Pairs with shadcn/ui. | HIGH |
-| shadcn/ui | latest CLI | Component library | Copy-paste components built on Radix UI + Tailwind. Dark mode via CSS variables. Card, Table, Tabs, Dialog, Sheet — every dashboard primitive. No runtime dependency, full code ownership. | HIGH |
-| next-themes | ^0.4.6 | Dark mode toggle | 2 lines to add dark mode. Required by shadcn/ui dark mode pattern. Force dark by default for crypto aesthetic. | HIGH |
-| lucide-react | ^0.577.0 | Icons | shadcn/ui's default icon set. Tree-shakeable SVG icons. | HIGH |
+| Technology | Version | Purpose | Confidence |
+|------------|---------|---------|------------|
+| Tailwind CSS | ^4 | Utility CSS | HIGH |
+| shadcn/ui (via shadcn ^4.1.0) | latest | Component library | HIGH |
+| lucide-react | ^0.577.0 | Icons | HIGH |
+| tw-animate-css | ^1.4.0 | CSS animations | HIGH |
+| class-variance-authority | ^0.7.1 | Variant styling | HIGH |
+| clsx + tailwind-merge | latest | Class merging | HIGH |
 
-### Charts & Visualization
+### Other
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| recharts | ^3.8.0 | Charts | shadcn/ui has built-in Chart components wrapping Recharts. v3 is stable with good performance. Use for vault yield curves, staking APR, balance history. | HIGH |
+| Technology | Version | Purpose | Confidence |
+|------------|---------|---------|------------|
+| sonner | ^2.0.7 | Toast notifications | HIGH |
+| @upstash/redis | ^1.37.0 | Registry persistence | HIGH |
 
-### Animation
+## Confidence Assessment
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| motion | ^12.37.0 | Micro-animations | Formerly framer-motion. Import from `motion/react`. Use sparingly — glowing card borders, number tickers, page transitions. Makes demo video pop without adding complexity. | MEDIUM |
-
-### MCP Integration
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Native fetch | built-in | HTTP bridge calls | The MCP server needs an HTTP/SSE bridge endpoint. Dashboard calls it via fetch. No extra HTTP client library needed — Next.js extends fetch with caching. | HIGH |
-
-### Dev Tooling
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| @tanstack/react-query-devtools | ^5.91.0 | Query debugging | See all wagmi/query cache in dev. Remove for prod. | HIGH |
-| eslint | ^9.0 | Linting | Next.js ships eslint config. | HIGH |
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Framework | Next.js 15 | Next.js 16 | Too new (weeks old). Wallet libs haven't fully validated against it. Risk not worth it for 2-day hackathon. |
-| Wallet UI | RainbowKit | ConnectKit | ConnectKit lighter but less actively maintained. RainbowKit has polished dark theme, wider wallet support, better docs. |
-| Wallet UI | RainbowKit | Custom wagmi hooks only | Building a connect modal from scratch wastes hours. RainbowKit gives a production-quality modal in 5 minutes. |
-| Charts | Recharts | Tremor | Tremor wraps Recharts anyway. shadcn/ui has native Recharts integration — use the built-in Chart components. |
-| Charts | Recharts | D3 directly | Way too much work for a hackathon. Recharts gives declarative React charts. |
-| Styling | Tailwind + shadcn | Chakra UI | Chakra has runtime CSS-in-JS overhead. Tailwind + shadcn is zero-runtime, faster, and the 2025/2026 standard. |
-| Styling | Tailwind + shadcn | MUI | Heavy bundle, opinionated Material theme fights against crypto aesthetic. |
-| Animation | motion | CSS only | CSS animations work for simple cases but motion gives spring physics and layout animations that make a demo video impressive. Worth the 15KB. |
-| Animation | motion | GSAP | Overkill for UI micro-animations. motion integrates natively with React component lifecycle. |
-| State | React Query + wagmi | Redux/Zustand | wagmi already uses React Query internally. Adding another state layer is unnecessary. All state comes from chain (stateless app). |
-| HTTP Client | fetch | axios | Axios adds bundle size for no benefit. Next.js fetch has built-in caching and revalidation. |
-
-## What NOT to Use
-
-| Technology | Why Not |
-|------------|---------|
-| ethers.js | viem is already in the monorepo and wagmi wraps viem natively. Mixing ethers + viem creates confusion and duplicate dependencies. |
-| web3.js | Legacy. viem replaced it. |
-| styled-components / emotion | Runtime CSS-in-JS is dying. Tailwind is faster, smaller, and the ecosystem standard. |
-| Next.js Pages Router | App Router is the standard. RainbowKit and shadcn/ui both document App Router patterns. |
-| Prisma / database | Project is stateless — all data from chain. No persistence needed. |
-| tRPC | Adds complexity for what is essentially one HTTP endpoint (MCP bridge). Plain fetch is sufficient. |
-| Hardhat | Foundry already in use for contracts. Don't introduce a second tool. |
-
-## Installation
-
-```bash
-# From monorepo root, create the app workspace
-# (assumes npm workspaces with "app" added to package.json workspaces array)
-
-# Core framework
-npm install next@^15.5 react@^19 react-dom@^19 --workspace=app
-
-# Wallet connection
-npm install wagmi@^3.5.0 viem@^2.47.0 @rainbow-me/rainbowkit@^2.2.10 @tanstack/react-query@^5.91.0 --workspace=app
-
-# UI
-npm install tailwindcss@^4.2.0 @tailwindcss/postcss lucide-react@^0.577.0 next-themes@^0.4.6 --workspace=app
-
-# Charts
-npm install recharts@^3.8.0 --workspace=app
-
-# Animation (optional but recommended for demo impact)
-npm install motion@^12.37.0 --workspace=app
-
-# Dev
-npm install -D typescript@^5.7.0 @types/node@^22 @types/react@^19 @types/react-dom@^19 @tanstack/react-query-devtools@^5.91.0 --workspace=app
-
-# shadcn/ui init (run from app/ directory)
-cd app && npx shadcn@latest init
-# Then add components as needed:
-# npx shadcn@latest add card button tabs table dialog sheet badge separator
-```
-
-## Dependency Graph
-
-```
-Next.js 15
-  +-- React 19
-  +-- Tailwind CSS 4
-  |     +-- shadcn/ui (copy-paste, no runtime dep)
-  |           +-- Radix UI (primitives)
-  |           +-- lucide-react (icons)
-  |           +-- recharts (charts via shadcn Chart)
-  +-- wagmi 3
-  |     +-- viem 2 (shared with MCP server)
-  |     +-- @tanstack/react-query 5
-  +-- @rainbow-me/rainbowkit 2
-  |     +-- wagmi 3 (peer dep)
-  +-- next-themes (dark mode)
-  +-- motion (animations)
-```
-
-## Version Compatibility Notes
-
-- **viem version alignment**: MCP server uses `^2.23.0`, dashboard will use `^2.47.0`. npm workspaces will hoist to the highest compatible version. Both are within the `^2.x` range so this is safe. Verify no breaking changes in viem 2.23-2.47 range (viem follows semver strictly).
-- **React 19 + RainbowKit**: RainbowKit 2.x officially supports React 19 as of v2.2.x.
-- **Tailwind v4 + shadcn/ui**: shadcn CLI v4 (March 2026) fully supports Tailwind v4's CSS-first config.
-- **wagmi 3 + Next.js 15 App Router**: wagmi 3 works with React Server Components — just mark provider wrappers with `"use client"`.
+| Area | Confidence | Reason |
+|------|------------|--------|
+| CSS `steps()` for sprites | HIGH | Well-documented CSS standard, multiple authoritative sources, battle-tested technique since CSS3 |
+| SSE via Next.js Route Handler | HIGH | Verified pattern in Next.js 15+/16, multiple 2025-2026 guides confirm `ReadableStream` + `force-dynamic` approach |
+| EventEmitter for in-process events | HIGH | Node.js core module, standard pattern for single-process event broadcasting |
+| Zero new deps needed | HIGH | Every capability maps to a built-in API |
+| Sprite asset creation | MEDIUM | Tooling is clear but actual sprite art quality depends on artistic skill or asset sourcing |
 
 ## Sources
 
-- [Next.js releases](https://github.com/vercel/next.js/releases) — v15.5 stable, v16.1.6 latest
-- [wagmi npm](https://www.npmjs.com/package/wagmi) — v3.5.0
-- [viem npm](https://www.npmjs.com/package/viem) — v2.47.4
-- [RainbowKit npm](https://www.npmjs.com/package/@rainbow-me/rainbowkit) — v2.2.10
-- [Tailwind CSS v4.2](https://tailwindcss.com/blog/tailwindcss-v4) — v4.2.1
-- [shadcn/ui Next.js installation](https://ui.shadcn.com/docs/installation/next)
-- [shadcn/cli v4 changelog (March 2026)](https://ui.shadcn.com/docs/changelog/2026-03-cli-v4)
-- [Recharts npm](https://www.npmjs.com/package/recharts) — v3.8.0
-- [motion npm](https://www.npmjs.com/package/framer-motion) — v12.37.0
-- [next-themes GitHub](https://github.com/pacocoursey/next-themes) — v0.4.6
-- [TanStack React Query npm](https://www.npmjs.com/package/@tanstack/react-query) — v5.91.2
-- [lucide-react npm](https://www.npmjs.com/package/lucide-react) — v0.577.0
+- [Josh Comeau — Sprites on the Web](https://www.joshwcomeau.com/animation/sprites/) — CSS sprite animation reference
+- [Alec Horner — Animating Pixel Sprites with CSS](https://alechorner.com/blog/animating-pixel-sprites-with-css/) — React + CSS steps() integration
+- [kirupa.com — Sprite Sheet Animations Using Only CSS](https://www.kirupa.com/html5/sprite_sheet_animations_using_only_css.htm) — steps() deep dive
+- [HackerNoon — Streaming in Next.js 15: WebSockets vs SSE](https://hackernoon.com/streaming-in-nextjs-15-websockets-vs-server-sent-events) — SSE vs WebSocket comparison
+- [Damian Hodgkiss — Real-Time Updates with SSE in Next.js 15](https://damianhodgkiss.com/tutorials/real-time-updates-sse-nextjs) — Practical SSE implementation
+- [Pedro Alonso — Real-Time Notifications with SSE in Next.js](https://www.pedroalonso.net/blog/sse-nextjs-real-time-notifications/) — SSE configuration patterns
+- [Pixelorama](https://orama-interactive.itch.io/pixelorama) — Free open-source pixel art editor
+- [Next.js Route Handlers docs](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) — Streaming response patterns
