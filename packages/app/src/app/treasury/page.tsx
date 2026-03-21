@@ -2,6 +2,7 @@
 
 import { useApp } from "@/providers/app-provider";
 import { VaultOverview } from "@/components/treasury/vault-overview";
+import { AavePosition } from "@/components/treasury/aave-position";
 import { DepositForm } from "@/components/treasury/deposit-form";
 import { WithdrawForm } from "@/components/treasury/withdraw-form";
 import { AddressInput } from "@/components/treasury/address-input";
@@ -22,6 +23,7 @@ export default function TreasuryPage() {
       ) : (
         <>
           <VaultOverview />
+          <AavePosition />
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <DepositForm />
             <WithdrawForm />
