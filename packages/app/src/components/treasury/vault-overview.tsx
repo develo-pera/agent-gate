@@ -69,9 +69,15 @@ export function VaultOverview() {
     );
   }
 
+  // Overall APY uses raw yield (not viewer-scoped)
+  const apyPct =
+    depositedPrincipal > BigInt(0)
+      ? ((Number(rawYield) / Number(depositedPrincipal)) * 100).toFixed(2)
+      : "0.00";
+
   const yieldPct =
-    totalBalance > BigInt(0)
-      ? ((Number(availableYield) / Number(totalBalance)) * 100).toFixed(2)
+    depositedPrincipal > BigInt(0)
+      ? ((Number(availableYield) / Number(depositedPrincipal)) * 100).toFixed(2)
       : "0.00";
 
   return (
@@ -100,7 +106,7 @@ export function VaultOverview() {
             {formatWsteth(totalBalance)} wstETH
           </span>
           <span className="text-xs text-emerald-400">
-            ▲ {yieldPct}% yield
+            ▲ {apyPct}% APY
           </span>
         </div>
         <div className="flex flex-col gap-1 rounded-r-xl bg-card/80 p-5">
