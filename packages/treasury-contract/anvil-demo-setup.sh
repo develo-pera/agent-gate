@@ -75,21 +75,55 @@ cast send "$TREASURY_ADDR" "deposit(uint256)" "$DEPOSIT_AMOUNT" \
 echo "Vault status after deposit:"
 cast call "$TREASURY_ADDR" "getVaultStatus(address)(uint256,uint256,uint256,bool)" "$HACKACLAW_ADDR" --rpc-url "$ANVIL_RPC"
 
-# ── Simulate ~5% yield ────────────────────────────────────────────
+# ── Simulate ~5% yield via oracle rate bump ──────────────────────
 echo ""
-echo "═══ Simulating ~5% yield ═══"
-# vaults mapping is at slot 1 (slot 0 is ReentrancyGuard._status)
-VAULT_BASE=$(cast keccak "$(cast abi-encode 'f(address,uint256)' "$HACKACLAW_ADDR" 1)")
-STETH_VALUE_SLOT=$(python3 -c "print(hex(int('$VAULT_BASE', 16) + 1))")
+echo "═══ Simulating ~5% yield (oracle rate bump) ═══"
+# Instead of manipulating per-vault storage (which gets diluted by new
+# deposits), we replace the Chainlink oracle with a mock that returns a
+# 5% higher rate. This way ALL vaults see yield equally.
 
-CURRENT_PRINCIPAL_STETH=$(cast storage "$TREASURY_ADDR" "$STETH_VALUE_SLOT" --rpc-url "$ANVIL_RPC")
-echo "Current principalStETHValue: $CURRENT_PRINCIPAL_STETH"
+CURRENT_RATE=$(cast call "$CHAINLINK_FEED" "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url "$ANVIL_RPC" | sed -n '2p' | awk '{print $1}')
+BUMPED_RATE=$(python3 -c "print(int($CURRENT_RATE * 1.05))")
+echo "Current rate: $CURRENT_RATE → Bumped: $BUMPED_RATE (+5%)"
 
-LOWER_VALUE=$(python3 -c "v = int('$CURRENT_PRINCIPAL_STETH', 16); print('0x' + hex(int(v * 0.95))[2:].zfill(64))")
-echo "Setting principalStETHValue to: $LOWER_VALUE (~5% lower)"
-cast rpc anvil_setStorageAt "$TREASURY_ADDR" "$STETH_VALUE_SLOT" "$LOWER_VALUE" --rpc-url "$ANVIL_RPC" > /dev/null
+# Deploy a mock oracle that returns the bumped rate with fresh timestamp
+MOCK_SRC='
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+contract MockFeed {
+    int256 public answer;
+    constructor(int256 _answer) { answer = _answer; }
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
+        return (1, answer, block.timestamp, block.timestamp, 1);
+    }
+}
+'
+# Write, compile, deploy, then etch at the real feed address
+MOCK_FILE=$(mktemp /tmp/MockFeed.XXXXXX.sol)
+echo "$MOCK_SRC" > "$MOCK_FILE"
 
-# ── Verify ────────────────────────────────────────────────────────
+MOCK_ADDR=$(forge create --json \
+  --rpc-url "$ANVIL_RPC" \
+  --private-key "$HACKACLAW_KEY" \
+  --root "$(pwd)" \
+  "$MOCK_FILE:MockFeed" \
+  --constructor-args "$BUMPED_RATE" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['deployedTo'])")
+echo "Mock oracle deployed at: $MOCK_ADDR"
+
+# Copy the mock's bytecode to the real Chainlink feed address
+MOCK_CODE=$(cast code "$MOCK_ADDR" --rpc-url "$ANVIL_RPC")
+cast rpc anvil_setCode "$CHAINLINK_FEED" "$MOCK_CODE" --rpc-url "$ANVIL_RPC" > /dev/null
+
+# Copy storage slot 0 (the answer) from mock to feed address
+ANSWER_SLOT=$(cast storage "$MOCK_ADDR" 0 --rpc-url "$ANVIL_RPC")
+cast rpc anvil_setStorageAt "$CHAINLINK_FEED" "0x0000000000000000000000000000000000000000000000000000000000000000" "$ANSWER_SLOT" --rpc-url "$ANVIL_RPC" > /dev/null
+
+# Verify the feed now returns bumped rate
+echo "Verifying oracle rate..."
+NEW_RATE=$(cast call "$CHAINLINK_FEED" "latestRoundData()(uint80,int256,uint256,uint256,uint80)" --rpc-url "$ANVIL_RPC" | sed -n '2p' | awk '{print $1}')
+echo "Oracle now returns: $NEW_RATE"
+
+# ── Verify vault status ──────────────────────────────────────────
 echo ""
 echo "═══ Vault status (should show yield > 0) ═══"
 cast call "$TREASURY_ADDR" "getVaultStatus(address)(uint256,uint256,uint256,bool)" "$HACKACLAW_ADDR" --rpc-url "$ANVIL_RPC"
