@@ -15,12 +15,13 @@
 - [x] Principal locked, only yield withdrawable
 - [x] Spender authorization for agent-to-agent yield sharing
 - [x] 9 unit tests passing
+- [x] Working demo: agent deposits wstETH, only spends yield (on Anvil fork)
 - [ ] Deploy to Base mainnet
-- [ ] Working demo: agent deposits wstETH, only spends yield
 
 ### 📊 Vault Position Monitor — Lido ($1,500 / $750)
 - [x] Plain-language health report tool
 - [x] Alert system
+- [x] wallet_balance tool for ERC-20 + ETH balance checks
 
 ### 🧪 Lido MCP — Lido ($3,000 / $2,000 / $1,000)
 - [x] 7 Lido tools (stake, wrap/unwrap, APR, balance, rewards, governance vote, governance proposals)
@@ -32,7 +33,8 @@
 ### 🦄 Agentic Finance — Uniswap ($2,500 / $1,500)
 - [x] Code complete (quote, swap via Trading API, token list)
 - [x] Real Developer Platform API key
-- [ ] 1 real swap tx on Base (tx hash required)
+- [x] Swap working on Anvil fork (CLASSIC routing, direct Permit2 approve)
+- [ ] 1 real swap tx on Base mainnet (tx hash required)
 
 ### 🔖 ENS Identity — ENS ($400 / $200)
 - [x] Resolve name → address
@@ -47,16 +49,13 @@
 ### 🌐 Synthesis Open Track — Community ($25,058)
 - [x] Auto-eligible
 
-### 💸 Go Gasless: Status Network — Status ($50 per qualifying team)
-- [ ] Deploy contract on Status Network Sepolia
-- [ ] 1 gasless tx (gasPrice=0, gas=0) with tx hash
-
 ---
 
 ## General Submission Requirements
-- [ ] Self-custody transfer — Hackaclaw ✅ done / merkle ⏳ pending
+- [x] Self-custody transfer — Hackaclaw ✅ done
+- [ ] Self-custody transfer — merkle ⏳ pending
 - [ ] Make repo public
-- [ ] Demo video (2 min)
-- [ ] Update conversation log with full collaboration history
+- [x] Demo video (2 min)
+- [x] Update conversation log with full collaboration history
 - [ ] Post on Moltbook
 - [ ] Publish submission (requires all members self-custody)

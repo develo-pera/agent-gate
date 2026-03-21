@@ -4,6 +4,8 @@
 
 Built for [The Synthesis](https://synthesis.md/hack) hackathon.
 
+**[Live Dashboard](https://agent-gate-three.vercel.app/treasury)**
+
 ---
 
 ## What is AgentGate?
@@ -18,7 +20,7 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 - **Scoped agent-to-agent delegation** — an agent with a vault position can authorize another agent as a yield spender with per-transaction and daily caps, without exposing the principal.
 - **Autonomous trading recipes** — delegated agents can execute multi-step DeFi strategies: harvest yield, swap via Uniswap, lend on Aave V3, and return profits for compounding.
 - **Aave V3 integration** — agents supply USDC to Aave V3 on Base to earn lending interest, check positions, and withdraw with accrued profit.
-- **33 MCP tools across 7 domains** — Lido staking, treasury management, delegation, ENS/Basenames, Uniswap swaps, Aave V3 lending, and vault monitoring.
+- **34 MCP tools across 7 domains** — Lido staking, treasury management, delegation, ENS/Basenames, Uniswap swaps, Aave V3 lending, and vault monitoring (including wallet balance checks).
 - **Hosted MCP server** — deployed on Vercel with HTTP transport and Bearer auth. Agents connect with one command; private keys never leave the server.
 - **Live dashboard** — Next.js app on Vercel with agent wallet connect, USDC balance display, Basename resolution, and real-time toast notifications for every on-chain action (treasury, swaps, Aave supply/withdraw).
 - **Dry-run simulation** — every tool supports a `dry_run` flag to simulate execution before committing transactions.
@@ -38,10 +40,10 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
   |                                                    |
   |  Bearer token -> agent ID -> private key (env var) |
   |                                                    |
-  |  33 tools:                                         |
+  |  34 tools:                                         |
   |  Lido (7) | Treasury (10) | Delegation (5)         |
   |  ENS (2)  | Uniswap (3)  | Trading/Aave (5)       |
-  |  Monitor (1)                                       |
+  |  Monitor (2)                                       |
   +------------------------+---------------------------+
                            |
                            v
@@ -71,7 +73,7 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 
 ---
 
-## MCP Tools (33)
+## MCP Tools (34)
 
 ### Lido (7)
 | Tool | Description |
@@ -129,10 +131,11 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 | `aave_position` | Check Aave V3 lending position (balance, collateral, health factor) |
 | `transfer_token` | Transfer ERC-20 tokens (USDC, wstETH, or any address) |
 
-### Monitor (1)
+### Monitor (2)
 | Tool | Description |
 |------|-------------|
 | `vault_health` | Combined health check across vault and oracle |
+| `wallet_balance` | Check ETH and ERC-20 balances (USDC, wstETH, WETH, DAI, USDT, aUSDC) |
 
 ---
 
@@ -202,7 +205,7 @@ This creates a demo problem:
 - **Base mainnet**: deposit and withdrawal in the same session always shows zero yield (rate hasn't changed)
 - **Standard fork**: freezes all state at the fork block — the oracle rate never updates
 
-**Solution**: An Anvil fork on Fly.io allows us to use `anvil_setStorageAt` to simulate yield by adjusting the stored `principalStETHValue` after deposit. This gives us real contract logic, real Uniswap liquidity, real Aave V3 lending pools, and demonstrable yield — all in a live, persistent environment that multiple agents can interact with simultaneously.
+**Solution**: A self-hosted **Anvil fork on Fly.io** (migrated from Tenderly Virtual TestNet which had a 20-block limit). We deploy a mock Chainlink oracle with a 5% higher rate using `anvil_setCode`, giving all vaults demonstrable yield. This provides real contract logic, real Uniswap liquidity, real Aave V3 lending pools, and demonstrable yield — all in a live, persistent environment that multiple agents can interact with simultaneously. Public RPC: `https://agentgate-anvil.fly.dev/`
 
 ---
 
@@ -215,7 +218,7 @@ This creates a demo problem:
 - **Basename Resolution** — all addresses across the dashboard resolve to Base names (e.g., `hackaclaw.base.eth`). Vault overview, delegation cards/tables, address display tooltips, and toast notifications all show basenames.
 - **Autonomous Trading** — available recipes with strategy descriptions. "Your Open Positions" section appears when an Aave V3 lending position is active.
 - **Transaction Notifications** — real-time top-center toasts filtered per connected agent. Shows only events involving your address: deposits, yield withdrawals, spender authorization/revocation, Uniswap swaps, Aave supply/withdraw.
-- **MCP Playground** — interactive tool caller with all 33 tools, parameter forms, and JSON request/response viewer.
+- **MCP Playground** — interactive tool caller with all 34 tools, parameter forms, and JSON request/response viewer.
 - **Human Wallet Support** — connect via RainbowKit to interact with the treasury directly.
 
 ---
@@ -303,7 +306,7 @@ packages/
         ens.ts         Base name resolution (2 tools)
         uniswap.ts     Uniswap V3 swaps (3 tools)
         trading.ts     Aave V3 lending + recipes (5 tools)
-        monitor.ts     Vault health (1 tool)
+        monitor.ts     Vault health + wallet balance (2 tools)
       hosted.ts        HTTP transport + agent key mapping
     lido.skill.md      Agent mental model for stETH/wstETH
   treasury-contract/   AgentTreasury (Solidity, Foundry)
