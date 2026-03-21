@@ -829,4 +829,31 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 05:30 IST / 23:30 UTC (Mar 21)*
+## Session 10 — UI Polish & Anvil Impersonation Fix (Mar 22, 2026 ~00:30 UTC)
+
+**Card alignment & simulate toggle** — Removed arrow icon from swap card, added "Simulate first" toggle to match deposit/withdraw cards. All three cards use `flex + mt-auto` to bottom-align the toggle/button row. Swap card always renders (disabled when no wallet) instead of returning null. Updated demo mode text to match other cards. Treasury page grid changed to `lg:grid-cols-3` for all three cards in one row.
+
+**MetaMask RPC mismatch fix** — When a human user tried to swap, MetaMask showed "Insufficient funds" and couldn't estimate gas. Root cause: MetaMask uses its own RPC for Base (chain 8453), not the Anvil fork, so it checks balances on real Base mainnet where the user has no ETH.
+
+**Solution: Anvil impersonation** — All human wallet write operations (swap, deposit, withdraw, authorize, etc.) now execute server-side via `anvil_impersonateAccount`. The API impersonates the user's address on the fork, sends the transaction directly, and returns the tx hash. No MetaMask popup needed, no RPC mismatch. The `use-mcp-action` hook was simplified — removed all `sendTransaction`/wagmi signing logic since the bridge now returns executed results directly. MCP agent flows remain completely untouched.
+
+**Wallet persistence** — Added `cookieStorage` to wagmi config so wallet connection survives page refreshes. Cookie is passed from server layout to client `Web3Provider` which calls `cookieToInitialState`. Hit a server/client boundary error (importing `getDefaultConfig` on server) — fixed by passing raw cookie string to the client component instead of importing wagmi config in the layout.
+
+**Balance display** — ETH balance in header now polls every 5s (was one-shot). Added wstETH balance next to ETH: `0.5000 ETH · 0.2920 wstETH`. Uses `useReadContract` on the wstETH ERC-20 contract with 5s polling. Hidden when wstETH is zero.
+
+**Files modified:**
+- `packages/app/src/components/treasury/swap-eth-card.tsx` — Remove arrow, add simulate toggle, always render, impersonation flow
+- `packages/app/src/components/treasury/deposit-form.tsx` — Flex + mt-auto alignment
+- `packages/app/src/components/treasury/withdraw-form.tsx` — Flex + mt-auto alignment
+- `packages/app/src/app/treasury/page.tsx` — 3-column grid
+- `packages/app/src/app/api/swap/route.ts` — Server-side execution via anvil_impersonateAccount
+- `packages/mcp-server/src/bridge.ts` — impersonateAndSend helper, all treasury writes use it
+- `packages/app/src/lib/hooks/use-mcp-action.ts` — Simplified, removed wallet signing
+- `packages/app/src/lib/wagmi-config.ts` — Added cookieStorage
+- `packages/app/src/providers/web3-provider.tsx` — Accept cookie prop, cookieToInitialState
+- `packages/app/src/app/layout.tsx` — Pass cookie to Web3Provider
+- `packages/app/src/components/faucet-button.tsx` — 5s polling, wstETH balance display
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 06:00 IST / 00:30 UTC (Mar 22)*
