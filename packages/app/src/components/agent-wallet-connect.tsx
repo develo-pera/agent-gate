@@ -6,7 +6,7 @@ import { useBasename } from "@/lib/hooks/use-basename";
 import { useReadContract } from "wagmi";
 import { formatUnits } from "viem";
 import { BASE_USDC } from "@/lib/contracts/addresses";
-import { Bot, ChevronDown, Power, ExternalLink } from "lucide-react";
+import { Bot, ChevronDown, Power, ExternalLink, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ERC20_BALANCE_ABI = [
@@ -25,6 +25,7 @@ interface AgentInfo {
 }
 
 const LS_KEY = "agentgate_connected_agent";
+const POLL_INTERVAL = 10_000; // 10s
 
 function shortenAddr(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -41,7 +42,9 @@ export function AgentWalletConnect() {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [connectedAgent, setConnectedAgent] = useState<AgentInfo | null>(null);
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const basename = useBasename(connectedAgent?.address);
 
@@ -63,18 +66,26 @@ export function AgentWalletConnect() {
   // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Fetch available agents
+  // Fetch agents + poll for updates
   useEffect(() => {
-    fetch("/api/agents")
-      .then((r) => r.json())
-      .then((data) => setAgents(data.agents || []))
-      .catch(() => {});
+    function fetchAgents() {
+      fetch("/api/agents")
+        .then((r) => r.json())
+        .then((data) => setAgents(data.agents || []))
+        .catch(() => {});
+    }
+    fetchAgents();
+    const interval = setInterval(fetchAgents, POLL_INTERVAL);
+    return () => clearInterval(interval);
   }, []);
 
   // Auto-reconnect from localStorage
@@ -89,12 +100,18 @@ export function AgentWalletConnect() {
     }
   }, [agents, setViewAddress]);
 
+  // Focus search when dropdown opens
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+  }, [open]);
+
   const connect = useCallback(
     (agent: AgentInfo) => {
       setConnectedAgent(agent);
       setViewAddress(agent.address);
       localStorage.setItem(LS_KEY, agent.agent_id);
       setOpen(false);
+      setSearch("");
     },
     [setViewAddress],
   );
@@ -104,9 +121,64 @@ export function AgentWalletConnect() {
     setViewAddress("");
     localStorage.removeItem(LS_KEY);
     setOpen(false);
+    setSearch("");
   }, [setViewAddress]);
 
-  // Connected state — match RainbowKit style
+  // Filter agents by search query
+  const filterAgents = (list: AgentInfo[]) => {
+    if (!search) return list;
+    const q = search.toLowerCase();
+    return list.filter(
+      (a) => a.agent_id.toLowerCase().includes(q) || a.address.toLowerCase().includes(q),
+    );
+  };
+
+  // Agent list with search + scroll
+  function AgentList({ exclude }: { exclude?: string }) {
+    const filtered = filterAgents(
+      exclude ? agents.filter((a) => a.agent_id !== exclude) : agents,
+    );
+
+    return (
+      <>
+        {agents.length > 5 && (
+          <div className="px-1.5 pb-1">
+            <div className="flex items-center gap-2 rounded-lg border border-[#303136] bg-[#141517] px-2.5 py-1.5">
+              <Search className="h-3.5 w-3.5 text-white/30" />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search agents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-transparent text-sm text-white placeholder-white/30 outline-none"
+              />
+            </div>
+          </div>
+        )}
+        <div className="max-h-[280px] overflow-y-auto">
+          {filtered.map((agent) => (
+            <button
+              key={agent.agent_id}
+              onClick={() => connect(agent)}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Bot className="h-4 w-4 shrink-0 text-[#FF37C7]/60" />
+              <div className="flex flex-col items-start min-w-0">
+                <span className="font-bold truncate max-w-[180px]">{agent.agent_id}</span>
+                <AgentBasename address={agent.address} />
+              </div>
+            </button>
+          ))}
+          {filtered.length === 0 && search && (
+            <div className="px-3 py-2.5 text-sm text-white/30">No agents match "{search}"</div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // Connected state
   if (connectedAgent) {
     return (
       <div className="relative" ref={ref}>
@@ -135,22 +207,8 @@ export function AgentWalletConnect() {
         </div>
 
         {open && (
-          <div className="absolute top-full left-0 z-50 mt-2 min-w-[220px] rounded-xl border border-[#303136] bg-[#1a1b1f] p-1.5 shadow-xl">
-            {agents
-              .filter((a) => a.agent_id !== connectedAgent.agent_id)
-              .map((agent) => (
-                <button
-                  key={agent.agent_id}
-                  onClick={() => connect(agent)}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  <Bot className="h-4 w-4 text-[#FF37C7]/60" />
-                  <div className="flex flex-col items-start">
-                    <span className="font-bold">{agent.agent_id}</span>
-                    <AgentBasename address={agent.address} />
-                  </div>
-                </button>
-              ))}
+          <div className="absolute top-full left-0 z-50 mt-2 min-w-[240px] rounded-xl border border-[#303136] bg-[#1a1b1f] p-1.5 shadow-xl">
+            <AgentList exclude={connectedAgent.agent_id} />
             <div className="my-1 border-t border-[#303136]" />
             <a
               href="/skill.md"
@@ -174,7 +232,7 @@ export function AgentWalletConnect() {
     );
   }
 
-  // Disconnected state — match RainbowKit "Connect Wallet" style
+  // Disconnected state
   return (
     <div className="relative" ref={ref}>
       <button
@@ -188,19 +246,7 @@ export function AgentWalletConnect() {
 
       {open && (
         <div className="absolute top-full left-0 z-50 mt-2 min-w-[240px] rounded-xl border border-[#303136] bg-[#1a1b1f] p-1.5 shadow-xl">
-          {agents.map((agent) => (
-            <button
-              key={agent.agent_id}
-              onClick={() => connect(agent)}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <Bot className="h-4 w-4 text-[#FF37C7]/60" />
-              <div className="flex flex-col items-start">
-                <span className="font-bold">{agent.agent_id}</span>
-                <AgentBasename address={agent.address} />
-              </div>
-            </button>
-          ))}
+          <AgentList />
           {agents.length > 0 && <div className="my-1 border-t border-[#303136]" />}
           <a
             href="/skill.md"

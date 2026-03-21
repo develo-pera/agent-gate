@@ -219,23 +219,6 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
         };
       }
 
-      if (!ctx.walletClient) {
-        // Third-party: can't do multi-step swap flow. Return instructions instead.
-        return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              mode: "unsigned_transaction_not_supported",
-              action: "uniswap_swap",
-              reason: "Uniswap swap requires multi-step approval + permit2 + swap flow that must be signed sequentially. Use uniswap_quote to get pricing, then execute the swap from your own wallet.",
-              quote_tool: "uniswap_quote",
-              token_in: { symbol: token_in, address: tokenInResolved.address },
-              token_out: { symbol: token_out, address: tokenOutResolved.address },
-              amount_in: amount,
-            }, null, 2),
-          }],
-        };
-      }
       if (!UNISWAP_API_KEY) {
         return { content: [{ type: "text" as const, text: "Error: No UNISWAP_API_KEY configured." }], isError: true };
       }
@@ -243,83 +226,88 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
       try {
         const swapper = ctx.agentAddress;
         const PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address;
-
-        // Step 0a: Ensure token is approved to Permit2 (ERC-20 level)
         const UNIVERSAL_ROUTER = "0x6fF5693b99212Da76ad316178A184AB56D299b43" as Address;
-        if (tokenInResolved.address !== "0x0000000000000000000000000000000000000000") {
+        const isNativeIn = tokenInResolved.address === "0x0000000000000000000000000000000000000000";
+
+        const ERC20_APPROVE_ABI = [{ name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }] }] as const;
+        const ERC20_ALLOWANCE_ABI = [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const;
+        const PERMIT2_APPROVE_ABI = [{ name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "token", type: "address" }, { name: "spender", type: "address" }, { name: "amount", type: "uint160" }, { name: "expiration", type: "uint48" }], outputs: [] }] as const;
+        const PERMIT2_ALLOWANCE_ABI = [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "user", type: "address" }, { name: "token", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "amount", type: "uint160" }, { name: "expiration", type: "uint48" }, { name: "nonce", type: "uint48" }] }] as const;
+
+        // Build list of unsigned txs (for third-party) or execute directly (first-party)
+        const unsignedTxs: Array<{ to: Address; data: `0x${string}`; value: string; chainId: number; meta: { tool: string; description: string } }> = [];
+
+        // Step 0a: Check ERC-20 approval for Permit2
+        if (!isNativeIn) {
           const allowance = await ctx.publicClient.readContract({
             address: tokenInResolved.address as Address,
-            abi: [{ name: "allowance", type: "function", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] }],
+            abi: ERC20_ALLOWANCE_ABI,
             functionName: "allowance",
             args: [swapper, PERMIT2],
           });
           if (allowance < BigInt(amountRaw)) {
-            const approveTx = await ctx.walletClient.writeContract({
-              account: ctx.walletAccount!,
-              chain: ctx.chain,
-              address: tokenInResolved.address as Address,
-              abi: [{ name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }] }],
-              functionName: "approve",
-              args: [PERMIT2, BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")],
-            });
-            await ctx.publicClient.waitForTransactionReceipt({ hash: approveTx });
+            if (ctx.walletClient) {
+              const approveTx = await ctx.walletClient.writeContract({
+                account: ctx.walletAccount!,
+                chain: ctx.chain,
+                address: tokenInResolved.address as Address,
+                abi: ERC20_APPROVE_ABI,
+                functionName: "approve",
+                args: [PERMIT2, BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")],
+              });
+              await ctx.publicClient.waitForTransactionReceipt({ hash: approveTx });
+            } else {
+              const { encodeFunctionData } = await import("viem");
+              unsignedTxs.push({
+                to: tokenInResolved.address as Address,
+                data: encodeFunctionData({ abi: ERC20_APPROVE_ABI, functionName: "approve", args: [PERMIT2, BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")] }),
+                value: "0",
+                chainId: ctx.chain.id,
+                meta: { tool: "uniswap_swap", description: `Approve Permit2 to spend ${token_in}` },
+              });
+            }
           }
 
-          // Step 0b: Set Permit2 allowance for Universal Router directly
-          // (bypasses permit signature which fails on forks due to timestamp mismatch)
-          const PERMIT2_APPROVE_ABI = [{
-            name: "approve",
-            type: "function",
-            stateMutability: "nonpayable",
-            inputs: [
-              { name: "token", type: "address" },
-              { name: "spender", type: "address" },
-              { name: "amount", type: "uint160" },
-              { name: "expiration", type: "uint48" },
-            ],
-            outputs: [],
-          }] as const;
+          // Step 0b: Check Permit2 allowance for Universal Router
           const permit2Allowance = await ctx.publicClient.readContract({
             address: PERMIT2,
-            abi: [{
-              name: "allowance",
-              type: "function",
-              stateMutability: "view",
-              inputs: [
-                { name: "user", type: "address" },
-                { name: "token", type: "address" },
-                { name: "spender", type: "address" },
-              ],
-              outputs: [
-                { name: "amount", type: "uint160" },
-                { name: "expiration", type: "uint48" },
-                { name: "nonce", type: "uint48" },
-              ],
-            }],
+            abi: PERMIT2_ALLOWANCE_ABI,
             functionName: "allowance",
             args: [swapper, tokenInResolved.address as Address, UNIVERSAL_ROUTER],
           });
           const [p2Amount, p2Expiration] = permit2Allowance as [bigint, number, number];
           const now = Math.floor(Date.now() / 1000);
           if (p2Amount < BigInt(amountRaw) || p2Expiration < now + 60) {
-            const p2ApproveTx = await ctx.walletClient.writeContract({
-              account: ctx.walletAccount!,
-              chain: ctx.chain,
-              address: PERMIT2,
-              abi: PERMIT2_APPROVE_ABI,
-              functionName: "approve",
-              args: [
-                tokenInResolved.address as Address,
-                UNIVERSAL_ROUTER,
-                BigInt("0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff") as unknown as bigint,
-                BigInt(now + 60 * 60 * 24 * 365) as unknown as bigint, // 1 year
-              ],
-            });
-            await ctx.publicClient.waitForTransactionReceipt({ hash: p2ApproveTx });
+            const p2Args = [
+              tokenInResolved.address as Address,
+              UNIVERSAL_ROUTER,
+              BigInt("0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff") as unknown as bigint,
+              BigInt(now + 60 * 60 * 24 * 365) as unknown as bigint,
+            ] as const;
+            if (ctx.walletClient) {
+              const p2ApproveTx = await ctx.walletClient.writeContract({
+                account: ctx.walletAccount!,
+                chain: ctx.chain,
+                address: PERMIT2,
+                abi: PERMIT2_APPROVE_ABI,
+                functionName: "approve",
+                args: p2Args,
+              });
+              await ctx.publicClient.waitForTransactionReceipt({ hash: p2ApproveTx });
+            } else {
+              const { encodeFunctionData } = await import("viem");
+              unsignedTxs.push({
+                to: PERMIT2,
+                data: encodeFunctionData({ abi: PERMIT2_APPROVE_ABI, functionName: "approve", args: p2Args }),
+                value: "0",
+                chainId: ctx.chain.id,
+                meta: { tool: "uniswap_swap", description: `Approve Universal Router on Permit2 for ${token_in}` },
+              });
+            }
           }
         }
 
-        // Step 1: Get quote (force CLASSIC routing — UniswapX doesn't work on forks)
+        // Step 1: Get quote
         const quoteResponse = await uniswapFetch("/quote", {
           type: "EXACT_INPUT",
           tokenInChainId: chainId,
@@ -340,12 +328,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           };
         }
 
-        // Step 2: Skip permit signing — we set the Permit2 allowance directly above,
-        // so we intentionally omit signature/permitData from the /swap request.
-        // This prevents the API from including a PERMIT2_PERMIT command in the
-        // calldata, which would fail on forks due to timestamp mismatch.
-
-        // Step 3: Get swap calldata (without permit data)
+        // Step 2: Get swap calldata (without permit data)
         const { permitData: _pd, ...cleanQuote } = quoteResponse;
         const swapBody: Record<string, unknown> = {
           ...cleanQuote,
@@ -354,7 +337,6 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
 
         const swapResponse = await uniswapFetch("/swap", swapBody);
 
-        // Step 4: Submit the transaction
         const tx = swapResponse.swap;
         if (!tx) {
           return {
@@ -363,30 +345,62 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           };
         }
 
-        const hash = await ctx.walletClient.sendTransaction({
-          account: ctx.walletAccount!,
-          chain: ctx.chain,
+        // Step 3: Execute or return unsigned
+        if (ctx.walletClient) {
+          const hash = await ctx.walletClient.sendTransaction({
+            account: ctx.walletAccount!,
+            chain: ctx.chain,
+            to: tx.to as Address,
+            data: tx.data as `0x${string}`,
+            value: tx.value ? BigInt(tx.value) : 0n,
+          });
+
+          const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                mode: "executed",
+                action: "uniswap_swap",
+                token_in: { symbol: token_in, address: tokenInResolved.address },
+                token_out: { symbol: token_out, address: tokenOutResolved.address },
+                amount_in: amount,
+                tx_hash: hash,
+                block_number: receipt.blockNumber.toString(),
+                status: receipt.status,
+                chain_id: chainId,
+                explorer: `https://basescan.org/tx/${hash}`,
+              }, null, 2),
+            }],
+          };
+        }
+
+        // Third-party: add the swap tx to the list
+        unsignedTxs.push({
           to: tx.to as Address,
           data: tx.data as `0x${string}`,
-          value: tx.value ? BigInt(tx.value) : 0n,
+          value: tx.value ? BigInt(tx.value).toString() : "0",
+          chainId: ctx.chain.id,
+          meta: { tool: "uniswap_swap", description: `Swap ${amount} ${token_in} → ${token_out}` },
         });
 
-        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+        const amountOut = quoteResponse.quote?.amountOut
+          ? formatUnits(BigInt(quoteResponse.quote.amountOut), tokenOutResolved.decimals)
+          : "unknown";
 
         return {
           content: [{
             type: "text" as const,
             text: JSON.stringify({
-              mode: "executed",
+              mode: "unsigned_transaction",
               action: "uniswap_swap",
               token_in: { symbol: token_in, address: tokenInResolved.address },
               token_out: { symbol: token_out, address: tokenOutResolved.address },
               amount_in: amount,
-              tx_hash: hash,
-              block_number: receipt.blockNumber.toString(),
-              status: receipt.status,
-              chain_id: chainId,
-              explorer: `https://basescan.org/tx/${hash}`,
+              expected_out: amountOut,
+              transactions: unsignedTxs,
+              instructions: "Sign and submit these transactions in order. Each must confirm before sending the next.",
             }, null, 2),
           }],
         };
