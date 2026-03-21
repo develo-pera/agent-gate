@@ -68,7 +68,6 @@ export function useDelegations() {
     query: {
       enabled: !isDemo && !!activeAddress,
       refetchInterval: POLL_INTERVAL,
-      placeholderData: keepPreviousData,
     },
   });
 

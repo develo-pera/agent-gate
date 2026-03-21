@@ -16,7 +16,6 @@ export function useVaultStatus() {
     query: {
       enabled: !isDemo,
       refetchInterval: POLL_INTERVAL,
-      placeholderData: keepPreviousData,
     },
   });
 }
