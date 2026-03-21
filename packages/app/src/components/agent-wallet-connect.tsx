@@ -175,7 +175,7 @@ export function AgentWalletConnect() {
         style={{ fontFamily: "SFRounded, ui-rounded, SF Pro Rounded, system-ui, Helvetica Neue, Arial, Helvetica, sans-serif" }}
       >
         <Bot className="h-4 w-4" />
-        <span>Connect Agent</span>
+        <span>View as Agent</span>
       </button>
 
       {open && agents.length > 0 && (
