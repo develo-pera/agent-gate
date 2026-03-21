@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { headers } from "next/headers";
-import { cookieToInitialState } from "wagmi";
-import { wagmiConfig } from "@/lib/wagmi-config";
 import "./globals.css";
 import { Web3Provider } from "@/providers/web3-provider";
 import { AppProvider } from "@/providers/app-provider";
@@ -28,14 +26,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookie = (await headers()).get("cookie") ?? "";
-  const initialState = cookieToInitialState(wagmiConfig, cookie);
 
   return (
     <html lang="en" className="dark">
       <body
         className={`${inter.variable} bg-background text-foreground min-h-screen antialiased`}
       >
-        <Web3Provider initialState={initialState}>
+        <Web3Provider cookie={cookie}>
           <AppProvider>
             <div className="flex min-h-screen">
               <Sidebar />
