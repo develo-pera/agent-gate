@@ -75,21 +75,73 @@ Human-agent collaboration log for The Synthesis hackathon.
 
 ### Viraz ↔ merkle (Claude Code, Claude Opus 4.6)
 
-**~11:00 IST (05:30 UTC)** — Viraz begins working with merkle (Claude Code) on the MCP server and smart contracts. Initial focus: getting the AgentTreasury contract working with Chainlink oracle integration on Base.
+**~14:00 UTC** — Viraz boots up merkle. First task: register for The Synthesis hackathon. merkle reads the full hackathon API docs from `https://synthesis.md/skill.md`, collects Viraz's humanInfo, and registers via `POST /register`. Registration successful — on-chain ERC-8004 identity minted on Base Mainnet. Joined Petar's team using invite code `168181f881c4`.
 
-**~11:30 IST** — Treasury contract refactored to use Chainlink wstETH/stETH price feed for yield calculation instead of direct on-chain wstETH rate queries. Key insight: Base wstETH is a bridged ERC-20 without `stEthPerToken()` — must use Chainlink oracle.
+> Registration tx: [`0xae291178c5ee46aeb23f079e68e0eb95fa032f9b129dbe04c1bf1b4ac3bcf46c`](https://basescan.org/tx/0xae291178c5ee46aeb23f079e68e0eb95fa032f9b129dbe04c1bf1b4ac3bcf46c)
 
-**~14:00 IST** — MCP treasury tools synced with the new Chainlink-based contract ABI. All tool parameter names and return types updated.
+**~14:10 UTC** — Viraz asks merkle to pull the full submission requirements from `https://synthesis.md/submission/skill.md`. merkle extracts the complete 7-step submission flow, all required fields, submissionMetadata structure, self-custody transfer process, and the pre-publish checklist.
 
-**~15:30 IST** — Contract deployed to Base mainnet. Post-deploy config: treasury address saved, mnemonic added to gitignore.
+**~14:30 UTC** — Viraz shares context from Hackaclaw's conversation — the full project overview, what's built (2,763 lines, 22 MCP tools, AgentTreasury.sol), what's left, and the demo plan (Hackaclaw deposits + delegates, merkle redeems + swaps).
 
-**~16:00 IST** — Lido tools fixed for Base. `stEthPerToken` and `getStETHByWstETH` don't exist on Base wstETH (bridged token). Removed direct on-chain rate queries, added L1 Ethereum public client for Lido stETH reads that require mainnet.
+**~14:35 UTC** — merkle reviews the entire codebase. Full code review of all 6 tool files (lido.ts, treasury.ts, delegation.ts, uniswap.ts, ens.ts, monitor.ts), the Solidity contract, tests, deploy script, README, and SKILL.md.
 
-**~17:00 IST** — All Lido tools confirmed working on Base without reverting.
+**Bugs found:**
+1. **monitor.ts** — wstETH address hardcoded for mainnet/holesky only. On Base, it would query the wrong contract address.
+2. **uniswap.ts** — Explorer URL hardcoded to etherscan.io. For Base transactions, should be basescan.org.
+3. **lido.ts** — `lido_stake` calls `submit()` on stETH contract, but stETH doesn't exist natively on Base (address is zero). Would revert.
+4. **monitor.ts** — stETH balance read on Base would revert (zero address).
+5. **index.ts** — `AgentGateContext.chain` type too narrow, doesn't include Base. (Already fixed by Hackaclaw)
+6. **Contract subtlety** — Yield withdrawal sends actual wstETH tokens, but vault only holds deposited amount. After yield withdrawal, `withdrawAll` could try to send more than vault holds.
 
-**~21:00 IST** — Security fix: identified yield drain vulnerability in AgentTreasury — a spender could repeatedly withdraw small amounts exceeding daily cap due to missing cumulative tracking. Fixed with `dailyUsed` mapping and `lastUsedDay` tracking. Also strengthened oracle staleness check.
+**~14:40 UTC** — merkle fetches all bounty tracks from the hackathon API (`GET /catalog`). Identifies 9 tracks AgentGate qualifies for:
+- Lido MCP ($3K/$2K) — perfect match
+- stETH Agent Treasury ($2K/$1K) — AgentTreasury.sol is exactly this
+- Best Use of Delegations ($3K/$1.5K/$500) — real MetaMask SDK integration
+- Agentic Finance / Uniswap ($2.5K/$1.5K/$1K) — quote + swap via Trading API
+- Vault Position Monitor ($1.5K) — vault_health tool
+- ENS Identity ($400/$200) — resolve + reverse
+- Agents With Receipts / ERC-8004 ($2K/$1.5K/$500) — already registered with ERC-8004
+- Synthesis Open Track ($25K pool)
 
-**~23:00 IST** — Anvil fork demo setup script created for local testing with real yield simulation.
+**~14:50 UTC** — merkle pulls latest from remote. Hackaclaw had pushed 2 commits: TS compilation fixes and the conversation log.
+
+**~15:00 UTC** — merkle fixes the monitor.ts and uniswap.ts bugs. Adds proper Base wstETH address, skips stETH reads on Base, fixes explorer URL.
+
+**~15:10 UTC** — Viraz decides: "everything is gonna be on Base, remove other chain configs." merkle strips all mainnet/Holesky/Sepolia/Arbitrum code across 7 files:
+- `index.ts` — CHAIN_MAP with 5 chains → `const CHAIN = base`
+- `lido.ts` — multi-chain `getAddresses()` → single Base return
+- `monitor.ts` — chain address maps → hardcoded Base wstETH
+- `uniswap.ts` — 8 tokens x 4 chains → 6 Base tokens
+- `Deploy.s.sol` — multi-chain switch → `require(chainid == 8453)`
+- `foundry.toml` — 5 RPC endpoints → just Base
+- `.env.example` — removed CHAIN option
+
+Result: **-163 lines, +41 lines**. Compiles clean. Pushed to main.
+
+**~16:00 UTC** — Treasury contract refactored to use Chainlink wstETH/stETH price feed for yield calculation instead of direct on-chain wstETH rate queries. Key insight: Base wstETH is a bridged ERC-20 without `stEthPerToken()` — must use Chainlink oracle.
+
+**~17:00 UTC** — MCP treasury tools synced with the new Chainlink-based contract ABI. All tool parameter names and return types updated.
+
+**~18:00 UTC** — Contract deployed to Base mainnet. Post-deploy config: treasury address saved, mnemonic added to gitignore.
+
+**~19:00 UTC** — Lido tools fixed for Base. Removed direct on-chain rate queries that revert on bridged wstETH, added L1 Ethereum public client for Lido stETH reads that require mainnet. All Lido tools confirmed working on Base.
+
+**~21:00 UTC** — Security fix: identified yield drain vulnerability in AgentTreasury — a spender could repeatedly withdraw small amounts exceeding daily cap due to missing cumulative tracking. Fixed with `dailyUsed` mapping and `lastUsedDay` tracking. Also strengthened oracle staleness check.
+
+**~23:00 UTC** — Anvil fork demo setup script created for local testing with real yield simulation.
+
+---
+
+## Technical Decisions (Day 1-2)
+
+1. **MCP over REST API** — Chose Model Context Protocol because it's the standard for agent tool discovery. Any MCP-compatible agent can plug in.
+2. **wstETH yield tracking** — Track deposits in wstETH units, use the wstETH→stETH exchange rate to calculate yield in stETH terms. Yield = current stETH value - deposited stETH value.
+3. **MetaMask Smart Accounts Kit** — Using the real SDK for delegations, not a custom implementation. ERC-7710 caveats for scoping.
+4. **Base Mainnet** — Primary deployment target (L2, low gas).
+5. **dry_run on every write tool** — Safety first for agent operations.
+6. **Base-only** — Stripped all multi-chain complexity. Simpler code, fewer bugs, cleaner for judges.
+7. **APR from L1** — Base wstETH earns the same Lido staking rate as L1. APR API calls point to `eth-api.lido.fi`.
+8. **No stETH reads on Base** — stETH doesn't exist natively on Base (only bridged wstETH). Removed dead code paths.
 
 ---
 
@@ -99,145 +151,189 @@ Human-agent collaboration log for The Synthesis hackathon.
 
 Petar switches to Claude Code (Claude Opus 4.6) on his local machine for the dashboard build — a new Next.js frontend to showcase AgentGate's MCP tools for the hackathon demo video.
 
-**Mar 19 ~21:00 UTC** — Petar kicks off the dashboard project. Defines PROJECT.md: a dark-themed crypto dashboard in `packages/app/` targeting multiple hackathon bounties. Core value: "judges must see real blockchain interactions through a polished UI within a 2-minute video."
+**Mar 19 ~21:00 UTC** — Petar kicks off the dashboard project using the GSD workflow. Defines PROJECT.md: a dark-themed crypto dashboard in `packages/app/` targeting multiple hackathon bounties (MetaMask Delegations, Lido stETH Treasury, Lido MCP, Vault Monitor, Uniswap, ENS, Synthesis Open Track). Core value: "judges must see real blockchain interactions through a polished UI within a 2-minute video."
 
 > **Decision:** Next.js + Tailwind CSS in the existing monorepo. Dark crypto theme (Uniswap/Aave inspired). Both direct viem reads AND an HTTP bridge to MCP tools. Wallet connect via RainbowKit + read-only demo mode for judges without wallets.
 
-**Mar 19 ~22:00 UTC** — Requirements defined: 21 total across 5 domains (Foundation, Treasury, MCP Playground, Delegation, Staking). Roadmap created with 3 coarse phases.
+**Mar 19 ~22:00 UTC** — Requirements defined: 21 total across 5 domains (Foundation, Treasury, MCP Playground, Delegation, Staking). Roadmap created with 3 coarse phases — Foundation, Dashboard Pages, MCP Playground. Coarse granularity chosen deliberately for the 2-day hackathon timeline.
 
-**Mar 19–20 overnight** — Phase 1 (Foundation) executed: Next.js app scaffolded with dark crypto theme, shadcn/ui components, MCP HTTP bridge at `/api/mcp/[tool]`, RainbowKit wallet connect, sidebar navigation, demo mode.
+**Mar 19–20 overnight** — Phase 1 (Foundation) executed: Next.js app scaffolded with dark crypto theme, shadcn/ui components, MCP HTTP bridge at `/api/mcp/[tool]`, RainbowKit wallet connect, sidebar navigation, demo mode. 3 plans, completed by ~09:00 UTC Mar 20.
 
-**Mar 20 ~10:00 UTC** — Phase 1 UAT completed. 6/9 tests passed, 3 issues found (dark theme CSS variables, demo banner text, bridge naming). Fixes applied.
+**Mar 20 ~10:00 UTC** — Phase 1 UAT completed. 6/9 tests passed, 3 issues found (dark theme CSS variables, demo banner text, bridge naming). Fixes applied and pushed.
 
-**Mar 20 ~12:00–13:30 UTC** — Phase 2 (Dashboard Pages) executed: Treasury vault page with donut chart and deposit/withdraw forms, staking overview with Lido APR and health report, delegation viewer.
+**Mar 20 ~12:00–13:30 UTC** — Phase 2 (Dashboard Pages) executed: Treasury vault page with donut chart and deposit/withdraw forms, staking overview with Lido APR and health report, delegation viewer with card/table views and create/redeem forms. 4 plans using shared infrastructure pattern — ABIs, hooks, and shadcn components front-loaded in plan 01.
 
-**Mar 20 ~13:30–14:30 UTC** — Phase 3 (MCP Playground) executed: Interactive tool caller with 25-tool selector grouped by domain, dynamic parameter forms, JSON request/response viewer with syntax highlighting.
+**Mar 20 ~13:30–14:30 UTC** — Phase 3 (MCP Playground) executed: Interactive tool caller with 25-tool selector grouped by domain, dynamic parameter forms generated from tool schemas, JSON request/response viewer with syntax highlighting. 3 plans. This is the centerpiece demo feature targeting 3+ bounties.
 
-**Mar 20 ~14:30 UTC** — Color rebrand: replace purple theme with Uniswap-inspired palette — pure neutral backgrounds (#131313) and hot-pink primary (#FF37C7).
+**Mar 20 ~14:30 UTC** — Petar requests a color rebrand. Quick task: replace purple theme with Uniswap-inspired palette — pure neutral backgrounds (#131313) and hot-pink primary (#FF37C7). Completed in one quick task.
 
-**Mar 20 ~15:00 UTC** — Phase 4 gap-closure: retroactive verification, env var fixes, dead code removal. All 21 requirements satisfied.
+**Mar 20 ~15:00 UTC** — Milestone audit reveals Phase 1 was never formally verified. 6 FOUN-* requirements unchecked. Phase 4 created as gap-closure: retroactive VERIFICATION.md, NEXT_PUBLIC_TREASURY_ADDRESS env var fix, dead code removal (useDelegationActions, getAvailableTools), doc checkbox updates. All gaps closed.
 
-**Mar 20 ~15:40 UTC** — v1.0 milestone completed. 4 phases (12 plans) archived. Git tag v1.0.
+**Mar 20 ~15:30 UTC** — Re-audit passes: 21/21 requirements satisfied, 4/4 phases passed, 7/7 E2E flows complete. Status: tech_debt (6 non-blocking items).
+
+**~15:40 UTC** — Petar runs `/gsd:complete-milestone v1.0`. Claude Code archives 4 phases (12 plans) to `.planning/milestones/`, evolves PROJECT.md with validated requirements and decision outcomes, collapses ROADMAP.md to one-line milestone summary, creates RETROSPECTIVE.md with lessons learned. Git tag v1.0 created locally.
+
+**~15:45 UTC** — Petar asks to merge dev into main. Fast-forward merge (91 commits). Remote main had new commits — resolved via rebase, pushed successfully. Both branches now in sync.
 
 ---
 
-## Mar 20 — Day 3: Demo Environment, Tenderly Fork & Production Deploy
+## Mar 20 — Day 3: Dashboard Debugging & Demo Environment
 
 ### Petar ↔ Hackaclaw (Claude Code)
 
 **~16:00 UTC** — Dashboard debugging. Treasury page showed "Failed to load vault data." Root cause: Next.js reads `.env` from `packages/app/`, not monorepo root. Fixed.
 
-**~16:05 UTC** — "No Vault Position" even with wallet connected. `DEMO_TREASURY_ADDRESS` was set to the treasury contract's own address instead of an agent's address. Fixed with context-aware messaging.
+**~16:05 UTC** — "No Vault Position" even with wallet connected. `DEMO_TREASURY_ADDRESS` was set to the treasury contract's own address — asking "has the contract deposited into itself?" which always returns false. Fixed with context-aware messaging:
+- Demo mode: "No deposits found for the demo address on this treasury contract."
+- Connected: "No deposits found for this wallet on the treasury contract."
 
 ### Petar ↔ Hackaclaw (Claude Code) — Evening Session
 
-**~21:00 UTC** — Demo planning. 8-step split-screen flow: vault inspection → spender authorization → yield withdrawal → Uniswap swap → principal verification → revocation. 6 TODOs identified.
+**~21:00 UTC** — Demo planning. Petar shares demo plan: split-screen recording with two Claude Code terminals (Hackaclaw + Merkle) and a live dashboard on Vercel. 8-step demo flow showing vault inspection, spender authorization, yield withdrawal, Uniswap swap, and revocation. 6 TODOs identified.
 
-**~21:15 UTC** — TODO 1: Tenderly Virtual TestNet setup. Created `tenderly-demo-setup.sh`. Hit 403 on public RPC (state-modifying calls need admin RPC). Petar provides admin RPC URL.
+> **Decision:** Work through TODOs sequentially without GSD framework — ops/infra work better suited to interactive prompting.
 
-**~21:30 UTC** — Deployment issues: forge-std and openzeppelin-contracts submodules were empty. Reinstalled. OpenZeppelin v5.2+ needs `evm_version = 'osaka'` — pinned to v5.1.0.
+**~21:15 UTC** — TODO 1: Tenderly Virtual TestNet. Created `tenderly-demo-setup.sh` adapted from the existing Anvil-based `demo-setup.sh`. Key changes: Tenderly RPC instead of local Anvil, `tenderly_setBalance`/`tenderly_setStorageAt` instead of `anvil_*` RPCs, fund both agent wallets. First run hit 403 on public RPC (state-modifying calls need admin RPC). Petar provides admin RPC URL.
 
-**~21:40 UTC** — Contract deployed to Tenderly fork at `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380`. Deposit and yield simulation worked, but yield was 0 — discovered storage slot bug: `vaults` mapping is at **slot 1** (not 0) because `ReentrancyGuard._status` occupies slot 0. Fixed via `forge inspect AgentTreasury storage-layout`.
+**~21:30 UTC** — Deployment issues: forge-std and openzeppelin-contracts git submodules were empty (not initialized). Reinstalled both. OpenZeppelin latest (v5.2+) uses `evm_version = 'osaka'` which local Foundry doesn't support — pinned to v5.1.0.
 
-> **Bug fix:** Both demo setup scripts used wrong storage slot for vault mapping. ReentrancyGuard inheritance shifts all storage slots by 1.
+**~21:40 UTC** — Contract deployed to Tenderly fork at `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380`. Deposit and yield simulation worked, but yield was 0 — discovered storage slot bug in both setup scripts: `vaults` mapping is at **slot 1** (not slot 0) because `ReentrancyGuard._status` occupies slot 0. Fixed via `forge inspect AgentTreasury storage-layout`. Yield simulation now shows 0.05 wstETH principal + ~0.0025 wstETH yield (5%).
 
-**~22:00 UTC** — TODO 2: Dashboard changes — 5s polling with `keepPreviousData`, address input for any vault, wagmi config pointed at Tenderly fork via env vars.
+> **Bug fix:** Both `demo-setup.sh` and `tenderly-demo-setup.sh` used wrong storage slot for vault mapping. Root cause: ReentrancyGuard inheritance shifts all storage slots by 1.
 
-**~22:30 UTC** — wagmi chain ID mismatch: Base = 8453, Tenderly = 28061389. Wagmi silently refuses RPC calls with mismatched IDs. Fixed with `defineChain()` using `NEXT_PUBLIC_CHAIN_ID`.
+**~22:00 UTC** — TODO 2: Dashboard changes. Three modifications:
+1. Added `refetchInterval: 5000` + `keepPreviousData` to treasury hooks (polls every 5s without skeleton flash)
+2. Added address input on treasury page — paste any vault address without wallet connect
+3. Added `NEXT_PUBLIC_RPC_URL` and `NEXT_PUBLIC_CHAIN_ID` env vars to wagmi config for Tenderly fork support
 
-**~22:45 UTC** — TODO 3: Hosted MCP server. Architecture:
-- `hosted.ts` — per-request MCP server with `WebStandardStreamableHTTPServerTransport`
-- Bearer auth: `hackaclaw` → `PRIVATE_KEY`, `merkle` → `MERKLE_KEY`
-- Next.js API route at `/api/mcp-agent` handling GET/POST/DELETE
+**~22:15 UTC** — Dashboard still showed "No Vault Position" after restart. Investigation: Next.js reads `.env` from `packages/app/`, not monorepo root. The app's `.env` had old addresses and no RPC URL. Fixed.
 
-**~23:00 UTC** — Build fixes: extensionless imports for Next.js/Turbopack compatibility, ES2020 target for BigInt.
+**~22:20 UTC** — Still broken. Deeper investigation: wagmi was configured with `base` chain (ID 8453) but Tenderly Virtual TestNet returns chain ID `28061389`. Wagmi silently refuses RPC calls with mismatched chain IDs. Fix: define custom chain via `defineChain()` using `NEXT_PUBLIC_CHAIN_ID` env var.
 
-**~23:15 UTC** — TODO 4: Vercel deploy. First attempt failed — workspace package resolution. Created `vercel.json` at monorepo root. Scope issue: project went to personal scope instead of Team Blockops. Recreated under correct scope.
+**~22:30 UTC** — Skeleton flashing on polls. Root cause: when RPC call errors (contract doesn't exist), there's no cached data, so `isLoading` becomes true on every refetch. Fix: `useRef` to track first resolution — skeleton only shows on initial page load, never on subsequent polls.
 
-**~23:30 UTC** — Env var trailing newline issues. `echo` piped to `vercel env add` adds `\n` to values. Fixed with `printf '%s'`.
+**~22:45 UTC** — TODO 3: Hosted MCP server (main work). Architecture:
+- Extracted `AgentGateContext` interface to `context.ts` (was in `index.ts` which starts stdio server on import)
+- Created `hosted.ts` — factory that creates per-request MCP server with `WebStandardStreamableHTTPServerTransport` (stateless mode)
+- Bearer auth: `Authorization: Bearer hackaclaw` → maps to `PRIVATE_KEY` env var, `Bearer merkle` → `MERKLE_KEY`
+- New Next.js API route at `/api/mcp-agent` handling GET/POST/DELETE
+- Dashboard bridge at `/api/mcp/[tool]` left untouched (still read-only/dry-run)
 
-**~23:45 UTC** — Production verification. All write operations tested:
+**~23:00 UTC** — Build issues: tool files used `.js` extensions for local imports (ESM convention) but Next.js/Turbopack can't resolve `.js` → `.ts`. Fixed by using extensionless imports in `hosted.ts`. TypeScript target bumped from ES2017 to ES2020 for BigInt literal support.
+
+**~23:15 UTC** — TODO 4: Vercel deploy. First attempt failed — root directory was `packages/app` so workspace package `@agentgate/mcp-server` couldn't be resolved. Created `vercel.json` at monorepo root with workspace-aware build command. Vercel scope issue: first deploy went to personal scope instead of Team Blockops. Deleted and recreated project under correct scope.
+
+> **Vercel lesson:** Root directory setting in Vercel project takes precedence over `vercel.json`. Must be set to `.` (monorepo root) for workspace packages to resolve.
+
+**~23:30 UTC** — Env var trailing newline issues. `echo` piped to `vercel env add` adds `\n` to values, causing "invalid private key" and "address is invalid" errors. Fixed by using `printf '%s'` instead.
+
+**~23:45 UTC** — Production verification. All write operations tested on Vercel:
 - Hackaclaw authorizes Merkle as spender (tx executed)
-- Merkle reads spender config (authorized, 0.001/tx, 0.005/day)
-- Merkle withdraws 0.0005 yield (tx executed)
+- Merkle reads its spender config (authorized, 0.001/tx cap, 0.005/day)
+- Merkle withdraws 0.0005 yield from Hackaclaw's vault (tx executed)
 - Hackaclaw revokes Merkle (tx executed)
+
+State reset for demo by revoking Merkle's access.
 
 **Production URLs:**
 - Dashboard: https://agent-gate-three.vercel.app
 - MCP endpoint: https://agent-gate-three.vercel.app/api/mcp-agent
 
-**~00:15 UTC Mar 21** — TODO 5: Agent setup. Registered MCP server for Hackaclaw via `claude mcp add --transport http`. Tested — live vault data from Tenderly fork. Merkle setup command shared with Viraz.
+**~00:15 UTC Mar 21** — TODO 5: Agent setup. Registered MCP server for Hackaclaw via `claude mcp add --transport http agentgate`. Tested in a new Claude Code session — "check my treasury vault" returns live vault data from Tenderly fork. Merkle setup command shared with Viraz for his machine.
 
-> **All 5 implementation TODOs complete.** Only recording remains.
+> **All 5 implementation TODOs complete.** Only TODO 6 (record demo) remains — manual screen recording of the 8-step flow.
 
-**~00:30 UTC** — Repo transferred from `viraj124` to `develo-pera` GitHub account for Vercel GitHub integration.
+**~00:30 UTC** — Repo transferred from `viraj124` to `develo-pera` GitHub account to enable Vercel GitHub integration (Vercel GitHub App needs to be installed on the repo owner's account). Remote URL updated.
 
 ---
 
-## Mar 20–21 — Day 3–4: Viraz Session — Basenames, Notifications, Demo Polish
+## Mar 21 — Day 4: Viraz Session — Bounty Analysis, Basenames, Notifications, Demo Polish
 
 ### Viraz ↔ merkle (Claude Code, Claude Opus 4.6)
 
-**~06:30 IST Mar 21 (01:00 UTC)** — Viraz picks up from where Petar left off. Asks merkle to identify remaining TODOs and review the deployed dashboard at `agent-gate-three.vercel.app/treasury`.
+**~06:30 IST (01:00 UTC)** — Viraz picks up from where Petar left off. Reviews the deployed dashboard at `agent-gate-three.vercel.app/treasury` and identifies remaining work.
 
-**~07:00 IST** — Bounty analysis. Viraz provides full bounty data for all Synthesis sponsors. merkle maps each bounty to existing capabilities:
+**~07:00 IST** — Bounty analysis. Viraz provides full bounty data for all Synthesis sponsors. merkle maps each bounty to existing AgentGate capabilities. Final target list:
 - **Lido MCP** ($3K/$2K) — 7 Lido tools + `lido.skill.md` + dry_run
 - **Lido stETH Treasury** ($2K/$1K) — AgentTreasury contract + Chainlink oracle
 - **Uniswap Agentic Finance** ($2.5K/$1.5K/$1K) — 3 Uniswap tools (quote, swap, tokens)
 - **Synthesis Open Track** ($28K pool) — full end-to-end system
 
-Dropped: Zyfai (requires their SDK primitives), ERC-8004 (NFT transfer is just registration), ENS (agents don't connect wallets to UI), Moonpay/OWS (too much work, different wallet layer).
+Dropped after analysis: Zyfai (requires their SDK primitives), ERC-8004 (NFT transfer is just registration, not a full integration), ENS (agents don't connect wallets to dashboard UI), Moonpay/OWS (different wallet layer, too much architectural change).
 
-**~07:30 IST** — `lido.skill.md` committed to main. Cherry-picked from dev branch as commit `9d763e0`. Agent mental model document required by Lido MCP bounty — teaches agents the stETH/wstETH distinction, exchange rate mechanics, and when to use each.
+**~07:30 IST** — `lido.skill.md` committed to main. Cherry-picked from dev branch. Agent mental model document required by Lido MCP bounty — teaches agents the stETH/wstETH distinction, exchange rate mechanics, wrapping rules, and when to use each.
 
-**~08:00 IST** — Transaction toast notification system built. Created `use-tx-notifications.ts` hook watching all 5 AgentTreasury events (Deposited, YieldWithdrawn, SpenderAuthorized, SpenderRevoked, PrincipalWithdrawn) + wstETH/USDC transfers for Uniswap swap detection. Uses `useWatchContractEvent` with 4s polling. Shows rich toasts via sonner with tx hash, agent name (Hackaclaw/Merkle), and formatted amounts.
+**~08:00 IST** — Transaction toast notification system built. Created `use-tx-notifications.ts` hook:
+- Watches all 5 AgentTreasury events: Deposited, YieldWithdrawn, SpenderAuthorized, SpenderRevoked, PrincipalWithdrawn
+- Watches wstETH Transfer (from agents, not to treasury = swap outgoing) and USDC Transfer (to agents = swap incoming) for Uniswap swap detection
+- Uses `useWatchContractEvent` with 4s polling
+- Shows rich toasts via sonner with tx hash, agent name (Hackaclaw/Merkle), and formatted amounts
+- USDC formatted with 6 decimals via `formatUnits(value, 6)`
 
-**~08:30 IST** — Basename resolution added across dashboard. Created `use-basename.ts` hook using Base L2 contracts:
+Added `<TxNotifications />` component and `<Toaster>` to app layout.
+
+**~08:30 IST** — Basename resolution added across entire dashboard. Created `use-basename.ts` hook using Base L2 contracts:
 - `ReverseRegistrar.node()` at `0x79ea96012eea67a83431f1701b3dff7e37f9e282`
 - `L2Resolver.name()` at `0xC6d566A56A1aFf6508b41f6c90ff131615583BCD`
 
-Integrated into: vault overview (badge), address display (tooltip), address input (viewing label), demo banner (active agent chip).
+Integrated into 4 components:
+- Vault overview: basename badge next to "Vault Overview" header
+- Address display: shows basename instead of truncated address, full `basename — address` in tooltip
+- Address input: shows "Viewing: hackaclaw.base.eth" below the input field
+- Demo banner: active agent chip with basename + shortened address
 
-**~09:00 IST** — Basename registration on Tenderly fork. Initial attempt via `RegistrarController.register()` failed with `OnlyController` access control error. Workaround: used `ReverseRegistrar.setName()` directly — each agent calls it with their own private key to set their own reverse record. Registered `hackaclaw.base.eth` and `merkle.base.eth`.
+**~09:00 IST** — Basename registration on Tenderly fork. Initial attempt via `RegistrarController.register()` at `0x4cCb0BB02FCABA27e82a56646E81d8c5bC4119a5` failed with `OnlyController` access control error. Workaround: used `ReverseRegistrar.setName()` directly — each agent calls it with their own private key to set their own reverse record. Registered `hackaclaw.base.eth` and `merkle.base.eth`.
 
-**~09:30 IST** — Mock data removal. Deleted `DEMO_DELEGATIONS` array from `use-delegations.ts`. Delegations now only show real on-chain data.
+**~09:30 IST** — Mock data removal. Deleted `DEMO_DELEGATIONS` array from `use-delegations.ts`. Delegations now only show real on-chain data created via MCP tools.
 
 **~09:45 IST** — Banner fix. Initially showed both agent addresses as clickable chips. Viraz corrected: "I should only see the connected agent wallet at that time." Reverted to show only the active agent's basename + shortened address.
 
-**~10:00 IST** — All changes committed and pushed to main:
-- `5fd6aeb` — tx toast notifications + Basename resolution
-- `ed6d1f0` — remove mock delegation data
-- `d5dd096` — show only active agent in banner
+**Commits pushed to main:**
+- `5fd6aeb` — tx toast notifications + Basename resolution across dashboard
+- `ed6d1f0` — remove mock delegation data from demo mode
+- `d5dd096` — show only active agent wallet in banner
 
 ---
 
-## Mar 21 — Day 4: README, MCP Agent Identity, ENS Fix
+## Mar 21 — Day 4: README, MCP Agent Identity, CI/CD, ENS Fix
 
-### Viraz ↔ merkle (Claude Code, Claude Opus 4.6)
+### Viraz ↔ merkle (Claude Code, Claude Opus 4.6) — continued
 
-**~12:30 IST (07:00 UTC)** — Comprehensive README rewrite. Updated from minimal 100-line README to full documentation: architecture diagram (agents → hosted MCP → Tenderly fork ← dashboard), all 28 MCP tools organized by domain, fork rationale (Lido oracle reports once/day → Chainlink feed updates accordingly → confirmed with Lido team → Tenderly for demo), 4 bounty targets with prize amounts, quick start guide, project structure. Committed as `2fd5a95`.
+**~12:30 IST (07:00 UTC)** — Comprehensive README rewrite. Updated from minimal 100-line README to full documentation covering: architecture diagram (agents → hosted MCP → Tenderly fork ← dashboard), all 28 MCP tools organized by domain, fork rationale (Lido oracle reports once/day → Chainlink feed updates accordingly → confirmed with Lido team → Tenderly for demo yield simulation), 4 bounty targets with prize amounts, quick start guide, and project structure.
 
-**~13:00 IST** — Added `who_am_i` MCP tool. Agents were asking "what's your wallet address?" because tools require an `agent_address` parameter but the agent doesn't know its own address (private keys are server-side). New tool returns `{ agent_id, address }` from the authenticated context. Committed as `ab997f3`.
+> Commit: `2fd5a95`
 
-**~13:15 IST** — GitHub Actions workflow for Vercel deploy status. Created `.github/workflows/vercel-deploy.yml` — triggers on push to main/dev and PRs. Requires `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` secrets. Committed as `c588a94`.
+**~13:00 IST** — Added `who_am_i` MCP tool. Problem: agents were asking "what's your wallet address?" because tools require an `agent_address` parameter but the agent doesn't know its own address (private keys are server-side). Solution: new tool returns `{ agent_id, address }` from the authenticated context.
 
-**~13:40 IST** — MCP server instructions attempt. Tried adding `instructions` field to `McpServer` constructor to tell agents "always call `who_am_i` first." Failed — SDK v1.12.1 doesn't support the `instructions` property. Moved guidance into `who_am_i` tool description: "IMPORTANT: Call this FIRST before any other tool." Also added: "To check your vault use treasury_status (NOT vault_health)."
+> Commit: `ab997f3`
 
-> **Bug:** Agents were calling `vault_health` (which calls `stEthPerToken` on wstETH — reverts on Tenderly fork) instead of `treasury_status` (which reads from AgentTreasury contract). Tool description now explicitly guides correct tool selection.
+**~13:15 IST** — GitHub Actions workflow for Vercel deploy status. Created `.github/workflows/vercel-deploy.yml` — triggers on push to main/dev and PRs. Requires `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` secrets in GitHub repo settings.
 
-**~14:00 IST** — Merkle agent setup. Ran `claude mcp add --transport http agentgate` with Bearer merkle token. Verified connection: `who_am_i` returns correct agent ID and address `0x60EE...`.
+> Commit: `c588a94`
 
-**~14:10 IST** — ENV var mismatch discovered. `MERKLE_KEY` on Vercel was deriving to wrong address (`0xEc40...` instead of `0x60EE...`). Viraz confirmed correct key locally via `cast wallet address`. Triggered redeploy to pick up corrected env var.
+**~13:40 IST** — MCP server instructions. Tried adding `instructions` field to `McpServer` constructor to tell agents "always call `who_am_i` first." Build failed — SDK v1.12.1 doesn't support the `instructions` property on the constructor type. Moved guidance into the `who_am_i` tool description instead: "IMPORTANT: Call this FIRST before any other tool. To check your vault use treasury_status (NOT vault_health)."
+
+> **Bug:** Agents were calling `vault_health` (calls `stEthPerToken` on wstETH — reverts on Tenderly fork) instead of `treasury_status` (reads from AgentTreasury contract). Tool description now explicitly guides correct tool selection.
+
+> Commits: `f425827`, `56b3670`, `3b32230`
+
+**~14:00 IST** — Merkle agent MCP setup on Viraz's machine. Ran `claude mcp add --transport http agentgate` with `Authorization: Bearer merkle`. Verified connection in new session: `who_am_i` returns correct agent ID and address.
+
+**~14:10 IST** — ENV var mismatch discovered. `MERKLE_KEY` on Vercel was deriving to wrong address. Viraz confirmed correct key locally via `cast wallet address`. Corrected on Vercel dashboard, triggered redeploy.
+
+> Commit: `7ea2b09` (empty commit to trigger redeploy)
 
 **~14:20 IST** — ENS resolve fix. `ens_resolve("merkle.base.eth")` failed with "Chain Base does not support contract ensUniversalResolver." Root cause: tool used viem's built-in ENS resolution (mainnet ENS Universal Resolver) which doesn't exist on Base. Rewrote both `ens_resolve` and `ens_reverse` to use Base L2 Basename contracts:
-- Forward: `namehash(name)` → `L2Resolver.addr(node)`
-- Reverse: `ReverseRegistrar.node(address)` → `L2Resolver.name(node)`
+- Forward resolution: `namehash(name)` → `L2Resolver.addr(node)`
+- Reverse resolution: `ReverseRegistrar.node(address)` → `L2Resolver.name(node)`
 
-Same contracts the dashboard already uses successfully. Committed as `9ff44ce`.
+Same contracts the dashboard `use-basename.ts` hook already uses successfully.
+
+> Commit: `9ff44ce`
 
 ---
 
-## Technical Decisions
+## Technical Decisions (All)
 
 1. **MCP over REST API** — Model Context Protocol is the standard for agent tool discovery. Any MCP-compatible agent can plug in with one command.
 2. **wstETH yield tracking via Chainlink** — `yield = (currentRate - depositRate) * principal / currentRate`. Uses Chainlink wstETH/stETH oracle on Base, not direct Lido contract calls.
@@ -246,7 +342,10 @@ Same contracts the dashboard already uses successfully. Committed as `9ff44ce`.
 5. **Hosted MCP server on Vercel** — Agents connect via `claude mcp add --transport http`. Private keys server-side, Bearer token auth. No keys on agent machines.
 6. **dry_run on every write tool** — Safety first for autonomous agent operations.
 7. **Demo mode via wallet state** — No manual toggle. If no wallet connected, app uses `DEMO_TREASURY_ADDRESS` for all reads.
-8. **Basenames over ENS** — Base-native naming service. Cheaper, works on L2, registered via `ReverseRegistrar.setName()`.
+8. **Basenames over ENS** — Base-native naming service. Works on L2, registered via `ReverseRegistrar.setName()`.
+9. **Coarse 3-phase roadmap** — Foundation → Dashboard Pages → MCP Playground. Minimal overhead for hackathon timeline.
+10. **HTTP bridge pattern** — `/api/mcp/[tool]` routes wrap MCP tool handlers for frontend consumption. Direct viem reads for speed, bridge for playground tool calls.
+11. **Uniswap-inspired rebrand** — Neutral backgrounds (#131313) + hot-pink primary (#FF37C7).
 
 ---
 
