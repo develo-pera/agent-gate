@@ -68,11 +68,27 @@ function createContext(privateKey: `0x${string}`): AgentGateContext {
 
 // ── Server factory ───────────────────────────────────────────────────
 
-function createMcpServer(ctx: AgentGateContext): McpServer {
+function createMcpServer(ctx: AgentGateContext, agentId: string): McpServer {
   const server = new McpServer({
     name: "agentgate",
     version: "0.1.0",
   });
+
+  // Identity tool — lets the agent discover its own address
+  server.tool(
+    "who_am_i",
+    "Returns the authenticated agent's ID and wallet address. Call this first if you need your own address.",
+    {},
+    async () => ({
+      content: [{
+        type: "text" as const,
+        text: JSON.stringify({
+          agent_id: agentId,
+          address: ctx.walletAccount!.address,
+        }),
+      }],
+    }),
+  );
 
   registerLidoTools(server, ctx);
   registerTreasuryTools(server, ctx);
@@ -99,7 +115,7 @@ export async function handleMcpRequest(
   }
 
   const ctx = createContext(privateKey);
-  const server = createMcpServer(ctx);
+  const server = createMcpServer(ctx, agentId);
 
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless
