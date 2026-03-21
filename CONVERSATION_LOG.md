@@ -450,7 +450,7 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 > Commit: `a4fa3a0`
 
-**~18:30 IST** — Autonomous Trading Agent bounty ($5K) implementation started. Viraz's strategy: agents with delegated yield allowance execute a "Yield Harvest & Lend" recipe — withdraw yield → swap wstETH to USDC → supply USDC to Aave V3 → earn lending interest → withdraw → transfer profit back → vault owner re-deposits (compounding).
+**~18:30 IST** — Autonomous Trading Agent bounty ($5K) implementation started. Viraz's strategy: agents with delegated yield allowance execute a "Yield Harvest & Lend" recipe — withdraw yield → swap wstETH to USDC → supply USDC to Aave V3 → earn lending interest → withdraw → transfer profit back → depositor re-deposits (compounding).
 
 Created `packages/mcp-server/src/tools/trading.ts` with 5 new MCP tools:
 - `trading_list_recipes` — lists available autonomous trading strategies
@@ -483,7 +483,7 @@ All toast events now show `hackaclaw.base.eth` / `merkle.base.eth` instead of `0
 Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 **~20:00 IST** — Delegations tab overhauled:
-1. **Bidirectional delegation view** — hook now queries `getSpenderConfig` for all agent pairs where the connected address is involved (as owner OR spender). Previously only showed delegations where connected address was the vault owner.
+1. **Bidirectional delegation view** — hook now queries `getSpenderConfig` for all agent pairs where the connected address is involved (as depositor OR spender). Previously only showed delegations where connected address was the depositor.
 2. **Direction badges** — blue "Granted" (I gave access) vs purple "Received" (I was given access)
 3. **Counterparty display** — shows spender if you granted, owner if you received. All addresses resolve to basenames via existing `AddressDisplay` component.
 4. **Deduplication** — `seen` set prevents duplicate queries for the same owner-spender pair.

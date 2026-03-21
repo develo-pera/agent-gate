@@ -136,7 +136,7 @@ contract AgentTreasury is ReentrancyGuard {
 
     /**
      * @notice Withdraw yield as an authorized spender on behalf of an agent
-     * @param agent The vault owner
+     * @param agent The vault depositor
      * @param recipient Where to send the yield
      * @param wstETHAmount Amount to withdraw
      */
@@ -189,10 +189,10 @@ contract AgentTreasury is ReentrancyGuard {
         emit YieldWithdrawn(agent, recipient, wstETHAmount);
     }
 
-    // ── Principal withdrawal (owner only) ─────────────────────────────
+    // ── Principal withdrawal (depositor only) ─────────────────────────
 
     /**
-     * @notice Withdraw all wstETH (principal + yield). Only the vault owner can do this.
+     * @notice Withdraw all wstETH (principal + yield). Only the depositor can do this.
      */
     function withdrawAll() external nonReentrant {
         Vault storage v = vaults[msg.sender];

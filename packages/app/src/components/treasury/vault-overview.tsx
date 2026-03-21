@@ -13,9 +13,10 @@ import { formatWsteth, formatRate } from "@/lib/format";
 import { useApp } from "@/providers/app-provider";
 import { useBasename } from "@/lib/hooks/use-basename";
 import { Badge } from "@/components/ui/badge";
+import { DEMO_TREASURY_ADDRESS } from "@/lib/constants";
 
 export function VaultOverview() {
-  const { isDemo, activeAddress } = useApp();
+  const { activeAddress, viewAddress } = useApp();
   const basename = useBasename(activeAddress);
   const {
     data: vaultData,
@@ -41,7 +42,7 @@ export function VaultOverview() {
     );
   }
 
-  const [depositedPrincipal, availableYield, totalBalance, hasVault] =
+  const [depositedPrincipal, rawYield, totalBalance, hasVault] =
     (vaultData as [bigint, bigint, bigint, boolean] | undefined) ?? [
       BigInt(0),
       BigInt(0),
@@ -49,17 +50,19 @@ export function VaultOverview() {
       false,
     ];
 
+  // Only the depositor sees their available yield; other agents see 0
+  const isDepositor = !!viewAddress && activeAddress.toLowerCase() === DEMO_TREASURY_ADDRESS.toLowerCase();
+  const availableYield = isDepositor ? rawYield : BigInt(0);
+
   if (!hasVault) {
     return (
       <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
           <CardTitle className="text-xl font-semibold">
-            No Vault Position
+            No Vault Deposits Yet
           </CardTitle>
           <p className="mt-2 text-sm text-muted-foreground">
-            {isDemo
-              ? "No deposits found for the demo address on this treasury contract."
-              : "No deposits found for this wallet on the treasury contract."}
+            No wstETH has been deposited into the treasury vault yet.
           </p>
         </CardContent>
       </Card>

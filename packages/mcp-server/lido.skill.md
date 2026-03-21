@@ -122,7 +122,7 @@ Need to check yield?
   -> lido_get_apr for protocol-wide APR
 
 Need to spend yield?
-  -> If vault owner: treasury_withdraw_yield
+  -> If depositor: treasury_withdraw_yield
   -> If authorized agent: treasury_withdraw_yield_for
   -> Then: uniswap_swap to convert to ETH/USDC as needed
 

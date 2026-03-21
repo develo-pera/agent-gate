@@ -24,7 +24,7 @@ export interface SpenderDelegation {
   spentInWindow: string;
   windowDuration: number;
   windowAllowance: string;
-  /** "granted" = I am the vault owner, "received" = I am the spender */
+  /** "granted" = I am the depositor, "received" = I am the spender */
   direction: "granted" | "received";
 }
 

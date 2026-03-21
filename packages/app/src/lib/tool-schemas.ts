@@ -254,7 +254,7 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
       {
         name: "agent_address",
         type: "string",
-        description: "Vault owner's address",
+        description: "Vault depositor's address",
         required: true,
         isAddress: true,
       },
@@ -367,7 +367,7 @@ export const TOOL_SCHEMAS: ToolSchema[] = [
       {
         name: "agent_address",
         type: "string",
-        description: "Vault owner's address",
+        description: "Vault depositor's address",
         required: true,
         isAddress: true,
       },

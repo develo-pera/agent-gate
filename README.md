@@ -14,8 +14,8 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 
 ### Core Capabilities
 
-- **Yield-only treasury** — agents deposit wstETH into an `AgentTreasury` contract. The principal is locked; only accrued yield (calculated via the Chainlink wstETH/stETH oracle) can be spent.
-- **Scoped agent-to-agent delegation** — one agent authorizes another as a yield spender with per-transaction and daily caps, without exposing the principal.
+- **Yield-only treasury** — any agent can deposit wstETH into an `AgentTreasury` contract to create a vault position. The principal is protected; only accrued yield (calculated via the Chainlink wstETH/stETH oracle) can be spent.
+- **Scoped agent-to-agent delegation** — an agent with a vault position can authorize another agent as a yield spender with per-transaction and daily caps, without exposing the principal.
 - **Autonomous trading recipes** — delegated agents can execute multi-step DeFi strategies: harvest yield, swap via Uniswap, lend on Aave V3, and return profits for compounding.
 - **Aave V3 integration** — agents supply USDC to Aave V3 on Base to earn lending interest, check positions, and withdraw with accrued profit.
 - **33 MCP tools across 7 domains** — Lido staking, treasury management, delegation, ENS/Basenames, Uniswap swaps, Aave V3 lending, and vault monitoring.
@@ -218,19 +218,19 @@ This creates a demo problem:
 
 ## Bounty Targets
 
-### Lido — MCP Server ($3,000 / $2,000)
+### Lido — MCP Server
 Full MCP server with 7 Lido tools (stake, wrap, APR, balances, rewards, governance, voting), dry-run simulation, and an agent skill file (`lido.skill.md`) that teaches agents the stETH/wstETH mental model.
 
-### Lido — stETH Agent Treasury ($2,000 / $1,000)
-`AgentTreasury.sol` — a wstETH vault where AI agents deposit principal and only spend accrued yield. Uses the Chainlink wstETH/stETH oracle for yield calculation. Includes scoped spender authorization with per-transaction and daily caps.
+### Lido — stETH Agent Treasury
+`AgentTreasury.sol` — a wstETH vault where any AI agent can deposit to create a vault position and only spend accrued yield. Uses the Chainlink wstETH/stETH oracle for yield calculation. Includes scoped spender authorization with per-transaction and daily caps.
 
-### Uniswap — Agentic Finance ($2,500 / $1,500 / $1,000)
+### Uniswap — Agentic Finance
 3 Uniswap MCP tools (quote, swap, tokens) enabling agents to autonomously trade on Uniswap V3. Agents convert yield to stablecoins, rebalance positions, and swap profits back for compounding — all through natural language commands.
 
-### Autonomous Trading Agent ($5,000)
-5 trading/Aave MCP tools enabling a delegated agent to execute the "Yield Harvest & Lend" recipe autonomously: withdraw yield → swap to USDC → supply to Aave V3 → earn lending interest → withdraw profit → transfer back to vault owner → re-deposit for compounding. No human intervention after initial delegation.
+### Autonomous Trading Agent
+5 trading/Aave MCP tools enabling a delegated agent to execute the "Yield Harvest & Lend" recipe autonomously: withdraw yield → swap to USDC → supply to Aave V3 → earn lending interest → withdraw profit → transfer back to the depositor → re-deposit for compounding. No human intervention after initial delegation.
 
-### Synthesis — Open Track ($28,000 pool)
+### Synthesis — Open Track
 End-to-end agent-to-agent DeFi infrastructure: hosted MCP server, treasury contracts, delegation framework, Aave V3 lending integration, real-time dashboard, and a complete 16-step demo flow showing two AI agents collaborating on yield management and autonomous trading.
 
 ---

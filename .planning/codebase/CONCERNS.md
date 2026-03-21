@@ -84,7 +84,7 @@
 - Recommendations:
   1. Verify that `msg.sender` (wallet account) matches the `from` address in the delegation before revoking
   2. Consider moving delegations to on-chain storage where the DelegationManager enforces access control
-  3. Implement a delegation ownership check
+  3. Implement a delegation access check
 
 **No Rate Limiting on External API Calls:**
 - Risk: Tools make unlimited external API calls (Lido APR API, Snapshot GraphQL, Uniswap Trading API) without rate limiting. An agent could be rate-limited or cause service disruptions.
