@@ -70,6 +70,73 @@ const BASE_WSTETH_ADDRESS =
 // ── Treasury ABI (inline copy — no imports from tool files) ─────────
 
 const TREASURY_ABI = [
+  // ── Write functions ─────────────────────────────────────────────
+  {
+    name: "deposit",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    name: "withdrawYield",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "recipient", type: "address" },
+      { name: "wstETHAmount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "withdrawYieldFor",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "agent", type: "address" },
+      { name: "recipient", type: "address" },
+      { name: "wstETHAmount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "authorizeSpender",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "yieldOnly", type: "bool" },
+      { name: "maxPerTx", type: "uint256" },
+      { name: "windowDuration", type: "uint40" },
+      { name: "windowAllowance", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "revokeSpender",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "spender", type: "address" }],
+    outputs: [],
+  },
+  {
+    name: "setRecipientWhitelist",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "enabled", type: "bool" }],
+    outputs: [],
+  },
+  {
+    name: "setAllowedRecipient",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "recipient", type: "address" },
+      { name: "allowed", type: "bool" },
+    ],
+    outputs: [],
+  },
+  // ── Read functions ──────────────────────────────────────────────
   {
     name: "getVaultStatus",
     type: "function",
