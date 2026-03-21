@@ -723,4 +723,23 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 03:00 IST / 21:30 UTC*
+## Session 6 — Bug Fix & Vault Operations (Mar 21, 2026 ~21:00 UTC)
+
+**Vault Status Check** — Checked vault health via `treasury_status`. Vault held 0.5076 wstETH principal with 0.00138 wstETH yield accrued (0.27%).
+
+**Swap Path Padding Bug Fix**
+
+**~21:00 UTC** — Attempted to swap 1000 USDC → wstETH but hit `Invalid count value: -22` error. Root cause: the Universal Router calldata builder tried to right-pad the V3 swap path (43 bytes = tokenIn + fee + tokenOut) into a single 32-byte ABI slot. The calculation `64 - (path.length - 2)` produced -22 since the path exceeds 32 bytes.
+
+**Fix**: Changed both padding expressions (native and ERC20 paths) to use modular arithmetic: `(64 - ((path.length - 2) % 64)) % 64`, which correctly pads to the next 32-byte boundary regardless of path length. Committed and pushed to trigger Vercel redeploy.
+
+**Swap & Deposit**
+
+**~21:10 UTC** — After redeploy, successfully swapped 1000 USDC → 0.01766 wstETH via Uniswap (0.05% fee tier), then deposited 0.01766 wstETH into the AgentTreasury vault. New vault principal: ~0.525 wstETH.
+
+**Files modified:**
+- `packages/mcp-server/src/tools/uniswap.ts` — Fixed swap path padding (lines 186, 208)
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 03:30 IST / 21:10 UTC (Mar 21)*
