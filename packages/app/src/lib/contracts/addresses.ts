@@ -14,6 +14,12 @@ export const AGENT_ADDRESSES = {
   merkle: "0x60EE9a333fCcCFEA9084560Bb8a5e149420b3e3d" as Address,
 };
 
+export const BASE_aUSDC =
+  "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB" as Address;
+
+export const AAVE_POOL =
+  "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5" as Address;
+
 export const L1_ADDRESSES = {
   stETH: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84" as Address,
   wstETH: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0" as Address,
