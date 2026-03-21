@@ -380,6 +380,17 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 2. **Address input debounce** — Treasury page address input no longer requires pressing Enter. Fires vault lookup on every keystroke with 400ms debounce. Clear button cancels pending debounce.
 3. **Vault overview redesign** — Replaced stacked stat cards + donut chart with Uniswap-inspired 3-column stat bar: Principal (with Chainlink rate), Total Balance (with yield %), Available Yield (with % of principal). Clean horizontal layout matching Uniswap's TVL display style.
 
+**~10:45 UTC** — L1 RPC fix. `lido_get_apr` was failing because `eth.llamarpc.com` returns Cloudflare 403. Petar provides Tenderly mainnet gateway URL. Added `L1_RPC_URL` env var to root `.env`, `packages/app/.env`, and Vercel. Redeployed — Lido APR now returns 2.447%.
+
+**~11:00 UTC** — ENS forward resolution fix. `ens_resolve("merkle.base.eth")` returned wrong address (`0x232E...`) — the real mainnet owner, not our agent. Root cause: `ReverseRegistrar.setName()` only sets reverse records; forward lookup via `L2Resolver.addr()` returns mainnet data. Fix: `ens_resolve` now checks reverse records of all known agent addresses first, preferring our agents over mainnet forward resolution. Returns a note when forward and reverse disagree.
+
+**~11:15 UTC** — Delegations page rework. The page was completely disconnected from the chain — used empty `useState` with no on-chain reads. Rewrote:
+- `useDelegations` hook now calls `getSpenderConfig` for every known agent against the active address, polls every 5s
+- Cards show real data: spender name, max/tx, daily cap, spent in window, yield-only access
+- Table view with same data in tabular format
+- "Authorize Spender" button restored with form reworked to match `treasury_authorize_spender` params (spender address, max per tx, daily cap)
+- Form runs as dry-run preview from dashboard — actual authorizations via MCP tools
+
 ---
 
 ## Technical Decisions (All)
@@ -420,4 +431,4 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 16:00 IST / 10:30 UTC*
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 16:45 IST / 11:15 UTC*
