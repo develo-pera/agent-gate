@@ -16,8 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { DEMO_TREASURY_ADDRESS } from "@/lib/constants";
 
 export function VaultOverview() {
-  const { activeAddress, viewAddress } = useApp();
-  const basename = useBasename(activeAddress);
+  const { activeAddress, viewAddress, isDemo } = useApp();
+  const basename = useBasename(isDemo ? undefined : activeAddress);
   const {
     data: vaultData,
     isLoading: vaultLoading,

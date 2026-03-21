@@ -7,13 +7,17 @@ import { useApp } from "@/providers/app-provider";
 const POLL_INTERVAL = 5_000;
 
 export function useVaultStatus() {
-  const { activeAddress } = useApp();
+  const { activeAddress, isDemo } = useApp();
   return useReadContract({
     address: TREASURY_ADDRESS,
     abi: TREASURY_ABI,
     functionName: "getVaultStatus",
     args: [activeAddress as `0x${string}`],
-    query: { refetchInterval: POLL_INTERVAL, placeholderData: keepPreviousData },
+    query: {
+      enabled: !isDemo,
+      refetchInterval: POLL_INTERVAL,
+      placeholderData: keepPreviousData,
+    },
   });
 }
 
