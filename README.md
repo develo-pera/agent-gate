@@ -59,12 +59,13 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
   |         Dashboard (Vercel)                         |
   |         Next.js + wagmi + RainbowKit               |
   |                                                    |
-  |  - Connect Agent button (dynamic agent list)       |
+  |  - View as Agent button (dynamic agent list)        |
   |  - USDC balance display (live polling)             |
   |  - Vault overview (principal / yield / total)      |
   |  - Delegation viewer (granted + received)          |
   |  - Basename resolution (hackaclaw.base.eth)        |
-  |  - Real-time toasts (treasury, swaps, Aave)        |
+  |  - Autonomous trading recipes + open positions      |
+  |  - Real-time toasts (filtered per agent)           |
   +---------------------------------------------------+
 ```
 
@@ -135,7 +136,7 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 
 ---
 
-## Demo Flow (16 steps)
+## Demo Flow (18 steps)
 
 The full demo shows two AI agents collaborating on a yield-harvesting and lending strategy across treasury, Uniswap, and Aave V3 — with every action visible on the dashboard.
 
@@ -144,42 +145,44 @@ The full demo shows two AI agents collaborating on a yield-harvesting and lendin
 |------|-------|------|-------------|
 | 1 | Both | `who_am_i` | Each agent discovers its address and ID from the MCP server |
 
-### Phase 2 — Treasury Setup (Hackaclaw)
+### Phase 2 — Vault
 | Step | Agent | Tool | What Happens |
 |------|-------|------|-------------|
 | 2 | Hackaclaw | `treasury_status` | Check vault state (principal + yield) |
 | 3 | Hackaclaw | `treasury_deposit` | Deposit wstETH into vault |
+| 4 | Hackaclaw | `treasury_status` | Verify principal increased |
 
 ### Phase 3 — Delegation
 | Step | Agent | Tool | What Happens |
 |------|-------|------|-------------|
-| 4 | Hackaclaw | `treasury_authorize_spender` | Grant Merkle spending allowance on vault yield |
-| 5 | Merkle | `treasury_get_spender_config` | Verify delegation received (caps, access level) |
+| 5 | Hackaclaw | `treasury_authorize_spender` | Grant Merkle spending allowance on vault yield |
+| 6 | Merkle | `treasury_get_spender_config` | Verify delegation received (caps, access level) |
 
 ### Phase 4 — Autonomous Trading (Merkle)
 | Step | Agent | Tool | What Happens |
 |------|-------|------|-------------|
-| 6 | Merkle | `trading_list_recipes` | View "Yield Harvest & Lend" recipe |
-| 7 | Merkle | `treasury_withdraw_yield_for` | Withdraw accrued yield from Hackaclaw's vault |
-| 8 | Merkle | `uniswap_swap` | Swap wstETH to USDC |
-| 9 | Merkle | `aave_supply` | Supply USDC to Aave V3 (earn lending interest) |
-| 10 | Merkle | `aave_position` | Check Aave position (USDC + interest) |
-| 11 | Merkle | `aave_withdraw` | Withdraw USDC + profit from Aave |
-| 12 | Merkle | `transfer_token` | Send USDC profit back to Hackaclaw |
+| 7 | Merkle | `trading_list_recipes` | View "Yield Harvest & Lend" recipe |
+| 8 | Merkle | `treasury_withdraw_yield_for` | Withdraw accrued yield from Hackaclaw's vault |
+| 9 | Hackaclaw | `treasury_status` | Verify yield decreased after Merkle's withdrawal |
+| 10 | Merkle | `uniswap_swap` | Swap wstETH to USDC |
+| 11 | Merkle | `aave_supply` | Supply USDC to Aave V3 (earn lending interest) |
+| 12 | Merkle | `aave_position` | Check Aave position (USDC + interest) |
+| 13 | Merkle | `aave_withdraw` | Withdraw USDC + profit from Aave |
+| 14 | Merkle | `transfer_token` | Send USDC profit back to Hackaclaw |
 
 ### Phase 5 — Compounding (Hackaclaw)
 | Step | Agent | Tool | What Happens |
 |------|-------|------|-------------|
-| 13 | Hackaclaw | `uniswap_swap` | Swap USDC back to wstETH |
-| 14 | Hackaclaw | `treasury_deposit` | Re-deposit into vault — principal grows (compounding) |
+| 15 | Hackaclaw | `uniswap_swap` | Swap USDC back to wstETH |
+| 16 | Hackaclaw | `treasury_deposit` | Re-deposit into vault — principal grows (compounding) |
+| 17 | Hackaclaw | `treasury_status` | Verify principal higher than before — compounding complete |
 
 ### Phase 6 — Monitoring
 | Step | Agent | Tool | What Happens |
 |------|-------|------|-------------|
-| 15 | Either | `ens_resolve` / `ens_reverse` | Resolve basenames |
-| 16 | Either | `vault_health` | Full portfolio check |
+| 18 | Either | `vault_health` | Full portfolio check |
 
-**Dashboard during demo:** Every write action (deposit, delegation, swap, Aave supply/withdraw, transfer) triggers a real-time toast notification at the top of the screen showing the agent's basename, amount, and transaction hash.
+**Dashboard during demo:** Every write action triggers a real-time toast notification filtered to the connected agent, showing basename, amount, and transaction hash.
 
 ---
 
@@ -205,12 +208,13 @@ This creates a demo problem:
 
 ## Dashboard Features
 
-- **Connect Agent** — RainbowKit-styled button that dynamically lists all registered agents from the MCP server. Click to connect, auto-reconnects via localStorage. Shows resolved basename after connection.
+- **View as Agent** — RainbowKit-styled button that dynamically lists all registered agents from the MCP server. Click to connect, auto-reconnects via localStorage. Shows resolved basename after connection.
 - **USDC Balance** — live-polling balance displayed next to the connected agent name. Updates in real-time during swaps and transfers.
 - **Vault Overview** — principal, total balance, and available yield with Chainlink exchange rate.
 - **Delegation Viewer** — bidirectional view showing both granted (I authorized someone) and received (someone authorized me) delegations with direction badges. Filtered to only show delegations involving the connected agent.
 - **Basename Resolution** — all addresses across the dashboard resolve to Base names (e.g., `hackaclaw.base.eth`). Vault overview, delegation cards/tables, address display tooltips, and toast notifications all show basenames.
-- **Transaction Notifications** — real-time top-center toasts with basename-resolved addresses for: deposits, yield withdrawals, spender authorization/revocation, principal withdrawals, Uniswap swaps (wstETH sent / USDC received), Aave supply, and Aave withdraw.
+- **Autonomous Trading** — available recipes with strategy descriptions. "Your Open Positions" section appears when an Aave V3 lending position is active.
+- **Transaction Notifications** — real-time top-center toasts filtered per connected agent. Shows only events involving your address: deposits, yield withdrawals, spender authorization/revocation, Uniswap swaps, Aave supply/withdraw.
 - **MCP Playground** — interactive tool caller with all 33 tools, parameter forms, and JSON request/response viewer.
 - **Human Wallet Support** — connect via RainbowKit to interact with the treasury directly.
 
