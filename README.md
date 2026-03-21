@@ -8,17 +8,19 @@ Built for [The Synthesis](https://synthesis.md/hack) hackathon.
 
 ## What is AgentGate?
 
-AgentGate is a full-stack system where AI agents manage on-chain treasuries, delegate yield-spending rights to each other, and execute DeFi operations — all coordinated through a hosted MCP server.
+AgentGate is a full-stack system where AI agents manage on-chain treasuries, delegate yield-spending rights to each other, and execute autonomous trading strategies — all coordinated through a hosted MCP server.
 
-Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, connect to a shared MCP server over HTTP, and operate against the same on-chain contracts. A real-time dashboard visualizes every vault, delegation, and transaction as it happens.
+Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, connect to a shared MCP server over HTTP, and operate against the same on-chain contracts. A real-time dashboard visualizes every vault, delegation, swap, and Aave lending action as it happens.
 
 ### Core Capabilities
 
 - **Yield-only treasury** — agents deposit wstETH into an `AgentTreasury` contract. The principal is locked; only accrued yield (calculated via the Chainlink wstETH/stETH oracle) can be spent.
 - **Scoped agent-to-agent delegation** — one agent authorizes another as a yield spender with per-transaction and daily caps, without exposing the principal.
-- **28 MCP tools across 6 domains** — Lido staking, treasury management, delegation, ENS/Basenames, Uniswap swaps, and vault monitoring.
+- **Autonomous trading recipes** — delegated agents can execute multi-step DeFi strategies: harvest yield, swap via Uniswap, lend on Aave V3, and return profits for compounding.
+- **Aave V3 integration** — agents supply USDC to Aave V3 on Base to earn lending interest, check positions, and withdraw with accrued profit.
+- **33 MCP tools across 7 domains** — Lido staking, treasury management, delegation, ENS/Basenames, Uniswap swaps, Aave V3 lending, and vault monitoring.
 - **Hosted MCP server** — deployed on Vercel with HTTP transport and Bearer auth. Agents connect with one command; private keys never leave the server.
-- **Live dashboard** — Next.js app on Vercel showing vault balances, delegation status, Basename resolution, and real-time toast notifications for every on-chain action.
+- **Live dashboard** — Next.js app on Vercel with agent wallet connect, USDC balance display, Basename resolution, and real-time toast notifications for every on-chain action (treasury, swaps, Aave supply/withdraw).
 - **Dry-run simulation** — every tool supports a `dry_run` flag to simulate execution before committing transactions.
 
 ---
@@ -36,39 +38,39 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
   |                                                    |
   |  Bearer token -> agent ID -> private key (env var) |
   |                                                    |
-  |  28 tools:                                         |
+  |  33 tools:                                         |
   |  Lido (7) | Treasury (10) | Delegation (5)         |
-  |  ENS (2)  | Uniswap (3)  | Monitor (1)            |
+  |  ENS (2)  | Uniswap (3)  | Trading/Aave (5)       |
+  |  Monitor (1)                                       |
   +------------------------+---------------------------+
                            |
                            v
-               Tenderly Virtual TestNet
+                  Anvil on Fly.io
                   (Base mainnet fork)
                            |
-          +----------------+----------------+
-          |                |                |
-   AgentTreasury     Lido wstETH      Uniswap V3
-    (custom)          (bridged)        (forked)
-          |
-          v
-    Chainlink wstETH/stETH
-       Oracle Feed
+          +-------+--------+--------+--------+
+          |       |        |        |        |
+   AgentTreasury  Lido   Uniswap  Aave V3  Chainlink
+    (custom)    wstETH    V3       Pool     Oracle
+```
 
+```
   +---------------------------------------------------+
   |         Dashboard (Vercel)                         |
   |         Next.js + wagmi + RainbowKit               |
   |                                                    |
+  |  - Connect Agent button (dynamic agent list)       |
+  |  - USDC balance display (live polling)             |
   |  - Vault overview (principal / yield / total)      |
-  |  - Spender configuration panel                     |
+  |  - Delegation viewer (granted + received)          |
   |  - Basename resolution (hackaclaw.base.eth)        |
-  |  - Real-time tx toast notifications                |
-  |  - Human wallet connection (Base mainnet)          |
+  |  - Real-time toasts (treasury, swaps, Aave)        |
   +---------------------------------------------------+
 ```
 
 ---
 
-## MCP Tools (28)
+## MCP Tools (33)
 
 ### Lido (7)
 | Tool | Description |
@@ -107,8 +109,8 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 ### ENS / Basenames (2)
 | Tool | Description |
 |------|-------------|
-| `ens_resolve` | Resolve a name to an address |
-| `ens_reverse` | Reverse-resolve an address to a name |
+| `ens_resolve` | Resolve a Base name to an address |
+| `ens_reverse` | Reverse-resolve an address to a Base name |
 
 ### Uniswap (3)
 | Tool | Description |
@@ -117,6 +119,15 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 | `uniswap_swap` | Execute a token swap via Uniswap V3 |
 | `uniswap_tokens` | List available tokens and balances |
 
+### Trading / Aave V3 (5)
+| Tool | Description |
+|------|-------------|
+| `trading_list_recipes` | List available autonomous trading strategies |
+| `aave_supply` | Supply USDC to Aave V3 on Base (approve + deposit) |
+| `aave_withdraw` | Withdraw USDC + accrued interest from Aave V3 |
+| `aave_position` | Check Aave V3 lending position (balance, collateral, health factor) |
+| `transfer_token` | Transfer ERC-20 tokens (USDC, wstETH, or any address) |
+
 ### Monitor (1)
 | Tool | Description |
 |------|-------------|
@@ -124,7 +135,55 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 
 ---
 
-## Why a Tenderly Fork?
+## Demo Flow (16 steps)
+
+The full demo shows two AI agents collaborating on a yield-harvesting and lending strategy across treasury, Uniswap, and Aave V3 — with every action visible on the dashboard.
+
+### Phase 1 — Identity
+| Step | Agent | Tool | What Happens |
+|------|-------|------|-------------|
+| 1 | Both | `who_am_i` | Each agent discovers its address and ID from the MCP server |
+
+### Phase 2 — Treasury Setup (Hackaclaw)
+| Step | Agent | Tool | What Happens |
+|------|-------|------|-------------|
+| 2 | Hackaclaw | `treasury_status` | Check vault state (principal + yield) |
+| 3 | Hackaclaw | `treasury_deposit` | Deposit wstETH into vault |
+
+### Phase 3 — Delegation
+| Step | Agent | Tool | What Happens |
+|------|-------|------|-------------|
+| 4 | Hackaclaw | `treasury_authorize_spender` | Grant Merkle spending allowance on vault yield |
+| 5 | Merkle | `treasury_get_spender_config` | Verify delegation received (caps, access level) |
+
+### Phase 4 — Autonomous Trading (Merkle)
+| Step | Agent | Tool | What Happens |
+|------|-------|------|-------------|
+| 6 | Merkle | `trading_list_recipes` | View "Yield Harvest & Lend" recipe |
+| 7 | Merkle | `treasury_withdraw_yield_for` | Withdraw accrued yield from Hackaclaw's vault |
+| 8 | Merkle | `uniswap_swap` | Swap wstETH to USDC |
+| 9 | Merkle | `aave_supply` | Supply USDC to Aave V3 (earn lending interest) |
+| 10 | Merkle | `aave_position` | Check Aave position (USDC + interest) |
+| 11 | Merkle | `aave_withdraw` | Withdraw USDC + profit from Aave |
+| 12 | Merkle | `transfer_token` | Send USDC profit back to Hackaclaw |
+
+### Phase 5 — Compounding (Hackaclaw)
+| Step | Agent | Tool | What Happens |
+|------|-------|------|-------------|
+| 13 | Hackaclaw | `uniswap_swap` | Swap USDC back to wstETH |
+| 14 | Hackaclaw | `treasury_deposit` | Re-deposit into vault — principal grows (compounding) |
+
+### Phase 6 — Monitoring
+| Step | Agent | Tool | What Happens |
+|------|-------|------|-------------|
+| 15 | Either | `ens_resolve` / `ens_reverse` | Resolve basenames |
+| 16 | Either | `vault_health` | Full portfolio check |
+
+**Dashboard during demo:** Every write action (deposit, delegation, swap, Aave supply/withdraw, transfer) triggers a real-time toast notification at the top of the screen showing the agent's basename, amount, and transaction hash.
+
+---
+
+## Why a Fork?
 
 The AgentTreasury calculates yield based on the **Chainlink wstETH/stETH price feed** on Base:
 
@@ -138,31 +197,64 @@ The challenge: **Lido oracle reports are generated approximately once every 24 h
 
 This creates a demo problem:
 - **Base mainnet**: deposit and withdrawal in the same session always shows zero yield (rate hasn't changed)
-- **Anvil fork**: freezes all state at the fork block — the oracle rate never updates, so yield is always zero regardless of which block you fork from
+- **Standard fork**: freezes all state at the fork block — the oracle rate never updates
 
-**Solution**: A [Tenderly Virtual TestNet](https://tenderly.co/virtual-testnets) (Base mainnet fork) allows us to use `tenderly_setStorageAt` to simulate yield by adjusting the stored `principalStETHValue` after deposit. This gives us real contract logic, real Uniswap liquidity, and demonstrable yield — all in a live, persistent environment that multiple agents can interact with simultaneously.
+**Solution**: An Anvil fork on Fly.io allows us to use `anvil_setStorageAt` to simulate yield by adjusting the stored `principalStETHValue` after deposit. This gives us real contract logic, real Uniswap liquidity, real Aave V3 lending pools, and demonstrable yield — all in a live, persistent environment that multiple agents can interact with simultaneously.
+
+---
+
+## Dashboard Features
+
+- **Connect Agent** — RainbowKit-styled button that dynamically lists all registered agents from the MCP server. Click to connect, auto-reconnects via localStorage. Shows resolved basename after connection.
+- **USDC Balance** — live-polling balance displayed next to the connected agent name. Updates in real-time during swaps and transfers.
+- **Vault Overview** — principal, total balance, and available yield with Chainlink exchange rate.
+- **Delegation Viewer** — bidirectional view showing both granted (I authorized someone) and received (someone authorized me) delegations with direction badges. Filtered to only show delegations involving the connected agent.
+- **Basename Resolution** — all addresses across the dashboard resolve to Base names (e.g., `hackaclaw.base.eth`). Vault overview, delegation cards/tables, address display tooltips, and toast notifications all show basenames.
+- **Transaction Notifications** — real-time top-center toasts with basename-resolved addresses for: deposits, yield withdrawals, spender authorization/revocation, principal withdrawals, Uniswap swaps (wstETH sent / USDC received), Aave supply, and Aave withdraw.
+- **MCP Playground** — interactive tool caller with all 33 tools, parameter forms, and JSON request/response viewer.
+- **Human Wallet Support** — connect via RainbowKit to interact with the treasury directly.
+
+---
+
+## Bounty Targets
+
+### Lido — MCP Server ($3,000 / $2,000)
+Full MCP server with 7 Lido tools (stake, wrap, APR, balances, rewards, governance, voting), dry-run simulation, and an agent skill file (`lido.skill.md`) that teaches agents the stETH/wstETH mental model.
+
+### Lido — stETH Agent Treasury ($2,000 / $1,000)
+`AgentTreasury.sol` — a wstETH vault where AI agents deposit principal and only spend accrued yield. Uses the Chainlink wstETH/stETH oracle for yield calculation. Includes scoped spender authorization with per-transaction and daily caps.
+
+### Uniswap — Agentic Finance ($2,500 / $1,500 / $1,000)
+3 Uniswap MCP tools (quote, swap, tokens) enabling agents to autonomously trade on Uniswap V3. Agents convert yield to stablecoins, rebalance positions, and swap profits back for compounding — all through natural language commands.
+
+### Autonomous Trading Agent ($5,000)
+5 trading/Aave MCP tools enabling a delegated agent to execute the "Yield Harvest & Lend" recipe autonomously: withdraw yield → swap to USDC → supply to Aave V3 → earn lending interest → withdraw profit → transfer back to vault owner → re-deposit for compounding. No human intervention after initial delegation.
+
+### Synthesis — Open Track ($28,000 pool)
+End-to-end agent-to-agent DeFi infrastructure: hosted MCP server, treasury contracts, delegation framework, Aave V3 lending integration, real-time dashboard, and a complete 16-step demo flow showing two AI agents collaborating on yield management and autonomous trading.
 
 ---
 
 ## Quick Start
 
-### 1. Deploy the Treasury (Tenderly Fork)
+### 1. Deploy the Treasury (Anvil Fork)
 
 ```bash
 cd packages/treasury-contract
-./tenderly-demo-setup.sh <TENDERLY_ADMIN_RPC> <HACKACLAW_KEY> <MERKLE_KEY>
+./anvil-demo-setup.sh <ANVIL_RPC> <HACKACLAW_KEY> <MERKLE_KEY>
 ```
 
-This deploys `AgentTreasury`, deposits wstETH for Hackaclaw, and simulates ~5% yield.
+This deploys `AgentTreasury`, deposits wstETH for Hackaclaw, simulates ~5% yield, and registers basenames.
 
 ### 2. Deploy to Vercel
 
 Set the following environment variables on your Vercel project:
 
 ```
-RPC_URL=<tenderly admin RPC>
-NEXT_PUBLIC_RPC_URL=<tenderly public RPC>
-NEXT_PUBLIC_CHAIN_ID=<tenderly chain ID>
+RPC_URL=<anvil RPC>
+L1_RPC_URL=<ethereum mainnet RPC>
+NEXT_PUBLIC_RPC_URL=<anvil RPC>
+NEXT_PUBLIC_CHAIN_ID=8453
 TREASURY_ADDRESS=<deployed treasury address>
 NEXT_PUBLIC_TREASURY_ADDRESS=<deployed treasury address>
 NEXT_PUBLIC_DEMO_TREASURY_ADDRESS=<hackaclaw address>
@@ -177,60 +269,17 @@ Each agent runs one command on their own machine:
 
 **Hackaclaw:**
 ```bash
-claude mcp add --transport http agentgate \
+npx @anthropic-ai/claude-code mcp add agentgate -- npx mcp-remote \
   https://<your-vercel-app>.vercel.app/api/mcp-agent \
   --header "Authorization: Bearer hackaclaw"
 ```
 
 **Merkle:**
 ```bash
-claude mcp add --transport http agentgate \
+npx @anthropic-ai/claude-code mcp add agentgate -- npx mcp-remote \
   https://<your-vercel-app>.vercel.app/api/mcp-agent \
   --header "Authorization: Bearer merkle"
 ```
-
-### 4. Run the Demo
-
-| Step | Agent | Action | Dashboard Effect |
-|------|-------|--------|-----------------|
-| 1 | Hackaclaw | "check my treasury vault" | Vault shows principal + yield |
-| 2 | Hackaclaw | "what's the current Lido APR?" | APR displayed |
-| 3 | Hackaclaw | "authorize Merkle as spender with 0.001/tx, 0.005 daily cap" | Spender config appears |
-| 4 | Merkle | "check what I can spend from Hackaclaw's vault" | Spender details visible |
-| 5 | Merkle | "withdraw 0.0005 yield from Hackaclaw's vault" | Yield decreases, principal unchanged |
-| 6 | Merkle | "swap 0.0005 wstETH to USDC on Uniswap" | Swap toast notification |
-| 7 | Hackaclaw | "check vault — is my principal intact?" | Balances confirm safety |
-| 8 | Hackaclaw | "revoke Merkle's access" | Spender removed |
-
-Every action triggers a real-time toast notification on the dashboard with transaction hash and description.
-
----
-
-## Dashboard Features
-
-- **Vault Overview** — donut chart visualization of principal vs. yield with wstETH amounts
-- **Spender Management** — view authorized spenders, caps, and daily usage
-- **Basename Resolution** — agent addresses display as `hackaclaw.base.eth` / `merkle.base.eth` across the UI
-- **Transaction Notifications** — real-time toasts for deposits, yield withdrawals, spender changes, and Uniswap swaps with clickable tx hashes
-- **Address Lookup** — paste any address to view its vault position
-- **Human Wallet Support** — connect via RainbowKit to interact with the treasury directly on Base mainnet
-- **Demo Mode** — read-only visualization of agent activity on the Tenderly fork
-
----
-
-## Bounty Targets
-
-### Lido — MCP Server ($3,000 / $2,000)
-Full MCP server with 7 Lido tools (stake, wrap, APR, balances, rewards, governance, voting), dry-run simulation, and an agent skill file (`lido.skill.md`) that teaches agents the stETH/wstETH mental model.
-
-### Lido — stETH Agent Treasury ($2,000 / $1,000)
-`AgentTreasury.sol` — a wstETH vault where AI agents deposit principal and only spend accrued yield. Uses the Chainlink wstETH/stETH oracle for yield calculation. Includes scoped spender authorization with per-transaction and daily caps.
-
-### Uniswap — Agentic Finance ($2,500 / $1,500 / $1,000)
-3 Uniswap MCP tools (quote, swap, tokens) enabling agents to autonomously trade on Uniswap V3. Agents can convert yield to stablecoins or rebalance positions through natural language commands.
-
-### Synthesis — Open Track ($28,000 pool)
-End-to-end agent-to-agent DeFi infrastructure: hosted MCP server, treasury contracts, delegation framework, real-time dashboard, and a complete demo flow showing two AI agents collaborating on yield management.
 
 ---
 
@@ -238,20 +287,28 @@ End-to-end agent-to-agent DeFi infrastructure: hosted MCP server, treasury contr
 
 ```
 packages/
-  mcp-server/          MCP server (TypeScript, 28 tools)
+  mcp-server/          MCP server (TypeScript, 33 tools)
     src/
       tools/           Tool implementations by domain
+        lido.ts        Lido staking (7 tools)
+        treasury.ts    Vault management (10 tools)
+        delegation.ts  ERC-7710 delegations (5 tools)
+        ens.ts         Base name resolution (2 tools)
+        uniswap.ts     Uniswap V3 swaps (3 tools)
+        trading.ts     Aave V3 lending + recipes (5 tools)
+        monitor.ts     Vault health (1 tool)
       hosted.ts        HTTP transport + agent key mapping
     lido.skill.md      Agent mental model for stETH/wstETH
   treasury-contract/   AgentTreasury (Solidity, Foundry)
     contracts/
     test/
-    tenderly-demo-setup.sh
+    anvil-demo-setup.sh
   app/                 Dashboard (Next.js, wagmi, RainbowKit)
     src/
-      components/      UI components + tx notifications
-      lib/hooks/       On-chain data hooks + Basename resolution
+      components/      UI components + agent connect + tx notifications
+      lib/hooks/       On-chain data hooks + Basename resolution + basename map
       providers/       App context + wallet config
+      app/api/agents/  Dynamic agent list endpoint
 ```
 
 ---
