@@ -24,7 +24,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const resolvedAddress =
     viewAddress ||
-    (isConnected && address ? address : DEMO_TREASURY_ADDRESS);
+    (isConnected && address ? address : "");
 
   const value: AppContextValue = {
     isDemo: !viewAddress && (!isConnected || !address),
