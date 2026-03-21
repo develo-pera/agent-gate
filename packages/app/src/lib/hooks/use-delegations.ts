@@ -29,7 +29,7 @@ export interface SpenderDelegation {
 }
 
 export function useDelegations() {
-  const { activeAddress } = useApp();
+  const { activeAddress, isDemo } = useApp();
   const activeLower = activeAddress?.toLowerCase();
 
   // Build queries: for each agent pair where activeAddress is involved,
@@ -66,7 +66,7 @@ export function useDelegations() {
   const { data, isLoading } = useReadContracts({
     contracts,
     query: {
-      enabled: !!activeAddress,
+      enabled: !isDemo && !!activeAddress,
       refetchInterval: POLL_INTERVAL,
       placeholderData: keepPreviousData,
     },
