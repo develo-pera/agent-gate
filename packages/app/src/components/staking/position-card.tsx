@@ -2,13 +2,16 @@
 
 import { useWstethBalance } from "@/lib/hooks/use-staking";
 import { useVaultStatus, useOracleRate } from "@/lib/hooks/use-treasury";
+import { useApp } from "@/providers/app-provider";
 import { ErrorCard } from "@/components/shared/error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { formatWsteth } from "@/lib/format";
 import { formatEther } from "viem";
+import { DEMO_TREASURY_ADDRESS } from "@/lib/constants";
 
 export function PositionCard() {
+  const { activeAddress, viewAddress } = useApp();
   const {
     data: wstethBalance,
     isLoading: balanceLoading,
@@ -31,6 +34,9 @@ export function PositionCard() {
     );
   }
 
+  // Only show vault data if the connected agent is the depositor
+  const isDepositor = !!viewAddress && activeAddress.toLowerCase() === DEMO_TREASURY_ADDRESS.toLowerCase();
+
   const [principal, availableYield, totalBalance, hasVault] =
     (vaultData as [bigint, bigint, bigint, boolean] | undefined) ?? [
       BigInt(0), BigInt(0), BigInt(0), false,
@@ -39,7 +45,8 @@ export function PositionCard() {
   const walletBalance = wstethBalance ?? BigInt(0);
   const rateNum = oracleRate ? Number(formatEther(oracleRate as bigint)) : null;
 
-  const totalWsteth = walletBalance + (hasVault ? totalBalance : BigInt(0));
+  const showVault = isDepositor && hasVault;
+  const totalWsteth = walletBalance + (showVault ? totalBalance : BigInt(0));
   const totalSteth = rateNum
     ? (Number(formatEther(totalWsteth)) * rateNum).toFixed(4)
     : null;
@@ -72,13 +79,13 @@ export function PositionCard() {
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">In vault (principal)</span>
             <span className="text-sm font-medium">
-              {hasVault ? `${formatWsteth(principal)} wstETH` : "—"}
+              {showVault ? `${formatWsteth(principal)} wstETH` : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Accrued yield</span>
             <span className="text-sm font-medium text-primary">
-              {hasVault ? `${formatWsteth(availableYield)} wstETH` : "—"}
+              {showVault ? `${formatWsteth(availableYield)} wstETH` : "—"}
             </span>
           </div>
           <div className="flex items-center justify-between">
