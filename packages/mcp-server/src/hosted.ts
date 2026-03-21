@@ -40,6 +40,19 @@ export function resolveAgentKey(agentId: string): `0x${string}` | null {
 
 // ── Context factory ──────────────────────────────────────────────────
 
+function getAllAgentAddresses(): `0x${string}`[] {
+  const addresses: `0x${string}`[] = [];
+  for (const envVar of Object.values(AGENT_KEY_MAP)) {
+    const key = process.env[envVar];
+    if (key) {
+      try {
+        addresses.push(privateKeyToAccount(key as `0x${string}`).address);
+      } catch { /* skip invalid keys */ }
+    }
+  }
+  return addresses;
+}
+
 function createContext(privateKey: `0x${string}`): AgentGateContext {
   const RPC_URL = process.env.RPC_URL || "https://mainnet.base.org";
   const L1_RPC_URL = process.env.L1_RPC_URL || "https://eth.llamarpc.com";
@@ -52,7 +65,7 @@ function createContext(privateKey: `0x${string}`): AgentGateContext {
       transport: http(RPC_URL),
     }),
     l1PublicClient: createPublicClient({
-      chain: base, // L1 reads not critical for demo, keep on same RPC
+      chain: base,
       transport: http(L1_RPC_URL),
     }),
     walletClient: createWalletClient({
@@ -63,6 +76,7 @@ function createContext(privateKey: `0x${string}`): AgentGateContext {
     walletAccount: account,
     dryRun: false,
     chain: base,
+    allAddresses: getAllAgentAddresses(),
   };
 }
 

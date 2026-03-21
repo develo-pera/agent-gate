@@ -8,4 +8,5 @@ export interface AgentGateContext {
   walletAccount?: PrivateKeyAccount;
   dryRun: boolean;
   chain: Chain;
+  allAddresses?: `0x${string}`[];
 }

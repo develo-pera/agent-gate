@@ -45,15 +45,52 @@ export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
     },
     async ({ name }) => {
       try {
+        // Forward lookup: namehash → L2Resolver.addr
         const node = namehash(name);
-        const address = await ctx.publicClient.readContract({
+        const forwardAddr = await ctx.publicClient.readContract({
           address: L2_RESOLVER,
           abi: L2_RESOLVER_ABI,
           functionName: "addr",
           args: [node],
         });
 
-        if (!address || address === "0x0000000000000000000000000000000000000000") {
+        // Also check known agent addresses for reverse record match.
+        // On our Anvil fork, we register basenames via ReverseRegistrar.setName()
+        // which only sets the reverse record — forward lookup returns the real
+        // mainnet owner, not our agent. So we scan agent wallets for a match.
+        let reverseMatch: Address | null = null;
+        const agentAddresses = [
+          ctx.walletClient.account.address,
+          ...(ctx.allAddresses ?? []),
+        ].filter(Boolean) as Address[];
+
+        for (const addr of agentAddresses) {
+          try {
+            const revNode = await ctx.publicClient.readContract({
+              address: REVERSE_REGISTRAR,
+              abi: REVERSE_REGISTRAR_ABI,
+              functionName: "node",
+              args: [addr],
+            });
+            const revName = await ctx.publicClient.readContract({
+              address: L2_RESOLVER,
+              abi: L2_RESOLVER_ABI,
+              functionName: "name",
+              args: [revNode],
+            });
+            if (revName && revName.toLowerCase() === name.toLowerCase()) {
+              reverseMatch = addr;
+              break;
+            }
+          } catch {
+            // skip
+          }
+        }
+
+        // Prefer reverse match (our agent) over forward lookup (mainnet owner)
+        const resolvedAddress = reverseMatch ?? forwardAddr;
+
+        if (!resolvedAddress || resolvedAddress === "0x0000000000000000000000000000000000000000") {
           return {
             content: [{
               type: "text" as const,
@@ -72,7 +109,10 @@ export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
             text: JSON.stringify({
               name,
               resolved: true,
-              address,
+              address: resolvedAddress,
+              ...(reverseMatch && forwardAddr && reverseMatch !== forwardAddr
+                ? { note: `Resolved via reverse record. Forward registry points to ${forwardAddr}.` }
+                : {}),
             }, null, 2),
           }],
         };
