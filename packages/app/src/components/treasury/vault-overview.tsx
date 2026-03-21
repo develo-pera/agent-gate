@@ -50,9 +50,9 @@ export function VaultOverview() {
       false,
     ];
 
-  // Only the depositor sees their available yield; other agents see 0
-  const isDepositor = !!viewAddress && activeAddress.toLowerCase() === DEMO_TREASURY_ADDRESS.toLowerCase();
-  const availableYield = isDepositor ? rawYield : BigInt(0);
+  // When viewing your own vault, show your available yield
+  const isOwnVault = !viewAddress || activeAddress.toLowerCase() !== DEMO_TREASURY_ADDRESS.toLowerCase();
+  const availableYield = isOwnVault ? rawYield : BigInt(0);
 
   if (!hasVault) {
     return (

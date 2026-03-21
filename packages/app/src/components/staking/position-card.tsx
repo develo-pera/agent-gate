@@ -34,8 +34,8 @@ export function PositionCard() {
     );
   }
 
-  // Only show vault data if the connected agent is the depositor
-  const isDepositor = !!viewAddress && activeAddress.toLowerCase() === DEMO_TREASURY_ADDRESS.toLowerCase();
+  // Show vault data when viewing your own vault
+  const isDepositor = !viewAddress || activeAddress.toLowerCase() !== DEMO_TREASURY_ADDRESS.toLowerCase();
 
   const [principal, availableYield, totalBalance, hasVault] =
     (vaultData as [bigint, bigint, bigint, boolean] | undefined) ?? [
