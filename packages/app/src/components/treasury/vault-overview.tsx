@@ -15,9 +15,12 @@ import {
 } from "@/components/ui/card";
 import { formatWsteth, formatRate } from "@/lib/format";
 import { useApp } from "@/providers/app-provider";
+import { useBasename } from "@/lib/hooks/use-basename";
+import { Badge } from "@/components/ui/badge";
 
 export function VaultOverview() {
-  const { isDemo } = useApp();
+  const { isDemo, activeAddress } = useApp();
+  const basename = useBasename(activeAddress);
   const {
     data: vaultData,
     isLoading: vaultLoading,
@@ -73,7 +76,14 @@ export function VaultOverview() {
   return (
     <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Vault Overview</CardTitle>
+        <div className="flex items-center gap-3">
+          <CardTitle className="text-xl font-semibold">Vault Overview</CardTitle>
+          {basename && (
+            <Badge variant="secondary" className="text-sm font-mono">
+              {basename}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex flex-row items-center gap-8">

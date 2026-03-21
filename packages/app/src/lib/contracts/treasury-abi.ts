@@ -46,4 +46,50 @@ export const TREASURY_ABI = [
     ],
     outputs: [{ name: "", type: "bool" }],
   },
+  // ── Events ──
+  {
+    name: "Deposited",
+    type: "event",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "wstETHAmount", type: "uint256", indexed: false },
+      { name: "stETHValue", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "YieldWithdrawn",
+    type: "event",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "recipient", type: "address", indexed: true },
+      { name: "wstETHAmount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "SpenderAuthorized",
+    type: "event",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "spender", type: "address", indexed: true },
+      { name: "maxPerTx", type: "uint256", indexed: false },
+      { name: "windowDuration", type: "uint40", indexed: false },
+      { name: "windowAllowance", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "SpenderRevoked",
+    type: "event",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "spender", type: "address", indexed: true },
+    ],
+  },
+  {
+    name: "PrincipalWithdrawn",
+    type: "event",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "wstETHAmount", type: "uint256", indexed: false },
+    ],
+  },
 ] as const;

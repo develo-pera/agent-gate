@@ -5,6 +5,8 @@ import { Web3Provider } from "@/providers/web3-provider";
 import { AppProvider } from "@/providers/app-provider";
 import { Sidebar } from "@/components/sidebar";
 import { DemoBanner } from "@/components/demo-banner";
+import { TxNotifications } from "@/components/tx-notifications";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   weight: ["400", "600"],
@@ -40,6 +42,8 @@ export default function RootLayout({
                 </main>
               </div>
             </div>
+            <TxNotifications />
+            <Toaster theme="dark" position="bottom-right" richColors closeButton />
           </AppProvider>
         </Web3Provider>
       </body>
