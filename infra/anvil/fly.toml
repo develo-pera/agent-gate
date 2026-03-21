@@ -1,0 +1,20 @@
+app = "agentgate-anvil"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8545
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1024mb"
+
+[mounts]
+  source = "anvil_data"
+  destination = "/data"
