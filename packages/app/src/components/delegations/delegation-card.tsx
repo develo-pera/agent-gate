@@ -2,65 +2,56 @@
 
 import { AddressDisplay } from "@/components/shared/address-display";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import type { Delegation } from "@/lib/hooks/use-delegations";
+import type { SpenderDelegation } from "@/lib/hooks/use-delegations";
 
 interface DelegationCardProps {
-  delegation: Delegation;
-  onRedeem: (id: string) => void;
-  onRevoke: (id: string) => void;
+  delegation: SpenderDelegation;
 }
 
-export function DelegationCard({
-  delegation,
-  onRedeem,
-  onRevoke,
-}: DelegationCardProps) {
-  const isActive = delegation.status === "active";
+export function DelegationCard({ delegation }: DelegationCardProps) {
+  const windowHours = delegation.windowDuration
+    ? Math.round(delegation.windowDuration / 3600)
+    : null;
 
   return (
     <div className="rounded-xl border border-border/50 bg-card/60 p-6 backdrop-blur-lg">
       <div className="flex items-center justify-between">
-        <AddressDisplay address={delegation.delegate} />
-        {isActive ? (
-          <Badge className="bg-success/20 text-success border-success/30">
-            Live
-          </Badge>
-        ) : (
-          <Badge className="bg-muted text-muted-foreground">Expired</Badge>
-        )}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold capitalize">
+            {delegation.spenderName}
+          </span>
+          <AddressDisplay address={delegation.spender} />
+        </div>
+        <Badge className="bg-success/20 text-success border-success/30">
+          Active
+        </Badge>
       </div>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 grid grid-cols-2 gap-4">
         <div>
-          <p className="text-xs font-semibold text-muted-foreground">Scope</p>
-          <p className="text-sm">{delegation.scope}</p>
+          <p className="text-xs font-semibold text-muted-foreground">
+            Max per tx
+          </p>
+          <p className="text-sm">{delegation.maxPerTx} wstETH</p>
         </div>
         <div>
-          <p className="text-xs font-semibold text-muted-foreground">Caveats</p>
+          <p className="text-xs font-semibold text-muted-foreground">
+            {windowHours ? `${windowHours}h allowance` : "Window allowance"}
+          </p>
+          <p className="text-sm">{delegation.windowAllowance} wstETH</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground">
+            Spent in window
+          </p>
+          <p className="text-sm">{delegation.spentInWindow} wstETH</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground">Access</p>
           <p className="text-sm">
-            Max: {delegation.caveats.maxAmount} {delegation.caveats.token}
+            {delegation.yieldOnly ? "Yield only" : "Full"}
           </p>
         </div>
-      </div>
-
-      <div className="mt-4 flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onRedeem(delegation.id)}
-        >
-          Redeem Delegation
-        </Button>
-        {isActive && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => onRevoke(delegation.id)}
-          >
-            Revoke
-          </Button>
-        )}
       </div>
     </div>
   );
