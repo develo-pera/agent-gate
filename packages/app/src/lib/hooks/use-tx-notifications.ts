@@ -8,8 +8,10 @@ import {
   TREASURY_ADDRESS,
   BASE_WSTETH,
   BASE_USDC,
+  BASE_aUSDC,
   AGENT_ADDRESSES,
 } from "@/lib/contracts/addresses";
+import { useBasenameMap } from "./use-basename-map";
 
 const ERC20_TRANSFER_ABI = [
   {
@@ -31,13 +33,6 @@ function isAgent(addr: string) {
   return AGENT_SET.has(addr.toLowerCase());
 }
 
-function agentName(addr: string) {
-  const lower = addr.toLowerCase();
-  if (lower === AGENT_ADDRESSES.hackaclaw.toLowerCase()) return "Hackaclaw";
-  if (lower === AGENT_ADDRESSES.merkle.toLowerCase()) return "Merkle";
-  return short(addr);
-}
-
 function short(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
@@ -53,6 +48,12 @@ function txLink(log: Log) {
 }
 
 export function useTxNotifications() {
+  const resolveBasename = useBasenameMap();
+
+  function displayName(addr: string) {
+    return resolveBasename(addr) || short(addr);
+  }
+
   useWatchContractEvent({
     address: TREASURY_ADDRESS,
     abi: TREASURY_ABI,
@@ -64,7 +65,7 @@ export function useTxNotifications() {
           wstETHAmount: bigint;
         };
         toast.success("Deposit", {
-          description: `${short(agent)} deposited ${formatAmount(wstETHAmount)} wstETH\n${txLink(log)}`,
+          description: `${displayName(agent)} deposited ${formatAmount(wstETHAmount)} wstETH\n${txLink(log)}`,
           duration: 8000,
         });
       }
@@ -85,7 +86,7 @@ export function useTxNotifications() {
           wstETHAmount: bigint;
         };
         toast.info("Yield Withdrawn", {
-          description: `${formatAmount(wstETHAmount)} wstETH from ${short(agent)} to ${short(recipient)}\n${txLink(log)}`,
+          description: `${formatAmount(wstETHAmount)} wstETH from ${displayName(agent)} to ${displayName(recipient)}\n${txLink(log)}`,
           duration: 8000,
         });
       }
@@ -106,7 +107,7 @@ export function useTxNotifications() {
           maxPerTx: bigint;
         };
         toast.success("Spender Authorized", {
-          description: `${short(agent)} authorized ${short(spender)} (max ${formatAmount(maxPerTx)}/tx)\n${txLink(log)}`,
+          description: `${displayName(agent)} authorized ${displayName(spender)} (max ${formatAmount(maxPerTx)}/tx)\n${txLink(log)}`,
           duration: 8000,
         });
       }
@@ -126,7 +127,7 @@ export function useTxNotifications() {
           spender: string;
         };
         toast.warning("Spender Revoked", {
-          description: `${short(agent)} revoked ${short(spender)}\n${txLink(log)}`,
+          description: `${displayName(agent)} revoked ${displayName(spender)}\n${txLink(log)}`,
           duration: 8000,
         });
       }
@@ -146,7 +147,7 @@ export function useTxNotifications() {
           wstETHAmount: bigint;
         };
         toast.warning("Principal Withdrawn", {
-          description: `${short(agent)} withdrew ${formatAmount(wstETHAmount)} wstETH principal\n${txLink(log)}`,
+          description: `${displayName(agent)} withdrew ${formatAmount(wstETHAmount)} wstETH principal\n${txLink(log)}`,
           duration: 8000,
         });
       }
@@ -169,13 +170,12 @@ export function useTxNotifications() {
           to: string;
           value: bigint;
         };
-        // Only show if an agent is sending and recipient is NOT the treasury (that's a deposit, not a swap)
         if (
           isAgent(from) &&
           to.toLowerCase() !== TREASURY_ADDRESS.toLowerCase()
         ) {
           toast.info("Swap: wstETH sent", {
-            description: `${agentName(from)} sent ${formatAmount(value)} wstETH\n${txLink(log)}`,
+            description: `${displayName(from)} sent ${formatAmount(value)} wstETH\n${txLink(log)}`,
             duration: 8000,
           });
         }
@@ -200,7 +200,61 @@ export function useTxNotifications() {
         if (isAgent(to)) {
           const usdcAmount = Number(formatUnits(value, 6)).toFixed(2);
           toast.success("Swap: USDC received", {
-            description: `${agentName(to)} received ${usdcAmount} USDC\n${txLink(log)}`,
+            description: `${displayName(to)} received ${usdcAmount} USDC\n${txLink(log)}`,
+            duration: 8000,
+          });
+        }
+      }
+    },
+    poll: true,
+    pollingInterval: 4_000,
+  });
+
+  // ── Aave V3 detection via aUSDC Transfer events ──
+
+  const ZERO = "0x0000000000000000000000000000000000000000";
+
+  // aUSDC minted TO agent = Aave supply
+  useWatchContractEvent({
+    address: BASE_aUSDC,
+    abi: ERC20_TRANSFER_ABI,
+    eventName: "Transfer",
+    onLogs(logs) {
+      for (const log of logs) {
+        const { from, to, value } = log.args as {
+          from: string;
+          to: string;
+          value: bigint;
+        };
+        if (from.toLowerCase() === ZERO && isAgent(to)) {
+          const amount = Number(formatUnits(value, 6)).toFixed(2);
+          toast.success("Aave: USDC Supplied", {
+            description: `${displayName(to)} supplied ${amount} USDC to Aave V3\n${txLink(log)}`,
+            duration: 8000,
+          });
+        }
+      }
+    },
+    poll: true,
+    pollingInterval: 4_000,
+  });
+
+  // aUSDC burned FROM agent = Aave withdraw
+  useWatchContractEvent({
+    address: BASE_aUSDC,
+    abi: ERC20_TRANSFER_ABI,
+    eventName: "Transfer",
+    onLogs(logs) {
+      for (const log of logs) {
+        const { from, to, value } = log.args as {
+          from: string;
+          to: string;
+          value: bigint;
+        };
+        if (to.toLowerCase() === ZERO && isAgent(from)) {
+          const amount = Number(formatUnits(value, 6)).toFixed(2);
+          toast.info("Aave: USDC Withdrawn", {
+            description: `${displayName(from)} withdrew ${amount} USDC from Aave V3\n${txLink(log)}`,
             duration: 8000,
           });
         }
