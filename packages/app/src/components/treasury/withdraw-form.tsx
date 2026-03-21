@@ -27,12 +27,12 @@ export function WithdrawForm() {
   };
 
   return (
-    <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
+    <Card className="flex flex-col border-border/50 bg-card/60 backdrop-blur-lg">
       <CardHeader>
         <CardTitle className="text-xl font-semibold">Withdraw Yield</CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <CardContent className="flex flex-1 flex-col">
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label>Amount (wstETH)</Label>
             <Input
@@ -45,7 +45,7 @@ export function WithdrawForm() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="mt-auto flex items-center gap-2">
             <Switch
               checked={dryRun}
               onCheckedChange={(checked) => setDryRun(checked)}

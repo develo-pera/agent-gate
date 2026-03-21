@@ -7,17 +7,21 @@ import { wagmiConfig } from "@/lib/wagmi-config";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { ArrowDown, Loader2, Check, RefreshCw } from "lucide-react";
+import { DryRunResult } from "@/components/shared/dry-run-result";
+import { Loader2, Check, RefreshCw } from "lucide-react";
 
 export function SwapEthCard() {
   const { address, isConnected } = useAccount();
   const [amount, setAmount] = useState("");
+  const [dryRun, setDryRun] = useState(false);
   const [quote, setQuote] = useState<{ amount_out: string; fee_tier: string } | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "swapping" | "success" | "error">("idle");
   const [txHash, setTxHash] = useState("");
   const [error, setError] = useState("");
+  const [showResult, setShowResult] = useState(false);
 
   const fetchQuote = useCallback(async (value: string) => {
     const parsed = parseFloat(value);
@@ -50,14 +54,20 @@ export function SwapEthCard() {
     setAmount(value);
     setStatus("idle");
     setError("");
-    // Debounce quote fetch
+    setShowResult(false);
     const timeout = setTimeout(() => fetchQuote(value), 400);
     return () => clearTimeout(timeout);
   };
 
   const handleSwap = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address || !amount) return;
+    if (!address || !amount || !quote) return;
+
+    // Simulate first: just show the quote as a dry-run result
+    if (dryRun) {
+      setShowResult(true);
+      return;
+    }
 
     setStatus("swapping");
     setError("");
@@ -76,7 +86,6 @@ export function SwapEthCard() {
         return;
       }
 
-      // Sign and submit each transaction
       for (const tx of data.transactions) {
         const hash = await sendTransaction(wagmiConfig, {
           to: tx.to as `0x${string}`,
@@ -88,7 +97,7 @@ export function SwapEthCard() {
       }
 
       setStatus("success");
-      setQuote({ ...quote!, amount_out: data.quote.expected_out });
+      setQuote({ ...quote, amount_out: data.quote.expected_out });
     } catch (e) {
       if (e instanceof Error && (e.message.includes("User rejected") || e.message.includes("user rejected"))) {
         setStatus("idle");
@@ -105,19 +114,18 @@ export function SwapEthCard() {
     setStatus("idle");
     setTxHash("");
     setError("");
+    setShowResult(false);
   };
 
-  if (!isConnected) return null;
-
   const parsed = parseFloat(amount);
-  const canSwap = parsed > 0 && quote && status !== "swapping";
+  const canSwap = isConnected && parsed > 0 && quote && status !== "swapping";
 
   return (
-    <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
+    <Card className="flex flex-col border-border/50 bg-card/60 backdrop-blur-lg">
       <CardHeader>
         <CardTitle className="text-xl font-semibold">Swap ETH → wstETH</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         {status === "success" ? (
           <div className="flex flex-col items-center gap-4 py-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
@@ -140,10 +148,9 @@ export function SwapEthCard() {
             </Button>
           </div>
         ) : (
-          <form onSubmit={handleSwap} className="flex flex-col gap-4">
-            {/* Input */}
+          <form onSubmit={handleSwap} className="flex flex-1 flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label>You pay (ETH)</Label>
+              <Label>Amount (ETH)</Label>
               <Input
                 type="number"
                 min="0"
@@ -154,14 +161,6 @@ export function SwapEthCard() {
               />
             </div>
 
-            {/* Arrow */}
-            <div className="flex justify-center">
-              <div className="rounded-lg border border-border/50 bg-muted/50 p-1.5">
-                <ArrowDown className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
-
-            {/* Output */}
             <div className="flex flex-col gap-2">
               <Label>You receive (wstETH)</Label>
               <div className="flex h-10 items-center rounded-md border border-input bg-background px-3 text-sm">
@@ -180,6 +179,14 @@ export function SwapEthCard() {
               )}
             </div>
 
+            <div className="mt-auto flex items-center gap-2">
+              <Switch
+                checked={dryRun}
+                onCheckedChange={(checked) => setDryRun(checked)}
+              />
+              <Label>Simulate first</Label>
+            </div>
+
             <Button
               type="submit"
               className="w-full min-h-[44px]"
@@ -195,7 +202,28 @@ export function SwapEthCard() {
               )}
             </Button>
 
+            {!isConnected && (
+              <p className="text-xs text-muted-foreground">
+                Connect a wallet to swap ETH for wstETH.
+              </p>
+            )}
+
             {error && <p className="text-xs text-destructive">{error}</p>}
+
+            {showResult && quote && (
+              <DryRunResult
+                data={{
+                  mode: "dry_run",
+                  action: "swap_eth_wsteth",
+                  amount_in: amount + " ETH",
+                  expected_out: quote.amount_out + " wstETH",
+                  fee_tier: quote.fee_tier,
+                  slippage: "0.5%",
+                  would_succeed: true,
+                }}
+                onDismiss={() => setShowResult(false)}
+              />
+            )}
           </form>
         )}
       </CardContent>
