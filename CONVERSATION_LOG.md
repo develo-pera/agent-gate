@@ -856,4 +856,32 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 06:00 IST / 00:30 UTC (Mar 22)*
+## Session 11 — Treasury Bug Fixes & UX Improvements (Mar 22, 2026 ~01:30 UTC)
+
+**Bridge ABI missing write functions** — Deposit from the dashboard failed with `Function "deposit" not found on ABI`. The bridge's inline `TREASURY_ABI` only had read functions (`getVaultStatus`, `getCurrentRate`, etc.) since it was originally built as read-only. Added all 7 write function signatures (`deposit`, `withdrawYield`, `withdrawYieldFor`, `authorizeSpender`, `revokeSpender`, `setRecipientWhitelist`, `setAllowedRecipient`).
+
+**ERC-20 approval before deposit** — Deposit reverted on-chain because the treasury contract requires `wstETH.approve(treasury, amount)` before calling `deposit()`. Added an `approve(treasury, maxUint256)` impersonation call before the deposit transaction in the bridge's `treasuryDeposit` handler.
+
+**DryRunResult component** — Was showing "Simulation passed" for executed transactions (including reverts). Updated to distinguish `mode: "executed"` vs `mode: "dry_run"` — now shows "Transaction confirmed" (green) or "Transaction reverted" (red) for executed results.
+
+**Vault overview showing hackaclaw's data when disconnected** — `useVaultStatus` was hardcoded to query `DEMO_TREASURY_ADDRESS`. Changed to use `activeAddress` from app context. Added `enabled: !isDemo` to disable vault and delegation queries in demo mode. Removed `keepPreviousData` from both hooks so data clears on disconnect instead of showing stale results. Updated labels to "Your Principal", "Your Total Balance", "Your Available Yield".
+
+**Discussion: aggregate vs per-user vault data** — Viraz (sleeping, India timezone) wants the vault overview to show total contract-level data. The contract's `getVaultStatus(agent)` is per-agent only with no aggregate getter. Could read `wstETH.balanceOf(treasury)` for total balance but can't split principal vs yield without a contract change. Decision: keep per-user for now with "Your" labels, revisit with Viraz.
+
+**Withdraw card — available yield display** — Added "Available: X.XXXX wstETH" next to the amount label. Button disables when amount exceeds available yield with error: "Exceeds available yield. Only accrued yield can be withdrawn — principal is locked."
+
+**Deposit card — wallet balance display** — Added "Balance: X.XXXX wstETH" next to the amount label. Reads wstETH balance via `useReadContract` with 5s polling. Button disables when amount exceeds wallet balance.
+
+**Files modified:**
+- `packages/mcp-server/src/bridge.ts` — Added write functions to ABI, wstETH approve before deposit
+- `packages/app/src/components/shared/dry-run-result.tsx` — Distinguish executed vs dry_run results
+- `packages/app/src/lib/hooks/use-treasury.ts` — Use activeAddress, disable in demo mode
+- `packages/app/src/lib/hooks/use-delegations.ts` — Disable in demo mode, remove keepPreviousData
+- `packages/app/src/components/treasury/vault-overview.tsx` — "Your" labels, skip basename in demo
+- `packages/app/src/components/staking/position-card.tsx` — Fixed isDepositor logic
+- `packages/app/src/components/treasury/withdraw-form.tsx` — Show available yield, prevent over-withdrawal
+- `packages/app/src/components/treasury/deposit-form.tsx` — Show wstETH balance, prevent over-deposit
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 07:00 IST / 01:30 UTC (Mar 22)*
