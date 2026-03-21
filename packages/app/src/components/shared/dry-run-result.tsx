@@ -10,8 +10,17 @@ interface DryRunResultProps {
 }
 
 export function DryRunResult({ data, onDismiss }: DryRunResultProps) {
-  const succeeded = data.would_succeed !== false;
+  const isExecuted = data.mode === "executed";
   const isDryRun = data.mode === "dry_run";
+  const txReverted = data.status === "reverted";
+
+  const succeeded = isExecuted
+    ? !txReverted
+    : data.would_succeed !== false;
+
+  const label = isExecuted
+    ? txReverted ? "Transaction reverted" : "Transaction confirmed"
+    : succeeded ? "Simulation passed" : "Simulation failed";
 
   return (
     <div
@@ -33,7 +42,7 @@ export function DryRunResult({ data, onDismiss }: DryRunResultProps) {
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <Badge variant={succeeded ? "default" : "destructive"}>
-            {succeeded ? "Simulation passed" : "Simulation failed"}
+            {label}
           </Badge>
           {isDryRun && (
             <span className="text-xs text-muted-foreground">Dry run</span>

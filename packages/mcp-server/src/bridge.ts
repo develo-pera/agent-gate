@@ -359,11 +359,26 @@ async function impersonateAndSend(
   }
 }
 
+// ── ERC-20 Approve ABI ──────────────────────────────────────────────
+
+const ERC20_APPROVE_ABI = [{
+  name: "approve", type: "function", stateMutability: "nonpayable",
+  inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }],
+  outputs: [{ name: "", type: "bool" }],
+}] as const;
+
+const BASE_WSTETH = "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as Address;
+const MAX_UINT256 = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
 // ── Treasury Write Handlers (dry-run or impersonate+execute) ────────
 
 const treasuryDeposit: ToolHandler = async (params, ctx) => {
   if (ctx.dryRun) return { mode: "dry_run", action: "treasury_deposit", ...params };
   const amount = parseEther(String(params.amount || params.amount_wsteth || "0"));
+
+  // Approve treasury to spend wstETH first
+  await impersonateAndSend(ctx, BASE_WSTETH, ERC20_APPROVE_ABI, "approve", [TREASURY_ADDRESS, MAX_UINT256], "wsteth_approve");
+
   return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "deposit", [amount], "treasury_deposit");
 };
 
