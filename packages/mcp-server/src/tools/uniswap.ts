@@ -182,8 +182,8 @@ function buildSwapCalldata(params: {
       pad(toHex(160, { size: 32 })), // offset to path (5 * 32 = 160)
       pad("0x00" as `0x${string}`), // payerIsUser = false
       pad(toHex(path.length / 2 - 1, { size: 32 })), // path length in bytes
-      // pad path to 32 bytes
-      (path + "0".repeat(64 - (path.length - 2))) as `0x${string}`,
+      // right-pad path to next 32-byte boundary
+      (path + "0".repeat((64 - ((path.length - 2) % 64)) % 64)) as `0x${string}`,
     ]);
 
     const routerCalldata = encodeFunctionData({
@@ -205,7 +205,7 @@ function buildSwapCalldata(params: {
     pad(toHex(160, { size: 32 })), // offset to path
     pad(toHex(1, { size: 32 })), // payerIsUser = true
     pad(toHex(path.length / 2 - 1, { size: 32 })),
-    (path + "0".repeat(64 - (path.length - 2))) as `0x${string}`,
+    (path + "0".repeat((64 - ((path.length - 2) % 64)) % 64)) as `0x${string}`,
   ]);
 
   const routerCalldata = encodeFunctionData({
