@@ -14,6 +14,8 @@ const ALL_AGENTS = Object.entries(AGENT_ADDRESSES) as [string, Address][];
 
 export interface SpenderDelegation {
   id: string;
+  owner: Address;
+  ownerName: string;
   spender: Address;
   spenderName: string;
   authorized: boolean;
@@ -22,20 +24,44 @@ export interface SpenderDelegation {
   spentInWindow: string;
   windowDuration: number;
   windowAllowance: string;
+  /** "granted" = I am the vault owner, "received" = I am the spender */
+  direction: "granted" | "received";
 }
 
 export function useDelegations() {
   const { activeAddress } = useApp();
+  const activeLower = activeAddress?.toLowerCase();
 
-  // Query getSpenderConfig for every known agent against the active address
-  const contracts = ALL_AGENTS
-    .filter(([, addr]) => addr.toLowerCase() !== activeAddress?.toLowerCase())
-    .map(([, spenderAddr]) => ({
-      address: TREASURY_ADDRESS,
-      abi: TREASURY_ABI,
-      functionName: "getSpenderConfig" as const,
-      args: [activeAddress as Address, spenderAddr],
-    }));
+  // Build queries: for each agent pair where activeAddress is involved,
+  // query getSpenderConfig(owner, spender)
+  const queries: { owner: string; ownerName: string; spender: Address; spenderName: string }[] = [];
+
+  for (const [nameA, addrA] of ALL_AGENTS) {
+    for (const [nameB, addrB] of ALL_AGENTS) {
+      if (addrA.toLowerCase() === addrB.toLowerCase()) continue;
+      // Only include if activeAddress is the owner or the spender
+      if (addrA.toLowerCase() === activeLower || addrB.toLowerCase() === activeLower) {
+        // owner = addrA, spender = addrB
+        queries.push({ owner: addrA, ownerName: nameA, spender: addrB, spenderName: nameB });
+      }
+    }
+  }
+
+  // Deduplicate (each pair only once)
+  const seen = new Set<string>();
+  const uniqueQueries = queries.filter((q) => {
+    const key = `${q.owner.toLowerCase()}-${q.spender.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const contracts = uniqueQueries.map((q) => ({
+    address: TREASURY_ADDRESS,
+    abi: TREASURY_ABI,
+    functionName: "getSpenderConfig" as const,
+    args: [q.owner as Address, q.spender],
+  }));
 
   const { data, isLoading } = useReadContracts({
     contracts,
@@ -49,10 +75,6 @@ export function useDelegations() {
   const delegations: SpenderDelegation[] = [];
 
   if (data) {
-    const otherAgents = ALL_AGENTS.filter(
-      ([, addr]) => addr.toLowerCase() !== activeAddress?.toLowerCase(),
-    );
-
     data.forEach((result, i) => {
       if (result.status !== "success" || !result.result) return;
       const [authorized, yieldOnly, maxPerTx, spentInWindow, , windowDuration, windowAllowance] =
@@ -60,17 +82,23 @@ export function useDelegations() {
 
       if (!authorized) return;
 
-      const [name, addr] = otherAgents[i];
+      const q = uniqueQueries[i];
+      const direction =
+        q.owner.toLowerCase() === activeLower ? "granted" : "received";
+
       delegations.push({
-        id: `${activeAddress}-${addr}`,
-        spender: addr,
-        spenderName: name,
+        id: `${q.owner}-${q.spender}`,
+        owner: q.owner as Address,
+        ownerName: q.ownerName,
+        spender: q.spender,
+        spenderName: q.spenderName,
         authorized,
         yieldOnly,
         maxPerTx: formatEther(maxPerTx),
         spentInWindow: formatEther(spentInWindow),
         windowDuration,
         windowAllowance: formatEther(windowAllowance),
+        direction,
       });
     });
   }

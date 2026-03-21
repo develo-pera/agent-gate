@@ -13,14 +13,22 @@ export function DelegationCard({ delegation }: DelegationCardProps) {
     ? Math.round(delegation.windowDuration / 3600)
     : null;
 
+  const isGranted = delegation.direction === "granted";
+
   return (
     <div className="rounded-xl border border-border/50 bg-card/60 p-6 backdrop-blur-lg">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold capitalize">
-            {delegation.spenderName}
-          </span>
-          <AddressDisplay address={delegation.spender} />
+          <Badge
+            variant="outline"
+            className={
+              isGranted
+                ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                : "border-purple-500/30 bg-purple-500/10 text-purple-400"
+            }
+          >
+            {isGranted ? "Granted" : "Received"}
+          </Badge>
         </div>
         <Badge className="bg-success/20 text-success border-success/30">
           Active
@@ -28,6 +36,14 @@ export function DelegationCard({ delegation }: DelegationCardProps) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground">
+            {isGranted ? "Spender" : "Vault Owner"}
+          </p>
+          <AddressDisplay
+            address={isGranted ? delegation.spender : delegation.owner}
+          />
+        </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground">
             Max per tx
