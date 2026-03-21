@@ -282,7 +282,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
               tokenInResolved.address as Address,
               UNIVERSAL_ROUTER,
               BigInt("0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff") as unknown as bigint,
-              BigInt(now + 60 * 60 * 24 * 365) as unknown as bigint,
+              (now + 60 * 60 * 24 * 365) as number,
             ] as const;
             if (ctx.walletClient) {
               const p2ApproveTx = await ctx.walletClient.writeContract({
