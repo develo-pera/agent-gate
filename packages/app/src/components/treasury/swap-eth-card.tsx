@@ -204,7 +204,7 @@ export function SwapEthCard() {
 
             {!isConnected && (
               <p className="text-xs text-muted-foreground">
-                Connect a wallet to swap ETH for wstETH.
+                Dry-run only in demo mode. Connect a wallet to swap ETH for wstETH.
               </p>
             )}
 
