@@ -99,7 +99,7 @@ contract MockFeed {
 }
 '
 # Write, compile, deploy, then etch at the real feed address
-MOCK_FILE=$(mktemp /tmp/MockFeed.XXXXXX.sol)
+MOCK_FILE="/tmp/MockFeed_$$.sol"
 echo "$MOCK_SRC" > "$MOCK_FILE"
 
 MOCK_ADDR=$(forge create --json \
