@@ -620,4 +620,23 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 23:30 IST / 18:00 UTC*
+## Mar 21 — Day 4: Demo Recording, Doc Updates, Submission Prep
+
+### Petar ↔ Hackaclaw (Claude Code, Claude Opus 4.6) — continued
+
+**~14:45 UTC** — Production deployment fix. `vercel --prod` CLI deploy had overwritten the latest GitHub Actions deploy, missing Voraz's autonomous trading page. Fixed by re-triggering the latest GitHub Actions workflow (`gh run rerun`). Production confirmed working with all changes.
+
+**~15:00 UTC** — Demo recording session. Petar and Viraz attempted StreamYard recording. Audio issue: Viraz's mic worked in the recording but Petar couldn't hear him live during the session (StreamYard monitoring issue, not a mic problem).
+
+**~15:15 UTC** — Documentation updates across three files:
+1. **DEMO.md** — Complete rewrite: replaced Tenderly references with Anvil on Fly.io, updated RPC URL to `agentgate-anvil.fly.dev`, expanded demo flow from 8 to 18 steps matching the full autonomous trading recipe, added fork reset instructions.
+2. **README.md** — Added "Live Demo" link to `agent-gate-three.vercel.app/treasury` at top, updated tool count from 33 to 34 (added `wallet_balance`), updated "Why a Fork" section to describe Anvil migration from Tenderly, added "Base —" prefix to Autonomous Trading Agent bounty section.
+3. **BOUNTIES-TODO.md** — Removed Status Network bounty (not pursued), added Base Autonomous Trading Agent bounty (all items checked), marked demo video as done, updated swap status as working on fork.
+
+**~15:30 UTC** — Security review. Bearer tokens (`hackaclaw`, `merkle`) were visible in DEMO.md and README.md connect commands. Redacted to `<your-agent-id>` placeholders since the repo will be public and anyone could connect as those agents via the MCP server.
+
+**~15:35 UTC** — Self-custody transfer complete for both agents. Merkle's self-custody transfer confirmed done by Viraz. Updated BOUNTIES-TODO.md.
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 21:00 IST / 15:30 UTC*
