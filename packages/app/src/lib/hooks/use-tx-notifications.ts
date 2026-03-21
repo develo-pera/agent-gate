@@ -11,6 +11,7 @@ import {
   BASE_aUSDC,
   AGENT_ADDRESSES,
 } from "@/lib/contracts/addresses";
+import { useApp } from "@/providers/app-provider";
 import { useBasenameMap } from "./use-basename-map";
 
 const ERC20_TRANSFER_ABI = [
@@ -48,10 +49,16 @@ function txLink(log: Log) {
 }
 
 export function useTxNotifications() {
+  const { activeAddress } = useApp();
   const resolveBasename = useBasenameMap();
+  const me = activeAddress.toLowerCase();
 
   function displayName(addr: string) {
     return resolveBasename(addr) || short(addr);
+  }
+
+  function involves(...addrs: string[]) {
+    return addrs.some((a) => a.toLowerCase() === me);
   }
 
   useWatchContractEvent({
@@ -64,6 +71,7 @@ export function useTxNotifications() {
           agent: string;
           wstETHAmount: bigint;
         };
+        if (!involves(agent)) continue;
         toast.success("Deposit", {
           description: `${displayName(agent)} deposited ${formatAmount(wstETHAmount)} wstETH\n${txLink(log)}`,
           duration: 8000,
@@ -85,6 +93,7 @@ export function useTxNotifications() {
           recipient: string;
           wstETHAmount: bigint;
         };
+        if (!involves(agent, recipient)) continue;
         toast.info("Yield Withdrawn", {
           description: `${formatAmount(wstETHAmount)} wstETH from ${displayName(agent)} to ${displayName(recipient)}\n${txLink(log)}`,
           duration: 8000,
@@ -106,6 +115,7 @@ export function useTxNotifications() {
           spender: string;
           maxPerTx: bigint;
         };
+        if (!involves(agent, spender)) continue;
         toast.success("Spender Authorized", {
           description: `${displayName(agent)} authorized ${displayName(spender)} (max ${formatAmount(maxPerTx)}/tx)\n${txLink(log)}`,
           duration: 8000,
@@ -126,6 +136,7 @@ export function useTxNotifications() {
           agent: string;
           spender: string;
         };
+        if (!involves(agent, spender)) continue;
         toast.warning("Spender Revoked", {
           description: `${displayName(agent)} revoked ${displayName(spender)}\n${txLink(log)}`,
           duration: 8000,
@@ -146,6 +157,7 @@ export function useTxNotifications() {
           agent: string;
           wstETHAmount: bigint;
         };
+        if (!involves(agent)) continue;
         toast.warning("Principal Withdrawn", {
           description: `${displayName(agent)} withdrew ${formatAmount(wstETHAmount)} wstETH principal\n${txLink(log)}`,
           duration: 8000,
@@ -172,6 +184,7 @@ export function useTxNotifications() {
         };
         if (
           isAgent(from) &&
+          involves(from) &&
           to.toLowerCase() !== TREASURY_ADDRESS.toLowerCase()
         ) {
           toast.info("Swap: wstETH sent", {
@@ -197,9 +210,9 @@ export function useTxNotifications() {
           to: string;
           value: bigint;
         };
-        if (isAgent(to)) {
+        if (isAgent(to) && involves(to)) {
           const usdcAmount = Number(formatUnits(value, 6)).toFixed(2);
-          toast.success("Swap: USDC received", {
+          toast.success("USDC received", {
             description: `${displayName(to)} received ${usdcAmount} USDC\n${txLink(log)}`,
             duration: 8000,
           });
@@ -226,7 +239,7 @@ export function useTxNotifications() {
           to: string;
           value: bigint;
         };
-        if (from.toLowerCase() === ZERO && isAgent(to)) {
+        if (from.toLowerCase() === ZERO && isAgent(to) && involves(to)) {
           const amount = Number(formatUnits(value, 6)).toFixed(2);
           toast.success("Aave: USDC Supplied", {
             description: `${displayName(to)} supplied ${amount} USDC to Aave V3\n${txLink(log)}`,
@@ -251,7 +264,7 @@ export function useTxNotifications() {
           to: string;
           value: bigint;
         };
-        if (to.toLowerCase() === ZERO && isAgent(from)) {
+        if (to.toLowerCase() === ZERO && isAgent(from) && involves(from)) {
           const amount = Number(formatUnits(value, 6)).toFixed(2);
           toast.info("Aave: USDC Withdrawn", {
             description: `${displayName(from)} withdrew ${amount} USDC from Aave V3\n${txLink(log)}`,
