@@ -1,12 +1,11 @@
 "use client";
 
 import { useWstethBalance } from "@/lib/hooks/use-staking";
-import { useOracleRate } from "@/lib/hooks/use-treasury";
-import { StatCard } from "@/components/shared/stat-card";
+import { useVaultStatus, useOracleRate } from "@/lib/hooks/use-treasury";
 import { ErrorCard } from "@/components/shared/error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { formatWsteth, formatUsd } from "@/lib/format";
+import { formatWsteth } from "@/lib/format";
 import { formatEther } from "viem";
 
 export function PositionCard() {
@@ -16,57 +15,34 @@ export function PositionCard() {
     error: balanceError,
     refetch,
   } = useWstethBalance();
+  const { data: vaultData } = useVaultStatus();
   const { data: oracleRate } = useOracleRate();
 
   if (balanceLoading) {
-    return <Skeleton className="h-[200px] rounded-xl" />;
+    return <Skeleton className="h-[280px] rounded-xl" />;
   }
 
   if (balanceError) {
     return (
       <ErrorCard
-        message="Failed to load staking data. Check your connection and try again."
+        message="Failed to load staking data."
         onRetry={refetch}
       />
     );
   }
 
-  // Empty state: no balance
-  const isEmpty =
-    wstethBalance === undefined || wstethBalance === BigInt(0);
+  const [principal, availableYield, totalBalance, hasVault] =
+    (vaultData as [bigint, bigint, bigint, boolean] | undefined) ?? [
+      BigInt(0), BigInt(0), BigInt(0), false,
+    ];
 
-  if (isEmpty) {
-    return (
-      <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">
-            No Staking Position
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            No wstETH or stETH found for this address. Stake ETH on Lido to get
-            started.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const walletBalance = wstethBalance ?? BigInt(0);
+  const rateNum = oracleRate ? Number(formatEther(oracleRate as bigint)) : null;
 
-  // Compute stETH equivalent from wstETH balance and oracle rate
-  const wstethNum = Number(formatEther(wstethBalance));
-  const stethEquiv =
-    oracleRate !== undefined
-      ? (wstethNum * Number(formatEther(oracleRate))).toFixed(4)
-      : "\u2014";
-
-  // Approximate USD value (hackathon estimate -- no live price feed)
-  const stethEquivNum =
-    oracleRate !== undefined
-      ? wstethNum * Number(formatEther(oracleRate))
-      : undefined;
-  const usdValue =
-    stethEquivNum !== undefined ? stethEquivNum * 2400 : undefined;
+  const totalWsteth = walletBalance + (hasVault ? totalBalance : BigInt(0));
+  const totalSteth = rateNum
+    ? (Number(formatEther(totalWsteth)) * rateNum).toFixed(4)
+    : null;
 
   return (
     <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
@@ -75,15 +51,52 @@ export function PositionCard() {
           Staking Position
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <StatCard
-          label="wstETH Balance"
-          value={formatWsteth(wstethBalance)}
-          subValue={`= ${stethEquiv} stETH`}
-        />
-        <p className="text-sm text-muted-foreground">
-          ~{formatUsd(usdValue)} USD
-        </p>
+      <CardContent className="flex flex-col gap-5">
+        {/* Total holdings */}
+        <div>
+          <span className="text-xs text-muted-foreground">Total wstETH</span>
+          <p className="text-3xl font-semibold">
+            {formatWsteth(totalWsteth)}
+          </p>
+          {totalSteth && (
+            <p className="text-sm text-muted-foreground">
+              = {totalSteth} stETH
+            </p>
+          )}
+        </div>
+
+        <div className="h-px w-full bg-border/50" />
+
+        {/* Breakdown */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">In vault (principal)</span>
+            <span className="text-sm font-medium">
+              {hasVault ? `${formatWsteth(principal)} wstETH` : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Accrued yield</span>
+            <span className="text-sm font-medium text-primary">
+              {hasVault ? `${formatWsteth(availableYield)} wstETH` : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Wallet balance</span>
+            <span className="text-sm font-medium">
+              {formatWsteth(walletBalance)} wstETH
+            </span>
+          </div>
+        </div>
+
+        {rateNum && (
+          <>
+            <div className="h-px w-full bg-border/50" />
+            <p className="text-xs text-muted-foreground">
+              Exchange rate: 1 wstETH = {rateNum.toFixed(4)} stETH (Chainlink)
+            </p>
+          </>
+        )}
       </CardContent>
     </Card>
   );

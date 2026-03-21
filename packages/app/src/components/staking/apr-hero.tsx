@@ -29,11 +29,11 @@ export function AprHero() {
           value={`${data ? data.apr.toFixed(2) : "0.00"}%`}
           glow
         />
-        {data?.source === "fallback" && (
-          <p className="text-xs text-muted-foreground">
-            (estimated — live data unavailable)
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground text-center max-w-md">
+          {data?.source === "fallback"
+            ? "(estimated — live data unavailable)"
+            : "Live rate from Ethereum mainnet. The treasury vault on this demo uses a simulated yield on a forked testnet, which may differ from this rate."}
+        </p>
       </div>
     </div>
   );
