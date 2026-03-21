@@ -3,45 +3,15 @@
 import { useApp } from "@/providers/app-provider";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useBasename } from "@/lib/hooks/use-basename";
-import { AGENT_ADDRESSES } from "@/lib/contracts/addresses";
 
 function shortenAddr(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
-function AgentChip({
-  address,
-  isActive,
-  onClick,
-}: {
-  address: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  const basename = useBasename(address);
-  return (
-    <button
-      onClick={onClick}
-      className={`text-sm font-mono rounded-md px-2 py-1 transition-colors cursor-pointer ${
-        isActive
-          ? "border border-primary/50 bg-primary/10 text-foreground"
-          : "border border-border/50 bg-card/40 text-muted-foreground hover:text-foreground hover:border-border"
-      }`}
-    >
-      {basename ? (
-        <>
-          <span className="font-semibold">{basename}</span>
-          <span className="ml-2 text-xs opacity-60">{shortenAddr(address)}</span>
-        </>
-      ) : (
-        shortenAddr(address)
-      )}
-    </button>
-  );
-}
-
 export function DemoBanner() {
-  const { isDemo, activeAddress, setViewAddress } = useApp();
+  const { isDemo, activeAddress } = useApp();
+  const basename = useBasename(activeAddress);
+  const hasAddress = activeAddress && activeAddress !== "0x0000000000000000000000000000000000000000";
 
   return (
     <div className="flex items-center justify-between">
@@ -56,16 +26,18 @@ export function DemoBanner() {
             </span>
           </span>
         )}
-        <div className="flex items-center gap-2">
-          {Object.entries(AGENT_ADDRESSES).map(([, addr]) => (
-            <AgentChip
-              key={addr}
-              address={addr}
-              isActive={activeAddress.toLowerCase() === addr.toLowerCase()}
-              onClick={() => setViewAddress(addr)}
-            />
-          ))}
-        </div>
+        {hasAddress && (
+          <span className="text-sm font-mono border border-border/50 rounded-md px-2 py-1 bg-card/40">
+            {basename ? (
+              <>
+                <span className="text-foreground font-semibold">{basename}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{shortenAddr(activeAddress)}</span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">{shortenAddr(activeAddress)}</span>
+            )}
+          </span>
+        )}
       </div>
       <ConnectButton
         showBalance={false}
