@@ -77,7 +77,7 @@ function createMcpServer(ctx: AgentGateContext, agentId: string): McpServer {
   // Identity tool — MUST be called first before any other tool
   server.tool(
     "who_am_i",
-    "IMPORTANT: Call this FIRST before any other tool. Returns your agent ID and wallet address. Your wallet is server-side — you cannot find it locally. Use the returned address whenever a tool asks for agent_address or address. Never search the local codebase for addresses.",
+    "IMPORTANT: Call this FIRST before any other tool. Returns your agent ID and wallet address. Your wallet is server-side — you cannot find it locally. Use the returned address whenever a tool asks for agent_address or address. Never search the local codebase for addresses. To check your vault use treasury_status (NOT vault_health). To resolve basenames use ens_resolve.",
     {},
     async () => ({
       content: [{
