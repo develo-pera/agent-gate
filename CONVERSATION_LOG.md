@@ -639,4 +639,88 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 21:00 IST / 15:30 UTC*
+## Session 5 — Mar 21, 2026 (late evening IST)
+
+### Petar ↔ Claude Code (Claude Opus 4.6)
+
+**Third-Party Agent Self-Registration**
+
+**~18:00 UTC** — Started implementing dynamic agent registration. Initial approach stored server-generated private keys in Upstash Redis — rejected as fundamentally wrong. Third-party agents already have their own wallets; the server should never touch private keys.
+
+**~18:30 UTC** — Research phase. Spawned researcher agent to investigate how MCP servers handle multi-agent access without custodial key storage. Key finding: **unsigned transaction pattern** is the industry standard — server prepares calldata via `encodeFunctionData`, returns `{to, data, value, chainId}`, agent signs externally. Multiple sources confirm (Google Cloud MCP blog, mcp-blockchain-server, viemcp).
+
+**~19:00 UTC** — Implemented dual-mode architecture on `feature/agent-registration` branch:
+- **First-party agents** (hackaclaw, merkle): server signs with env var keys (unchanged)
+- **Third-party agents**: register with wallet address + signature proof (EIP-191), get API key, write tools return unsigned transactions
+- Created `AgentRegistry` with Upstash Redis persistence — stores only `{address, name, type, createdAt}`, never private keys
+- Created `executeOrPrepare` helper — each write tool auto-detects agent type and either signs+submits or returns unsigned tx
+- Refactored all 13 write tools across treasury, trading, delegation, and uniswap modules
+- Added `register_challenge` + `register_agent` MCP tools (two-step challenge-response)
+- Added `submit_tx_hash` tool for receipt verification after external signing
+- Added `POST /api/agents/register` REST endpoint
+
+**~19:30 UTC** — Added address ownership verification via challenge-response flow:
+1. Agent requests challenge → server returns message with nonce (5-min expiry)
+2. Agent signs message locally with their private key (key never leaves their machine)
+3. Agent submits signature → server verifies via `viem.verifyMessage()` → issues API key (hashed with SHA-256 before storage)
+
+**~19:45 UTC** — Agent onboarding system:
+- Created `agentgate.skill.md` — full agent-facing documentation (registration flow, MCP config, tool reference, unsigned tx workflow)
+- Served at `/skill.md` for public access (Moltbook-style: "Read https://agent-gate-three.vercel.app/skill.md and follow the instructions")
+- Created `scripts/register-agent.sh` — operator setup script using `cast wallet sign --interactive` (key never in shell history)
+- Added CTA banner in dashboard: "AI Agent? Register to access DeFi tools"
+- Added "Register your agent" link in View as Agent dropdown
+
+**~20:00 UTC** — Dashboard UI improvements:
+- Agent dropdown now polls `/api/agents` every 10 seconds (new registrations appear without page refresh)
+- Search box appears when >5 agents registered
+- Max-height scroll for large agent lists
+- Fixed crash in `use-delegations.ts` when viewing dynamically registered agents not in hardcoded `AGENT_ADDRESSES`
+
+**~20:15 UTC** — Tested third-party registration end-to-end. Spawned a fresh Claude Code session as a "burner agent" — it called the REST API, got a challenge, signed it, registered successfully, and received an API key + 1 ETH auto-funding on the Anvil fork.
+
+**~20:30 UTC** — Merged `feature/agent-registration` into `main`. Created `backup/main` branch first as safety net. Triggered Vercel deploy.
+
+**Uniswap Swap Fix — Fork-Aware Routing**
+
+**~20:45 UTC** — Discovered Uniswap swap failures on fork. Two errors:
+- ETH → wstETH: "LS" (no liquidity in 0.01% fee pool on fork)
+- USDC → wstETH: `V3TooLittleReceived` (Uniswap API quotes against mainnet state but swap executes against fork's stale pool state)
+- ETH → USDC worked because that pool has deep liquidity even when stale
+
+**~21:00 UTC** — Diagnosed root cause by querying QuoterV2 contract directly on fork. Found that the 0.01% ETH/wstETH pool (which the API routes through) has zero liquidity on the fork, while the 0.05% pool works fine with ~0.29 wstETH output for 1 ETH.
+
+**~21:15 UTC** — Implemented fork-aware swap using dual routing:
+- **On Anvil fork**: Detects fork via `anvil_nodeInfo` RPC. Quotes directly against fork's QuoterV2 contract, tries all 4 fee tiers (0.01%, 0.05%, 0.3%, 1%), picks the best. Builds Universal Router calldata locally with fork-accurate minimum output.
+- **On Base mainnet**: Uses Uniswap Trading API for routing and swap execution (unchanged)
+- Also syncs Anvil timestamp to real-world time before swap (prevents deadline errors)
+
+**Architecture after Session 5:**
+
+| Component | First-Party | Third-Party |
+|-----------|-------------|-------------|
+| Auth | Bearer token = agent_id | Bearer token = API key (hashed) |
+| Key storage | Env vars (server-side) | Never stored |
+| Read tools | Direct response | Direct response |
+| Write tools | Server signs + submits | Returns unsigned tx |
+| Swap (fork) | QuoterV2 → Universal Router | QuoterV2 → unsigned tx list |
+| Swap (mainnet) | Uniswap Trading API | Uniswap Trading API → unsigned tx list |
+
+**Files added/modified:**
+- `packages/mcp-server/src/registry.ts` — AgentRegistry, AgentStore interface, challenge-response
+- `packages/mcp-server/src/execute-or-prepare.ts` — Dual-mode write helper
+- `packages/mcp-server/src/context.ts` — Added `agentAddress`, `agentType`
+- `packages/mcp-server/src/hosted.ts` — Dual-mode context, registration tools, submit_tx_hash
+- `packages/mcp-server/src/tools/uniswap.ts` — Fork-aware QuoterV2 routing + Universal Router calldata
+- `packages/mcp-server/src/tools/treasury.ts` — 7 write tools use executeOrPrepare
+- `packages/mcp-server/src/tools/trading.ts` — 3 write tools use executeOrPrepare
+- `packages/mcp-server/src/tools/delegation.ts` — 2 write tools return unsigned tx
+- `packages/mcp-server/agentgate.skill.md` — Agent onboarding documentation
+- `packages/app/src/lib/agent-store.ts` — Upstash Redis store (no keys)
+- `packages/app/src/app/api/agents/register/route.ts` — REST registration endpoint
+- `packages/app/public/skill.md` — Public skill.md for agent discovery
+- `scripts/register-agent.sh` — Operator setup script
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 03:00 IST / 21:30 UTC*
