@@ -396,6 +396,12 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 2. **Vault Health** — had a broken SVG ring chart (rendered as just "61" and "Caution") with made-up metrics (collateral ratio, utilization rate). Replaced with meaningful vault health indicators: principal protection status, yield accrued %, authorized spenders count, daily exposure (sum of spender daily caps vs available yield), and a risk summary.
 3. **APR disclaimer** — added note below mainnet Lido APR clarifying the demo treasury uses simulated yield on a forked testnet, which may differ from the live mainnet rate.
 
+**~12:00 UTC** — Yield simulation fix. Petar discovered that the per-vault `principalStETHValue` manipulation (used to simulate yield) gets diluted by new deposits — yield percentage approaches zero as more agents deposit. Fix: replaced with **oracle rate bump** approach. Setup script now deploys a mock Chainlink oracle with a 5% higher rate and etches it at the real feed address via `anvil_setCode`. All vaults see yield equally regardless of deposit timing. Redeployed Anvil fresh with clean state.
+
+> **New treasury address:** `0xc5C3f787eC2C0dd35B244D8FEE6666011F590b9D` (changed because fresh fork redeploy). All .env files and Vercel updated.
+
+**~12:15 UTC** — Connect prompt for disconnected state. Previously, when no agent or wallet was connected, the dashboard fell back to `DEMO_TREASURY_ADDRESS` and showed Hackaclaw's vault data — confusing for new visitors. Changed: treasury and staking pages now show a "Connect to View Vault / Position" empty state with Bot + Wallet icons. APR hero still visible on staking page since it's useful regardless. Data only appears after connecting as an agent or with a wallet.
+
 ---
 
 ## Technical Decisions (All)
@@ -406,7 +412,7 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 4. **Base L2** — Primary deployment target. Low gas, Lido wstETH available via canonical bridge, Basenames for identity.
 5. **Hosted MCP server on Vercel** — Agents connect via `claude mcp add --transport http`. Private keys server-side, Bearer token auth. No keys on agent machines.
 6. **dry_run on every write tool** — Safety first for autonomous agent operations.
-7. **Demo mode via wallet state** — No manual toggle. If no wallet connected, app uses `DEMO_TREASURY_ADDRESS` for all reads.
+7. **Connect-first UX** — No demo fallback. Treasury/staking pages show empty state until user connects as agent or wallet.
 8. **Basenames over ENS** — Base-native naming service. Works on L2, registered via `ReverseRegistrar.setName()`.
 9. **Coarse 3-phase roadmap** — Foundation → Dashboard Pages → MCP Playground. Minimal overhead for hackathon timeline.
 10. **HTTP bridge pattern** — `/api/mcp/[tool]` routes wrap MCP tool handlers for frontend consumption. Direct viem reads for speed, bridge for playground tool calls.
@@ -425,7 +431,7 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 | Contract | Address | Network |
 |----------|---------|---------|
-| AgentTreasury | `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` | Anvil on Fly.io (Base fork) |
+| AgentTreasury | `0xc5C3f787eC2C0dd35B244D8FEE6666011F590b9D` | Anvil on Fly.io (Base fork) |
 
 ## Production URLs
 
@@ -523,4 +529,4 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 20:00 IST / 14:30 UTC*
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 17:45 IST / 12:15 UTC*
