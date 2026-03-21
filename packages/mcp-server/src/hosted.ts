@@ -18,6 +18,7 @@ import { registerDelegationTools } from "./tools/delegation";
 import { registerEnsTools } from "./tools/ens";
 import { registerMonitorTools } from "./tools/monitor";
 import { registerUniswapTools } from "./tools/uniswap";
+import { registerTradingTools } from "./tools/trading";
 
 // ── Agent key mapping ────────────────────────────────────────────────
 
@@ -29,6 +30,17 @@ const AGENT_KEY_MAP: AgentKeyMap = {
   hackaclaw: "PRIVATE_KEY",
   merkle: "MERKLE_KEY",
 };
+
+export function getRegisteredAgentIds(): string[] {
+  return Object.keys(AGENT_KEY_MAP);
+}
+
+export function resolveAgentInfo(agentId: string): { agent_id: string; address: string } | null {
+  const key = resolveAgentKey(agentId);
+  if (!key) return null;
+  const account = privateKeyToAccount(key);
+  return { agent_id: agentId, address: account.address };
+}
 
 export function resolveAgentKey(agentId: string): `0x${string}` | null {
   const envVar = AGENT_KEY_MAP[agentId.toLowerCase()];
@@ -110,6 +122,7 @@ function createMcpServer(ctx: AgentGateContext, agentId: string): McpServer {
   registerEnsTools(server, ctx);
   registerMonitorTools(server, ctx);
   registerUniswapTools(server, ctx);
+  registerTradingTools(server, ctx);
 
   return server;
 }
