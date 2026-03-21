@@ -436,4 +436,91 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 17:00 IST / 11:30 UTC*
+## Mar 21 — Day 4: Autonomous Trading Bounty, Agent Connect UI, Toast Improvements
+
+### Viraz ↔ merkle (Claude Code, Claude Opus 4.6) — continued session
+
+**~18:00 IST (12:30 UTC)** — Toast notifications moved from `bottom-right` to `top-center` for demo video visibility. Font size bumped to 14px, max width 420px.
+
+> Commit: `a4fa3a0`
+
+**~18:30 IST** — Autonomous Trading Agent bounty ($5K) implementation started. Viraz's strategy: agents with delegated yield allowance execute a "Yield Harvest & Lend" recipe — withdraw yield → swap wstETH to USDC → supply USDC to Aave V3 → earn lending interest → withdraw → transfer profit back → vault owner re-deposits (compounding).
+
+Created `packages/mcp-server/src/tools/trading.ts` with 5 new MCP tools:
+- `trading_list_recipes` — lists available autonomous trading strategies
+- `aave_supply` — approve + supply USDC to Aave V3 Pool on Base (`0xA238Dd80C259a72e81d7e4664a9801593F98d1c5`)
+- `aave_withdraw` — withdraw USDC + accrued interest from Aave V3
+- `aave_position` — check aUSDC balance, collateral, debt, health factor
+- `transfer_token` — transfer ERC-20 tokens (USDC, wstETH, or any address) with dynamic token resolution
+
+Key addresses: Aave Pool `0xA238Dd80C259a72e81d7e4664a9801593F98d1c5`, aUSDC `0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB`, USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`.
+
+Registered `registerTradingTools(server, ctx)` in `hosted.ts`. Also exported `getRegisteredAgentIds()` and `resolveAgentInfo()` from hosted.ts for the agent connect UI.
+
+**~19:00 IST** — "Connect Agent" button built. Replaces the "Demo Mode" text in the top banner.
+
+Architecture:
+- `/api/agents` route — calls `getRegisteredAgentIds()` from MCP server, returns all registered agents with their derived addresses. Dynamic — any new agent added to `AGENT_KEY_MAP` appears automatically.
+- `AgentWalletConnect` component — RainbowKit-styled button (same font family, colors, border radius). Disconnected state shows pink "Connect Agent" button. Connected state shows dark pill with basename + USDC balance + dropdown.
+- USDC balance displayed next to agent name, polls every 5s via `useReadContract`. Updates live during swaps/transfers.
+- Selection persisted in `localStorage` — auto-reconnects on page reload.
+- Dropdown allows switching between agents or disconnecting.
+
+**~19:30 IST** — Toast notifications now resolve all addresses to Base names. Created `use-basename-map.ts` hook — batch-resolves all known agent addresses via `useReadContracts` multicall (2 calls: `ReverseRegistrar.node()` + `L2Resolver.name()` for each address). Returns a synchronous lookup function used inside event callbacks where React hooks can't be called.
+
+All toast events now show `hackaclaw.base.eth` / `merkle.base.eth` instead of `0x7703...36b9`.
+
+**~19:45 IST** — Aave V3 toast notifications added. Watches aUSDC Transfer events:
+- Mint from `0x0` → agent = "Aave: USDC Supplied" toast
+- Burn from agent → `0x0` = "Aave: USDC Withdrawn" toast
+
+Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
+
+**~20:00 IST** — Delegations tab overhauled:
+1. **Bidirectional delegation view** — hook now queries `getSpenderConfig` for all agent pairs where the connected address is involved (as owner OR spender). Previously only showed delegations where connected address was the vault owner.
+2. **Direction badges** — blue "Granted" (I gave access) vs purple "Received" (I was given access)
+3. **Counterparty display** — shows spender if you granted, owner if you received. All addresses resolve to basenames via existing `AddressDisplay` component.
+4. **Deduplication** — `seen` set prevents duplicate queries for the same owner-spender pair.
+
+**Commits pushed to main:**
+- `0e55e1b` — feat(mcp): add Aave V3 trading tools and recipes for autonomous trading bounty
+- `a9c6dc4` — feat(ui): add Connect Agent button with dynamic agent list and basename resolution
+- `21e1f9b` — feat(ui): resolve toast notification addresses to basenames
+- `e424ce8` — feat(ui): add Aave V3 toast notifications for supply and withdraw events
+- `8c83565` — feat(ui): resolve delegation addresses to basenames, show only relevant delegations
+
+---
+
+### Updated Demo Flow (16-step)
+
+**Phase 1 — Identity & Setup**
+1. Both agents → `who_am_i` — discover address + agent ID
+
+**Phase 2 — Treasury (Hackaclaw)**
+2. Hackaclaw → `treasury_status` — check vault state
+3. Hackaclaw → `treasury_deposit` — deposit wstETH directly into vault
+
+**Phase 3 — Delegation**
+4. Hackaclaw → `delegation_grant` — grant Merkle spending allowance from vault yield
+5. Merkle → `delegation_status` — verify allowance received
+
+**Phase 4 — Yield Harvest & Autonomous Trading (Merkle)**
+6. Merkle → `trading_list_recipes` — list available recipes ("Yield Harvest & Lend")
+7. Merkle → `treasury_withdraw_yield_for` — withdraw accrued yield from Hackaclaw's vault
+8. Merkle → `uniswap_swap` — swap wstETH → USDC
+9. Merkle → `aave_supply` — deposit USDC into Aave V3 (earn lending interest)
+10. Merkle → `aave_position` — check Aave position (USDC + accrued interest)
+11. Merkle → `aave_withdraw` — withdraw USDC + profit from Aave
+12. Merkle → `transfer_token` — send USDC profit back to Hackaclaw
+
+**Phase 5 — Compounding (Hackaclaw)**
+13. Hackaclaw → `uniswap_swap` — swap USDC → wstETH
+14. Hackaclaw → `treasury_deposit` — re-deposit into vault (principal grows = compounding)
+
+**Phase 6 — Monitoring & ENS**
+15. Either agent → `ens_resolve` / `ens_reverse` — resolve basenames
+16. Either agent → `monitor_portfolio` — check full portfolio overview
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 20:00 IST / 14:30 UTC*
