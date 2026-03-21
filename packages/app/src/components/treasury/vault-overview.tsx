@@ -101,7 +101,7 @@ export function VaultOverview() {
           </span>
         </div>
         <div className="flex flex-col gap-1 rounded-r-xl bg-card/80 p-5">
-          <span className="text-sm text-muted-foreground">Available Yield</span>
+          <span className="text-sm text-muted-foreground">Your Available Yield</span>
           <span className="text-2xl font-semibold text-primary [text-shadow:0_0_20px_hsl(319_100%_61%/0.5)]">
             {formatWsteth(availableYield)} wstETH
           </span>
