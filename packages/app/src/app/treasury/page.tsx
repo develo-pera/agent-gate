@@ -3,6 +3,7 @@
 import { VaultOverview } from "@/components/treasury/vault-overview";
 import { DepositForm } from "@/components/treasury/deposit-form";
 import { WithdrawForm } from "@/components/treasury/withdraw-form";
+import { SwapEthCard } from "@/components/treasury/swap-eth-card";
 import { HealthReport } from "@/components/staking/health-report";
 
 export default function TreasuryPage() {
@@ -12,9 +13,10 @@ export default function TreasuryPage() {
       <VaultOverview />
       <HealthReport />
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <SwapEthCard />
         <DepositForm />
-        <WithdrawForm />
       </div>
+      <WithdrawForm />
     </div>
   );
 }

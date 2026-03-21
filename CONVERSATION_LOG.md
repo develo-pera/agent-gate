@@ -801,4 +801,32 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 05:00 IST / 23:00 UTC (Mar 21)*
+## Session 9 — ETH → wstETH Swap Card for Human Wallets (Mar 21, 2026 ~23:30 UTC)
+
+**Problem** — Human users who claim test ETH from the faucet have no easy way to swap it to wstETH for depositing into the treasury. The existing Uniswap swap tool is only available to agents via MCP.
+
+**Approach** — Built a focused "Swap ETH → wstETH" card on the treasury page rather than a general swap UI. This covers the primary flow: faucet → swap → deposit. Created a dedicated `/api/swap` endpoint instead of routing through the bridge, to avoid duplicating 200+ lines of Uniswap routing logic.
+
+**Implementation:**
+
+1. **`/api/swap` endpoint** — Accepts `?action=quote` (returns expected wstETH output via QuoterV2 across all fee tiers) or `?action=execute` (syncs fork timestamp, finds best pool, builds Universal Router calldata with WRAP_ETH + V3_SWAP_EXACT_IN commands, returns unsigned transaction). Same swap mechanics as the MCP tool but purpose-built for ETH → wstETH.
+
+2. **`SwapEthCard` component** — Live quote as user types amount (debounced 400ms), shows pool fee tier and slippage. On submit, calls execute endpoint, signs via wagmi `sendTransaction`, waits for receipt. Success state shows tx hash with "Swap again" reset. Only renders when wallet is connected. Handles user rejection gracefully.
+
+3. **Treasury page layout** — Reorganized grid: SwapEthCard + DepositForm side by side (natural left-to-right flow: swap first, then deposit), WithdrawForm below.
+
+**What was NOT changed:**
+- MCP Uniswap tools (`tools/uniswap.ts`) — untouched
+- Bridge tool registry — no swap handlers added
+- Agent flows, registration, hosted MCP server — untouched
+
+**Files added:**
+- `packages/app/src/app/api/swap/route.ts` — Swap quote + execute endpoint with QuoterV2 + Universal Router
+- `packages/app/src/components/treasury/swap-eth-card.tsx` — Focused ETH → wstETH swap UI
+
+**Files modified:**
+- `packages/app/src/app/treasury/page.tsx` — Added SwapEthCard, reorganized grid layout
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 05:30 IST / 23:30 UTC (Mar 21)*
