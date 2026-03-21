@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAccount, useReadContract } from "wagmi";
+import { formatEther } from "viem";
 import { useMcpAction } from "@/lib/hooks/use-mcp-action";
 import { useApp } from "@/providers/app-provider";
 import { DryRunResult } from "@/components/shared/dry-run-result";
@@ -10,6 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
+const WSTETH_ADDRESS = "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as const;
+const ERC20_BALANCE_ABI = [{
+  name: "balanceOf", type: "function", stateMutability: "view",
+  inputs: [{ name: "account", type: "address" }],
+  outputs: [{ name: "", type: "uint256" }],
+}] as const;
+
 export function DepositForm() {
   const [amount, setAmount] = useState("");
   const [dryRun, setDryRun] = useState(false);
@@ -17,6 +26,19 @@ export function DepositForm() {
   const { execute, result, loading, error, reset } =
     useMcpAction("treasury_deposit");
   const { isDemo } = useApp();
+  const { address, isConnected } = useAccount();
+  const { data: wstethRaw } = useReadContract({
+    address: WSTETH_ADDRESS,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: isConnected && !!address, refetchInterval: 5_000 },
+  });
+
+  const walletBalance = wstethRaw ? parseFloat(formatEther(wstethRaw as bigint)) : 0;
+  const walletBalanceStr = walletBalance.toFixed(4);
+  const parsed = parseFloat(amount);
+  const exceedsBalance = parsed > 0 && parsed > walletBalance;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +56,14 @@ export function DepositForm() {
       <CardContent className="flex flex-1 flex-col">
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label>Amount (wstETH)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Amount (wstETH)</Label>
+              {isConnected && (
+                <span className="text-xs text-muted-foreground">
+                  Balance: {walletBalanceStr} wstETH
+                </span>
+              )}
+            </div>
             <Input
               type="number"
               min="0"
@@ -43,6 +72,11 @@ export function DepositForm() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
+            {exceedsBalance && (
+              <p className="text-xs text-destructive">
+                Exceeds wallet balance.
+              </p>
+            )}
           </div>
 
           <div className="mt-auto flex items-center gap-2">
@@ -56,7 +90,7 @@ export function DepositForm() {
           <Button
             type="submit"
             className="w-full min-h-[44px]"
-            disabled={!amount || parseFloat(amount) <= 0 || loading}
+            disabled={!amount || parsed <= 0 || exceedsBalance || loading}
           >
             {loading ? "Depositing..." : "Deposit wstETH"}
           </Button>
