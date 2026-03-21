@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { formatEther, type Address } from "viem";
+import { formatEther, formatUnits, type Address } from "viem";
 import type { AgentGateContext } from "../context.js";
 
 // ── Lido staking APR benchmarks ───────────────────────────────────────
@@ -140,6 +140,85 @@ export function registerMonitorTools(server: McpServer, ctx: AgentGateContext) {
           content: [{
             type: "text" as const,
             text: `Error generating vault health report: ${e instanceof Error ? e.message : "unknown"}`,
+          }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── wallet_balance: Check ERC-20 and native ETH balances ────────────
+  const KNOWN_TOKENS: Record<string, { address: Address; decimals: number; symbol: string }> = {
+    USDC:   { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6,  symbol: "USDC" },
+    wstETH: { address: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452", decimals: 18, symbol: "wstETH" },
+    WETH:   { address: "0x4200000000000000000000000000000000000006", decimals: 18, symbol: "WETH" },
+    DAI:    { address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", decimals: 18, symbol: "DAI" },
+    USDT:   { address: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", decimals: 6,  symbol: "USDT" },
+    aUSDC:  { address: "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB", decimals: 6,  symbol: "aUSDC" },
+  };
+
+  const ERC20_BALANCE_ABI = [
+    {
+      name: "balanceOf",
+      type: "function",
+      stateMutability: "view",
+      inputs: [{ name: "account", type: "address" }],
+      outputs: [{ name: "", type: "uint256" }],
+    },
+  ] as const;
+
+  server.tool(
+    "wallet_balance",
+    "Check token balances for an address. Returns ETH and all known ERC-20 balances (USDC, wstETH, WETH, DAI, USDT, aUSDC) on Base. " +
+    "Optionally filter to a single token.",
+    {
+      address: z.string().describe("Wallet address to check balances for"),
+      token: z.string().optional().describe("Optional: specific token symbol (e.g. 'USDC') — omit for all balances"),
+    },
+    async ({ address, token }) => {
+      const addr = address as Address;
+
+      try {
+        const balances: Record<string, string> = {};
+
+        // Native ETH balance
+        if (!token || token.toUpperCase() === "ETH") {
+          const ethBal = await ctx.publicClient.getBalance({ address: addr });
+          balances["ETH"] = formatEther(ethBal);
+        }
+
+        // ERC-20 balances
+        const tokensToCheck = token && token.toUpperCase() !== "ETH"
+          ? { [token.toUpperCase()]: KNOWN_TOKENS[token.toUpperCase()] || KNOWN_TOKENS[token] }
+          : KNOWN_TOKENS;
+
+        for (const [sym, info] of Object.entries(tokensToCheck)) {
+          if (!info?.address) continue;
+          try {
+            const bal = await ctx.publicClient.readContract({
+              address: info.address,
+              abi: ERC20_BALANCE_ABI,
+              functionName: "balanceOf",
+              args: [addr],
+            });
+            const formatted = formatUnits(bal as bigint, info.decimals);
+            balances[info.symbol] = formatted;
+          } catch {
+            balances[sym] = "error reading balance";
+          }
+        }
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ address: addr, balances, network: ctx.chain.name }, null, 2),
+          }],
+        };
+      } catch (e) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `Error checking balances: ${e instanceof Error ? e.message : "unknown"}`,
           }],
           isError: true,
         };
