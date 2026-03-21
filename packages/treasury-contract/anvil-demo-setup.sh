@@ -94,6 +94,17 @@ echo ""
 echo "═══ Vault status (should show yield > 0) ═══"
 cast call "$TREASURY_ADDR" "getVaultStatus(address)(uint256,uint256,uint256,bool)" "$HACKACLAW_ADDR" --rpc-url "$ANVIL_RPC"
 
+# ── Register Basenames ─────────────────────────────────────────
+echo ""
+echo "═══ Registering Basenames ═══"
+REVERSE_REGISTRAR="0x79ea96012eea67a83431f1701b3dff7e37f9e282"
+cast send "$REVERSE_REGISTRAR" "setName(string)" "hackaclaw.base.eth" \
+  --rpc-url "$ANVIL_RPC" --private-key "$HACKACLAW_KEY" > /dev/null
+echo "Registered hackaclaw.base.eth"
+cast send "$REVERSE_REGISTRAR" "setName(string)" "merkle.base.eth" \
+  --rpc-url "$ANVIL_RPC" --private-key "$MERKLE_KEY" > /dev/null
+echo "Registered merkle.base.eth"
+
 echo ""
 echo "═══ Ready! ═══"
 echo "Treasury:  $TREASURY_ADDR"
