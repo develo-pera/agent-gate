@@ -1,17 +1,13 @@
 "use client";
 
 import { useRef } from "react";
-import { formatEther } from "viem";
 import { useVaultStatus, useOracleRate } from "@/lib/hooks/use-treasury";
-import { DonutChart } from "@/components/shared/donut-chart";
-import { StatCard } from "@/components/shared/stat-card";
 import { ErrorCard } from "@/components/shared/error-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
-  CardHeader,
-  CardTitle,
   CardContent,
+  CardTitle,
 } from "@/components/ui/card";
 import { formatWsteth, formatRate } from "@/lib/format";
 import { useApp } from "@/providers/app-provider";
@@ -70,44 +66,50 @@ export function VaultOverview() {
     );
   }
 
-  const principalNum = Number(formatEther(depositedPrincipal));
-  const yieldNum = Number(formatEther(availableYield));
+  const yieldPct =
+    totalBalance > BigInt(0)
+      ? ((Number(availableYield) / Number(totalBalance)) * 100).toFixed(2)
+      : "0.00";
 
   return (
-    <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <CardTitle className="text-xl font-semibold">Vault Overview</CardTitle>
-          {basename && (
-            <Badge variant="secondary" className="text-sm font-mono">
-              {basename}
-            </Badge>
-          )}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-semibold">Vault Overview</h2>
+        {basename && (
+          <Badge variant="secondary" className="text-sm font-mono">
+            {basename}
+          </Badge>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-px rounded-xl border border-border/50 bg-border/50 sm:grid-cols-3">
+        <div className="flex flex-col gap-1 rounded-l-xl bg-card/80 p-5">
+          <span className="text-sm text-muted-foreground">Principal</span>
+          <span className="text-2xl font-semibold">
+            {formatWsteth(depositedPrincipal)} wstETH
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Chainlink: 1 wstETH = {formatRate(rateData as bigint | undefined)} stETH
+          </span>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-row items-center gap-8">
-          <DonutChart principal={principalNum} yieldAmount={yieldNum} size={200} />
-          <div className="flex flex-col gap-4">
-            <StatCard
-              label="Principal"
-              value={`${formatWsteth(depositedPrincipal)} wstETH`}
-            />
-            <StatCard
-              label="Yield"
-              value={`${formatWsteth(availableYield)} wstETH`}
-              glow
-            />
-            <StatCard
-              label="Total"
-              value={`${formatWsteth(totalBalance)} wstETH`}
-            />
-            <p className="text-xs text-muted-foreground">
-              1 wstETH = {formatRate(rateData as bigint | undefined)} stETH (Chainlink)
-            </p>
-          </div>
+        <div className="flex flex-col gap-1 bg-card/80 p-5">
+          <span className="text-sm text-muted-foreground">Total Balance</span>
+          <span className="text-2xl font-semibold">
+            {formatWsteth(totalBalance)} wstETH
+          </span>
+          <span className="text-xs text-emerald-400">
+            ▲ {yieldPct}% yield
+          </span>
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex flex-col gap-1 rounded-r-xl bg-card/80 p-5">
+          <span className="text-sm text-muted-foreground">Available Yield</span>
+          <span className="text-2xl font-semibold text-primary [text-shadow:0_0_20px_hsl(319_100%_61%/0.5)]">
+            {formatWsteth(availableYield)} wstETH
+          </span>
+          <span className="text-xs text-emerald-400">
+            ▲ {yieldPct}% of principal
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
