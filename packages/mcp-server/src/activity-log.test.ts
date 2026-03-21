@@ -253,6 +253,160 @@ describe("ActivityLog", () => {
   });
 });
 
+describe("wrapServerWithLogging integration", () => {
+  let log: ActivityLog;
+
+  beforeEach(() => {
+    log = new ActivityLog(500);
+  });
+
+  /**
+   * Simulates the wrapServerWithLogging pattern from hosted.ts.
+   * We can't import the function (not exported), so we replicate the wrapping logic.
+   */
+  function simulateWrappedToolCall(
+    agentId: string,
+    agentAddress: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    callback: (args: any, extra: any) => Promise<any>,
+    ctx: { activeEventId?: number },
+  ) {
+    return async () => {
+      const event = log.startEvent({
+        agentId,
+        agentAddress,
+        toolName,
+        params: args,
+      });
+      ctx.activeEventId = event.id;
+      try {
+        const result = await callback(args, {});
+        log.completeEvent(event.id, {
+          result: result?.content ?? result,
+          status: result?.isError ? "error" : "success",
+        });
+        return result;
+      } catch (err) {
+        log.completeEvent(event.id, {
+          result: { error: err instanceof Error ? err.message : String(err) },
+          status: "error",
+        });
+        throw err;
+      } finally {
+        ctx.activeEventId = undefined;
+      }
+    };
+  }
+
+  it("successful tool call creates pending then success event", async () => {
+    const ctx: { activeEventId?: number } = {};
+    const call = simulateWrappedToolCall(
+      "hackaclaw", "0xABC", "who_am_i", {},
+      async () => ({ content: [{ type: "text", text: "hello" }] }),
+      ctx,
+    );
+    await call();
+    const events = log.getAll();
+    expect(events).toHaveLength(1);
+    expect(events[0].agentId).toBe("hackaclaw");
+    expect(events[0].agentAddress).toBe("0xABC");
+    expect(events[0].toolName).toBe("who_am_i");
+    expect(events[0].status).toBe("success");
+    expect(events[0].durationMs).toBeTypeOf("number");
+  });
+
+  it("tool callback that throws creates error event", async () => {
+    const ctx: { activeEventId?: number } = {};
+    const call = simulateWrappedToolCall(
+      "agent1", "0x1", "stake", { amount: "100" },
+      async () => { throw new Error("out of gas"); },
+      ctx,
+    );
+    await expect(call()).rejects.toThrow("out of gas");
+    const events = log.getAll();
+    expect(events).toHaveLength(1);
+    expect(events[0].status).toBe("error");
+    expect((events[0].result as any).error).toBe("out of gas");
+  });
+
+  it("tool result with isError creates error-status event", async () => {
+    const ctx: { activeEventId?: number } = {};
+    const call = simulateWrappedToolCall(
+      "agent1", "0x1", "register_challenge", { address: "0xBAD" },
+      async () => ({
+        content: [{ type: "text", text: "Error: invalid address" }],
+        isError: true,
+      }),
+      ctx,
+    );
+    await call();
+    const events = log.getAll();
+    expect(events[0].status).toBe("error");
+  });
+
+  it("ctx.activeEventId is set during callback and cleared after", async () => {
+    const ctx: { activeEventId?: number } = {};
+    let capturedId: number | undefined;
+    const call = simulateWrappedToolCall(
+      "agent1", "0x1", "stake", {},
+      async () => {
+        capturedId = ctx.activeEventId;
+        return { content: [{ type: "text", text: "ok" }] };
+      },
+      ctx,
+    );
+    await call();
+    expect(capturedId).toBeTypeOf("number");
+    expect(ctx.activeEventId).toBeUndefined();
+  });
+
+  it("enrichment sets tx fields when activeEventId is present", async () => {
+    const ctx: { activeEventId?: number } = {};
+    const call = simulateWrappedToolCall(
+      "hackaclaw", "0xABC", "lido_stake", { amount: "1" },
+      async () => {
+        // Simulate executeOrPrepare enrichment during callback
+        if (ctx.activeEventId != null) {
+          log.enrichEvent(ctx.activeEventId, {
+            txHash: "0xdeadbeef",
+            txStatus: "success",
+            blockNumber: "12345",
+          });
+        }
+        return { content: [{ type: "text", text: "staked" }] };
+      },
+      ctx,
+    );
+    await call();
+    const events = log.getAll();
+    expect(events[0].txHash).toBe("0xdeadbeef");
+    expect(events[0].txStatus).toBe("success");
+    expect(events[0].blockNumber).toBe("12345");
+    expect(events[0].status).toBe("success");
+  });
+
+  it("enrichment skipped when activeEventId is undefined", () => {
+    const event = log.startEvent({
+      agentId: "a",
+      agentAddress: "0x",
+      toolName: "t",
+      params: {},
+    });
+    // Simulate no activeEventId (third-party or bridge path)
+    const ctx = { activeEventId: undefined };
+    if (ctx.activeEventId != null) {
+      log.enrichEvent(ctx.activeEventId, {
+        txHash: "0x123",
+        txStatus: "success",
+        blockNumber: "1",
+      });
+    }
+    const updated = log.getAll().find((e) => e.id === event.id)!;
+    expect(updated.txHash).toBeNull();
+  });
+});
+
 describe("getActivityLog singleton", () => {
   it("returns same instance on repeated calls", () => {
     const a = getActivityLog();
