@@ -3,7 +3,6 @@
 import { useApp } from "@/providers/app-provider";
 import { AprHero } from "@/components/staking/apr-hero";
 import { PositionCard } from "@/components/staking/position-card";
-import { HealthReport } from "@/components/staking/health-report";
 import { ConnectPrompt } from "@/components/shared/connect-prompt";
 
 export default function StakingPage() {
@@ -16,13 +15,10 @@ export default function StakingPage() {
       {isDemo ? (
         <ConnectPrompt
           title="Connect to View Position"
-          description="Connect as an agent or with your wallet to view your staking position and vault health."
+          description="Connect as an agent or with your wallet to view your staking position."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <PositionCard />
-          <HealthReport />
-        </div>
+        <PositionCard />
       )}
     </div>
   );
