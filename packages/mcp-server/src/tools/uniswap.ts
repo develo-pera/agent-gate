@@ -230,7 +230,8 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
         const swapper = ctx.walletClient.account.address;
         const PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address;
 
-        // Step 0: Ensure token is approved to Permit2 (required for all Uniswap swaps)
+        // Step 0a: Ensure token is approved to Permit2 (ERC-20 level)
+        const UNIVERSAL_ROUTER = "0x6fF5693b99212Da76ad316178A184AB56D299b43" as Address;
         if (tokenInResolved.address !== "0x0000000000000000000000000000000000000000") {
           const allowance = await ctx.publicClient.readContract({
             address: tokenInResolved.address as Address,
@@ -248,6 +249,59 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
               args: [PERMIT2, BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")],
             });
             await ctx.publicClient.waitForTransactionReceipt({ hash: approveTx });
+          }
+
+          // Step 0b: Set Permit2 allowance for Universal Router directly
+          // (bypasses permit signature which fails on forks due to timestamp mismatch)
+          const PERMIT2_APPROVE_ABI = [{
+            name: "approve",
+            type: "function",
+            stateMutability: "nonpayable",
+            inputs: [
+              { name: "token", type: "address" },
+              { name: "spender", type: "address" },
+              { name: "amount", type: "uint160" },
+              { name: "expiration", type: "uint48" },
+            ],
+            outputs: [],
+          }] as const;
+          const permit2Allowance = await ctx.publicClient.readContract({
+            address: PERMIT2,
+            abi: [{
+              name: "allowance",
+              type: "function",
+              stateMutability: "view",
+              inputs: [
+                { name: "user", type: "address" },
+                { name: "token", type: "address" },
+                { name: "spender", type: "address" },
+              ],
+              outputs: [
+                { name: "amount", type: "uint160" },
+                { name: "expiration", type: "uint48" },
+                { name: "nonce", type: "uint48" },
+              ],
+            }],
+            functionName: "allowance",
+            args: [swapper, tokenInResolved.address as Address, UNIVERSAL_ROUTER],
+          });
+          const [p2Amount, p2Expiration] = permit2Allowance as [bigint, number, number];
+          const now = Math.floor(Date.now() / 1000);
+          if (p2Amount < BigInt(amountRaw) || p2Expiration < now + 60) {
+            const p2ApproveTx = await ctx.walletClient.writeContract({
+              account: ctx.walletAccount!,
+              chain: ctx.chain,
+              address: PERMIT2,
+              abi: PERMIT2_APPROVE_ABI,
+              functionName: "approve",
+              args: [
+                tokenInResolved.address as Address,
+                UNIVERSAL_ROUTER,
+                BigInt("0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff") as unknown as bigint,
+                BigInt(now + 60 * 60 * 24 * 365) as unknown as bigint, // 1 year
+              ],
+            });
+            await ctx.publicClient.waitForTransactionReceipt({ hash: p2ApproveTx });
           }
         }
 
