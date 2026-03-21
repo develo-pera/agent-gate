@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { parseUnits, formatUnits, formatEther, type Address } from "viem";
 import type { AgentGateContext } from "../context.js";
+import { executeOrPrepare, executeOrPrepareMany } from "../execute-or-prepare";
 
 // ── Aave V3 on Base ──────────────────────────────────────────────────
 const AAVE_POOL = "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5" as Address;
@@ -123,7 +124,7 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
     async ({ amount, dry_run }) => {
       try {
         const parsedAmount = parseUnits(amount, 6);
-        const agent = ctx.walletAccount!.address;
+        const agent = ctx.agentAddress;
 
         if (dry_run) {
           const balance = await ctx.publicClient.readContract({
@@ -147,33 +148,23 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
           };
         }
 
-        // Approve Aave Pool to spend USDC
-        const approveTx = await ctx.walletClient.writeContract({
-          address: USDC,
-          abi: ERC20_ABI,
-          functionName: "approve",
-          args: [AAVE_POOL, parsedAmount],
-        });
-
-        // Supply to Aave
-        const supplyTx = await ctx.walletClient.writeContract({
-          address: AAVE_POOL,
-          abi: AAVE_POOL_ABI,
-          functionName: "supply",
-          args: [USDC, parsedAmount, agent, 0],
-        });
+        const result = await executeOrPrepareMany(ctx, [
+          {
+            params: { address: USDC, abi: ERC20_ABI as any, functionName: "approve", args: [AAVE_POOL, parsedAmount] },
+            toolName: "aave_supply",
+            description: "Approve Aave Pool to spend USDC",
+          },
+          {
+            params: { address: AAVE_POOL, abi: AAVE_POOL_ABI as any, functionName: "supply", args: [USDC, parsedAmount, agent, 0] },
+            toolName: "aave_supply",
+            description: "Supply USDC to Aave V3",
+          },
+        ]);
 
         return {
           content: [{
             type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              action: "Supplied USDC to Aave V3",
-              amount: amount + " USDC",
-              approve_tx: approveTx,
-              supply_tx: supplyTx,
-              note: "USDC is now earning lending interest on Aave V3. Use aave_withdraw to retrieve.",
-            }, null, 2),
+            text: JSON.stringify(result, null, 2),
           }],
         };
       } catch (e) {
@@ -198,7 +189,7 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
     },
     async ({ amount, dry_run }) => {
       try {
-        const agent = ctx.walletAccount!.address;
+        const agent = ctx.agentAddress;
 
         // Check aUSDC balance (represents supplied amount + interest)
         const aBalance = await ctx.publicClient.readContract({
@@ -227,14 +218,18 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
           };
         }
 
-        const tx = await ctx.walletClient.writeContract({
+        const result = await executeOrPrepare(ctx, {
           address: AAVE_POOL,
-          abi: AAVE_POOL_ABI,
+          abi: AAVE_POOL_ABI as any,
           functionName: "withdraw",
           args: [USDC, withdrawAmount, agent],
-        });
+        }, "aave_withdraw", "Withdraw USDC from Aave V3");
 
-        // Check new USDC balance
+        if (result.mode === "unsigned_transaction") {
+          return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        }
+
+        // For executed mode, check new balance
         const usdcBalance = await ctx.publicClient.readContract({
           address: USDC,
           abi: ERC20_ABI,
@@ -246,12 +241,9 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
           content: [{
             type: "text" as const,
             text: JSON.stringify({
-              success: true,
-              action: "Withdrew USDC from Aave V3",
+              ...result,
               previous_aave_balance: formatUnits(aBalance, 6) + " USDC",
-              withdraw_tx: tx,
               usdc_balance_now: formatUnits(usdcBalance as bigint, 6) + " USDC",
-              note: "USDC is back in your wallet. Transfer profit to the vault owner for compounding.",
             }, null, 2),
           }],
         };
@@ -276,7 +268,7 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
     },
     async ({ address }) => {
       try {
-        const target = (address || ctx.walletAccount!.address) as Address;
+        const target = (address || ctx.agentAddress) as Address;
 
         const [aBalance, accountData] = await Promise.all([
           ctx.publicClient.readContract({
@@ -354,7 +346,7 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
         }
 
         const parsedAmount = parseUnits(amount, resolved.decimals);
-        const agent = ctx.walletAccount!.address;
+        const agent = ctx.agentAddress;
 
         const balance = await ctx.publicClient.readContract({
           address: resolved.address,
@@ -377,23 +369,17 @@ export function registerTradingTools(server: McpServer, ctx: AgentGateContext) {
           };
         }
 
-        const tx = await ctx.walletClient.writeContract({
+        const result = await executeOrPrepare(ctx, {
           address: resolved.address,
-          abi: ERC20_ABI,
+          abi: ERC20_ABI as any,
           functionName: "transfer",
           args: [to as Address, parsedAmount],
-        });
+        }, "transfer_token", `Transfer ${amount} ${token} to ${to}`);
 
         return {
           content: [{
             type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              action: `Transferred ${amount} ${token} to ${to}`,
-              tx_hash: tx,
-              previous_balance: formatUnits(balance, resolved.decimals),
-              transferred: amount,
-            }, null, 2),
+            text: JSON.stringify(result, null, 2),
           }],
         };
       } catch (e) {

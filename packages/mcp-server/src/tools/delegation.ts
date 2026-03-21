@@ -313,10 +313,25 @@ export function registerDelegationTools(server: McpServer, ctx: AgentGateContext
         const environment = getSmartAccountsEnvironment(ctx.chain.id);
 
         if (!ctx.walletClient) {
-          return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+          // Third-party agent: return unsigned transaction
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                mode: "unsigned_transaction",
+                transactions: [{
+                  to: environment.DelegationManager,
+                  data: redeemCalldata,
+                  value: "0",
+                  chainId: ctx.chain.id,
+                  meta: { tool: "delegate_redeem", description: "Redeem delegation via DelegationManager" },
+                }],
+                instructions: "Sign this transaction with your wallet and submit to the network.",
+              }, null, 2),
+            }],
+          };
         }
 
-        // Submit as EOA transaction to DelegationManager
         const txHash = await ctx.walletClient.sendTransaction({
           account: ctx.walletAccount!,
           chain: ctx.chain,
@@ -420,11 +435,26 @@ export function registerDelegationTools(server: McpServer, ctx: AgentGateContext
           delegation: stored.delegation,
         });
 
-        if (!ctx.walletClient) {
-          return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
-        }
-
         const environment = getSmartAccountsEnvironment(ctx.chain.id);
+
+        if (!ctx.walletClient) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                mode: "unsigned_transaction",
+                transactions: [{
+                  to: environment.DelegationManager,
+                  data: disableCalldata,
+                  value: "0",
+                  chainId: ctx.chain.id,
+                  meta: { tool: "delegate_revoke", description: "Disable delegation via DelegationManager" },
+                }],
+                instructions: "Sign this transaction with your wallet and submit to the network.",
+              }, null, 2),
+            }],
+          };
+        }
 
         const txHash = await ctx.walletClient.sendTransaction({
           account: ctx.walletAccount!,

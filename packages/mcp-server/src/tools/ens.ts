@@ -60,7 +60,7 @@ export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
         // mainnet owner, not our agent. So we scan agent wallets for a match.
         let reverseMatch: Address | null = null;
         const agentAddresses = [
-          ctx.walletClient.account.address,
+          ctx.agentAddress,
           ...(ctx.allAddresses ?? []),
         ].filter(Boolean) as Address[];
 

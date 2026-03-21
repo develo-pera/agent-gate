@@ -6,7 +6,7 @@ import { useBasename } from "@/lib/hooks/use-basename";
 import { useReadContract } from "wagmi";
 import { formatUnits } from "viem";
 import { BASE_USDC } from "@/lib/contracts/addresses";
-import { Bot, ChevronDown, Power } from "lucide-react";
+import { Bot, ChevronDown, Power, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ERC20_BALANCE_ABI = [
@@ -152,6 +152,15 @@ export function AgentWalletConnect() {
                 </button>
               ))}
             <div className="my-1 border-t border-[#303136]" />
+            <a
+              href="/skill.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-[#FF37C7]/80 transition-colors hover:bg-[#FF37C7]/10 hover:text-[#FF37C7]"
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span className="font-bold">Register new agent</span>
+            </a>
             <button
               onClick={disconnect}
               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-red-400 transition-colors hover:bg-red-500/10"
@@ -170,16 +179,15 @@ export function AgentWalletConnect() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        disabled={agents.length === 0}
-        className="flex h-10 items-center gap-2 rounded-xl bg-[#FF37C7] px-4 font-bold text-sm text-white shadow-sm transition-all hover:brightness-110 disabled:opacity-50"
+        className="flex h-10 items-center gap-2 rounded-xl bg-[#FF37C7] px-4 font-bold text-sm text-white shadow-sm transition-all hover:brightness-110"
         style={{ fontFamily: "SFRounded, ui-rounded, SF Pro Rounded, system-ui, Helvetica Neue, Arial, Helvetica, sans-serif" }}
       >
         <Bot className="h-4 w-4" />
         <span>View as Agent</span>
       </button>
 
-      {open && agents.length > 0 && (
-        <div className="absolute top-full left-0 z-50 mt-2 min-w-[220px] rounded-xl border border-[#303136] bg-[#1a1b1f] p-1.5 shadow-xl">
+      {open && (
+        <div className="absolute top-full left-0 z-50 mt-2 min-w-[240px] rounded-xl border border-[#303136] bg-[#1a1b1f] p-1.5 shadow-xl">
           {agents.map((agent) => (
             <button
               key={agent.agent_id}
@@ -193,6 +201,19 @@ export function AgentWalletConnect() {
               </div>
             </button>
           ))}
+          {agents.length > 0 && <div className="my-1 border-t border-[#303136]" />}
+          <a
+            href="/skill.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-[#FF37C7]/80 transition-colors hover:bg-[#FF37C7]/10 hover:text-[#FF37C7]"
+          >
+            <ExternalLink className="h-4 w-4" />
+            <div className="flex flex-col items-start">
+              <span className="font-bold">Register your agent</span>
+              <span className="text-xs opacity-60">Read instructions to connect</span>
+            </div>
+          </a>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { parseEther, formatEther, type Address } from "viem";
 import type { AgentGateContext } from "../context.js";
+import { executeOrPrepare } from "../execute-or-prepare";
 
 // ── AgentTreasury contract ABI (Chainlink oracle + configurable spender permissions) ──
 const TREASURY_ABI = [
@@ -190,32 +191,23 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         };
       }
 
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      try {
+        const result = await executeOrPrepare(ctx, {
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI as any,
+          functionName: "deposit",
+          args: [amount],
+        }, "treasury_deposit", "Deposit wstETH into the AgentTreasury");
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ ...result, action: "treasury_deposit", amount_wsteth }, null, 2),
+          }],
+        };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const, text: `Error: ${decodeTreasuryError(e)}` }], isError: true };
       }
-
-      const hash = await ctx.walletClient.writeContract({
-        account: ctx.walletAccount!,
-        chain: ctx.chain,
-        address: TREASURY_ADDR,
-        abi: TREASURY_ABI,
-        functionName: "deposit",
-        args: [amount],
-      });
-      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            mode: "executed",
-            action: "treasury_deposit",
-            amount_wsteth,
-            tx_hash: hash,
-            status: receipt.status,
-          }, null, 2),
-        }],
-      };
     }
   );
 
@@ -320,36 +312,31 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         };
       }
 
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      try {
+        const result = await executeOrPrepare(ctx, {
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI as any,
+          functionName: "authorizeSpender",
+          args: [spender as Address, yieldOnly, maxPerTx, windowDuration, windowAllow],
+        }, "treasury_authorize_spender", "Authorize a spender on your AgentTreasury vault");
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              ...result,
+              action: "authorize_spender",
+              spender,
+              yield_only: yieldOnly,
+              max_per_tx: max_per_tx || "unlimited",
+              window_duration: Number(windowDuration) || "none",
+              window_allowance: window_allowance || "unlimited",
+            }, null, 2),
+          }],
+        };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const, text: `Error: ${decodeTreasuryError(e)}` }], isError: true };
       }
-
-      const hash = await ctx.walletClient.writeContract({
-        account: ctx.walletAccount!,
-        chain: ctx.chain,
-        address: TREASURY_ADDR,
-        abi: TREASURY_ABI,
-        functionName: "authorizeSpender",
-        args: [spender as Address, yieldOnly, maxPerTx, windowDuration, windowAllow],
-      });
-      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            mode: "executed",
-            action: "authorize_spender",
-            spender,
-            yield_only: yieldOnly,
-            max_per_tx: max_per_tx || "unlimited",
-            window_duration: Number(windowDuration) || "none",
-            window_allowance: window_allowance || "unlimited",
-            tx_hash: hash,
-            status: receipt.status,
-          }, null, 2),
-        }],
-      };
     }
   );
 
@@ -366,20 +353,15 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       if (isDry) {
         return { content: [{ type: "text" as const, text: JSON.stringify({ mode: "dry_run", action: "revoke_spender", spender, note: `Will revoke ${spender}'s authorization.` }, null, 2) }] };
       }
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
-      }
       try {
-        const hash = await ctx.walletClient.writeContract({
-          account: ctx.walletAccount!,
-          chain: ctx.chain,
+        const result = await executeOrPrepare(ctx, {
           address: TREASURY_ADDR,
-          abi: TREASURY_ABI,
+          abi: TREASURY_ABI as any,
           functionName: "revokeSpender",
           args: [spender as Address],
-        });
-        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
-        return { content: [{ type: "text" as const, text: JSON.stringify({ mode: "executed", action: "revoke_spender", spender, tx_hash: hash, status: receipt.status, note: `${spender} can no longer withdraw yield from your vault.` }, null, 2) }] };
+        }, "treasury_revoke_spender", "Revoke a spender's authorization on your AgentTreasury vault");
+
+        return { content: [{ type: "text" as const, text: JSON.stringify({ ...result, action: "revoke_spender", spender, note: `${spender} can no longer withdraw yield from your vault.` }, null, 2) }] };
       } catch (e: any) {
         return { content: [{ type: "text" as const, text: `Revoke failed: ${decodeTreasuryError(e)}` }], isError: true };
       }
@@ -454,7 +436,7 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
       if (isDry) {
         if (TREASURY_ADDR !== "0x0000000000000000000000000000000000000000") {
           try {
-            const account = ctx.walletClient?.account?.address || recipient;
+            const account = ctx.agentAddress || recipient;
             const result = await ctx.publicClient.readContract({
               address: TREASURY_ADDR,
               abi: TREASURY_ABI,
@@ -487,32 +469,18 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         };
       }
 
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
-      }
-
       try {
-        const hash = await ctx.walletClient.writeContract({
-          account: ctx.walletAccount!,
-          chain: ctx.chain,
+        const result = await executeOrPrepare(ctx, {
           address: TREASURY_ADDR,
-          abi: TREASURY_ABI,
+          abi: TREASURY_ABI as any,
           functionName: "withdrawYield",
           args: [recipient as Address, amount],
-        });
-        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+        }, "treasury_withdraw_yield", "Withdraw accrued yield from your AgentTreasury vault");
 
         return {
           content: [{
             type: "text" as const,
-            text: JSON.stringify({
-              mode: "executed",
-              action: "treasury_withdraw_yield",
-              amount_wsteth,
-              recipient,
-              tx_hash: hash,
-              status: receipt.status,
-            }, null, 2),
+            text: JSON.stringify({ ...result, action: "treasury_withdraw_yield", amount_wsteth, recipient }, null, 2),
           }],
         };
       } catch (e: any) {
@@ -548,13 +516,13 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
               address: TREASURY_ADDR,
               abi: TREASURY_ABI,
               functionName: "isAuthorizedSpender",
-              args: [agent_address as Address, (ctx.walletAccount?.address || recipient) as Address],
+              args: [agent_address as Address, (ctx.agentAddress || recipient) as Address],
             }),
             ctx.publicClient.readContract({
               address: TREASURY_ADDR,
               abi: TREASURY_ABI,
               functionName: "getSpenderConfig",
-              args: [agent_address as Address, (ctx.walletAccount?.address || recipient) as Address],
+              args: [agent_address as Address, (ctx.agentAddress || recipient) as Address],
             }),
           ]);
 
@@ -586,33 +554,18 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         };
       }
 
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
-      }
-
       try {
-        const hash = await ctx.walletClient.writeContract({
-          account: ctx.walletAccount!,
-          chain: ctx.chain,
+        const result = await executeOrPrepare(ctx, {
           address: TREASURY_ADDR,
-          abi: TREASURY_ABI,
+          abi: TREASURY_ABI as any,
           functionName: "withdrawYieldFor",
           args: [agent_address as Address, recipient as Address, amount],
-        });
-        const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+        }, "treasury_withdraw_yield_for", "Withdraw yield from another agent's vault as an authorized spender");
 
         return {
           content: [{
             type: "text" as const,
-            text: JSON.stringify({
-              mode: "executed",
-              action: "treasury_withdraw_yield_for",
-              agent: agent_address,
-              recipient,
-              amount_wsteth,
-              tx_hash: hash,
-              status: receipt.status,
-            }, null, 2),
+            text: JSON.stringify({ ...result, action: "treasury_withdraw_yield_for", agent: agent_address, recipient, amount_wsteth }, null, 2),
           }],
         };
       } catch (e: any) {
@@ -646,26 +599,23 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         };
       }
 
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      try {
+        const result = await executeOrPrepare(ctx, {
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI as any,
+          functionName: "setRecipientWhitelist",
+          args: [enabled],
+        }, "treasury_set_recipient_whitelist", "Toggle recipient whitelist for your AgentTreasury vault");
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ ...result, action: "set_recipient_whitelist", enabled }, null, 2),
+          }],
+        };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const, text: `Error: ${decodeTreasuryError(e)}` }], isError: true };
       }
-
-      const hash = await ctx.walletClient.writeContract({
-        account: ctx.walletAccount!,
-        chain: ctx.chain,
-        address: TREASURY_ADDR,
-        abi: TREASURY_ABI,
-        functionName: "setRecipientWhitelist",
-        args: [enabled],
-      });
-      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({ mode: "executed", action: "set_recipient_whitelist", enabled, tx_hash: hash, status: receipt.status }, null, 2),
-        }],
-      };
     }
   );
 
@@ -695,26 +645,23 @@ export function registerTreasuryTools(server: McpServer, ctx: AgentGateContext) 
         };
       }
 
-      if (!ctx.walletClient) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured." }], isError: true };
+      try {
+        const result = await executeOrPrepare(ctx, {
+          address: TREASURY_ADDR,
+          abi: TREASURY_ABI as any,
+          functionName: "setAllowedRecipient",
+          args: [recipient as Address, allowed],
+        }, "treasury_set_allowed_recipient", "Add or remove an address from your vault's recipient whitelist");
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ ...result, action: "set_allowed_recipient", recipient, allowed }, null, 2),
+          }],
+        };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const, text: `Error: ${decodeTreasuryError(e)}` }], isError: true };
       }
-
-      const hash = await ctx.walletClient.writeContract({
-        account: ctx.walletAccount!,
-        chain: ctx.chain,
-        address: TREASURY_ADDR,
-        abi: TREASURY_ABI,
-        functionName: "setAllowedRecipient",
-        args: [recipient as Address, allowed],
-      });
-      const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({ mode: "executed", action: "set_allowed_recipient", recipient, allowed, tx_hash: hash, status: receipt.status }, null, 2),
-        }],
-      };
     }
   );
 

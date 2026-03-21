@@ -15,6 +15,11 @@
       "types": "./src/hosted.ts",
       "import": "./src/hosted.ts",
       "default": "./src/hosted.ts"
+    },
+    "./registry": {
+      "types": "./src/registry.ts",
+      "import": "./src/registry.ts",
+      "default": "./src/registry.ts"
     }
   },
   "scripts": {

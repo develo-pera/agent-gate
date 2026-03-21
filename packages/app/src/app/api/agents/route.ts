@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  getRegisteredAgentIds,
-  resolveAgentInfo,
-} from "@agentgate/mcp-server/hosted";
+import { AgentRegistry } from "@agentgate/mcp-server/hosted";
+import { UpstashAgentStore } from "@/lib/agent-store";
+
+const store = new UpstashAgentStore();
+const registry = new AgentRegistry(store);
 
 export async function GET() {
-  const ids = getRegisteredAgentIds();
-  const agents = ids
-    .map((id) => resolveAgentInfo(id))
-    .filter(Boolean);
-
+  const agents = await registry.listAgents();
   return NextResponse.json({ agents });
 }

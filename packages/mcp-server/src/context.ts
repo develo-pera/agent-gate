@@ -6,6 +6,8 @@ export interface AgentGateContext {
   l1PublicClient: any;
   walletClient?: any;
   walletAccount?: PrivateKeyAccount;
+  agentAddress: `0x${string}`;
+  agentType: "first-party" | "third-party";
   dryRun: boolean;
   chain: Chain;
   allAddresses?: `0x${string}`[];

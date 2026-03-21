@@ -122,7 +122,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
       }
 
       try {
-        const swapper = ctx.walletClient?.account?.address || "0x0000000000000000000000000000000000000000";
+        const swapper = ctx.agentAddress;
 
         const quoteResponse = await uniswapFetch("/quote", {
           type: "EXACT_INPUT",
@@ -219,15 +219,29 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
         };
       }
 
-      if (!ctx.walletClient?.account) {
-        return { content: [{ type: "text" as const, text: "Error: No wallet configured. Set PRIVATE_KEY." }], isError: true };
+      if (!ctx.walletClient) {
+        // Third-party: can't do multi-step swap flow. Return instructions instead.
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              mode: "unsigned_transaction_not_supported",
+              action: "uniswap_swap",
+              reason: "Uniswap swap requires multi-step approval + permit2 + swap flow that must be signed sequentially. Use uniswap_quote to get pricing, then execute the swap from your own wallet.",
+              quote_tool: "uniswap_quote",
+              token_in: { symbol: token_in, address: tokenInResolved.address },
+              token_out: { symbol: token_out, address: tokenOutResolved.address },
+              amount_in: amount,
+            }, null, 2),
+          }],
+        };
       }
       if (!UNISWAP_API_KEY) {
         return { content: [{ type: "text" as const, text: "Error: No UNISWAP_API_KEY configured." }], isError: true };
       }
 
       try {
-        const swapper = ctx.walletClient.account.address;
+        const swapper = ctx.agentAddress;
         const PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address;
 
         // Step 0a: Ensure token is approved to Permit2 (ERC-20 level)
