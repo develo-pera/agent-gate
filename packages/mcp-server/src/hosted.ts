@@ -16,6 +16,7 @@ import type { AgentGateContext } from "./context";
 import { AgentRegistry, InMemoryStore } from "./registry";
 import type { RegisteredAgent } from "./registry";
 
+import { activityLog } from "./activity-log";
 import { registerLidoTools } from "./tools/lido";
 import { registerTreasuryTools } from "./tools/treasury";
 import { registerDelegationTools } from "./tools/delegation";
@@ -62,6 +63,53 @@ function createThirdPartyContext(agentAddress: `0x${string}`): AgentGateContext 
   };
 }
 
+// ── Activity logging wrapper ─────────────────────────────────────────
+
+function wrapServerWithLogging(
+  server: McpServer,
+  agentId: string,
+  agentAddress: string,
+  ctx: AgentGateContext,
+): void {
+  const originalTool = server.tool.bind(server);
+
+  server.tool = function (name: string, ...rest: any[]) {
+    // Callback is ALWAYS the last argument (handles all server.tool() overloads)
+    const callback = rest[rest.length - 1];
+
+    rest[rest.length - 1] = async (args: any, extra: any) => {
+      const event = activityLog.startEvent({
+        agentId,
+        agentAddress,
+        toolName: name,
+        params: args ?? {},
+      });
+
+      // Thread event ID through context so executeOrPrepare can enrich
+      ctx.activeEventId = event.id;
+
+      try {
+        const result = await callback(args, extra);
+        activityLog.completeEvent(event.id, {
+          result: result?.content ?? result,
+          status: result?.isError ? "error" : "success",
+        });
+        return result;
+      } catch (err) {
+        activityLog.completeEvent(event.id, {
+          result: { error: err instanceof Error ? err.message : String(err) },
+          status: "error",
+        });
+        throw err;
+      } finally {
+        ctx.activeEventId = undefined;
+      }
+    };
+
+    return (originalTool as any)(name, ...rest);
+  } as typeof server.tool;
+}
+
 // ── Server factory ───────────────────────────────────────────────────
 
 function createMcpServer(
@@ -73,6 +121,9 @@ function createMcpServer(
     name: "agentgate",
     version: "0.1.0",
   });
+
+  // Wrap server.tool() BEFORE registering any tools
+  wrapServerWithLogging(server, agentId, ctx.agentAddress, ctx);
 
   // Identity tool
   server.tool(
