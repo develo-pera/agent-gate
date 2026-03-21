@@ -333,11 +333,53 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 ---
 
+## Mar 21 — Day 4: Tenderly → Anvil Migration
+
+### Petar ↔ Hackaclaw (Claude Code, Claude Opus 4.6)
+
+**~09:30 UTC** — Petar checks treasury vault and Lido APR via MCP tools. Treasury status works (0.05 wstETH principal, 0.002 yield, 4% rate). Lido APR call fails — `eth.llamarpc.com` (L1 RPC) blocked by Cloudflare 403.
+
+**~09:45 UTC** — Petar attempts to deposit 0.01 wstETH. Transaction fails with Tenderly quota error: `"You've reached the quota limit for your current plan."` Root cause: Tenderly Virtual TestNet free tier has a **20-block limit** — the fork had been running for days and exceeded it.
+
+**~09:50 UTC** — Petar asks about self-hosting alternatives. Hackaclaw recommends **Anvil** (Foundry) — can fork Base mainnet locally with no block limits, free, and supports the same `anvil_setBalance`/`anvil_setStorageAt` RPCs as Tenderly equivalents. Petar wants it hosted online (not local) so the deployed Vercel app can reach it.
+
+**~09:55 UTC** — Decision: **Fly.io** for hosting Anvil. Created `infra/anvil/` with Dockerfile and `fly.toml`:
+- `ghcr.io/foundry-rs/foundry:latest` image
+- Forks `https://mainnet.base.org` with chain ID 8453
+- Automine mode (one block per transaction, no continuous block production)
+- 1GB memory (`shared-cpu-1x`)
+- Persistent volume for state (`/data/anvil-state.json`)
+- Auto-stop when idle, auto-start on request
+
+**~10:00 UTC** — Fly.io app created (`agentgate-anvil`), volume provisioned in `ams` region. First deploy built and pushed image but failed to launch — Fly.io required billing info. Petar added credit card.
+
+**~10:02 UTC** — Second deploy succeeded but Anvil became unresponsive after the setup script's funding step. Root cause: `--block-time 2` was producing empty blocks every 2 seconds, consuming memory on the 512MB machine. Fix: removed `--block-time` (automine only), bumped memory to 1GB. Redeployed.
+
+**~10:05 UTC** — Created `anvil-demo-setup.sh` — adapted from `tenderly-demo-setup.sh` with `anvil_setBalance`/`anvil_setStorageAt` instead of `tenderly_*` RPCs. Ran successfully:
+- Both agents funded with 100 ETH
+- Hackaclaw dealt 0.1 wstETH, deposited 0.05
+- Treasury deployed at same address: `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380`
+- ~5% yield simulated (0.0025 wstETH available)
+
+**~10:10 UTC** — Updated all environment variables:
+- Root `.env`: `RPC_URL` and `NEXT_PUBLIC_RPC_URL` → `https://agentgate-anvil.fly.dev/`, `NEXT_PUBLIC_CHAIN_ID` → `8453`
+- `packages/app/.env`: same updates
+- Vercel: removed old Tenderly vars, added Anvil URL and chain ID 8453
+- Triggered Vercel production redeploy
+
+**~10:15 UTC** — Verified MCP tools work against new Anvil fork. `treasury_status` returns correct vault data. Committed infra files and pushed to main.
+
+> **Migration complete.** Tenderly Virtual TestNet (20-block limit, quota errors) replaced by self-hosted Anvil on Fly.io (unlimited blocks, no quota). Public RPC: `https://agentgate-anvil.fly.dev/`
+
+**Anvil endpoint:** `https://agentgate-anvil.fly.dev/`
+
+---
+
 ## Technical Decisions (All)
 
 1. **MCP over REST API** — Model Context Protocol is the standard for agent tool discovery. Any MCP-compatible agent can plug in with one command.
 2. **wstETH yield tracking via Chainlink** — `yield = (currentRate - depositRate) * principal / currentRate`. Uses Chainlink wstETH/stETH oracle on Base, not direct Lido contract calls.
-3. **Tenderly Virtual TestNet** — Lido oracle reports once/day, Chainlink feed updates accordingly. Confirmed with Lido team there's no way to accelerate this. Tenderly fork allows yield simulation via `tenderly_setStorageAt`. Anvil fork doesn't work — freezes oracle at fork block.
+3. **Anvil on Fly.io (was Tenderly)** — Migrated from Tenderly Virtual TestNet (20-block limit) to self-hosted Anvil fork on Fly.io. Yield simulation via `anvil_setStorageAt`. Public endpoint: `https://agentgate-anvil.fly.dev/`
 4. **Base L2** — Primary deployment target. Low gas, Lido wstETH available via canonical bridge, Basenames for identity.
 5. **Hosted MCP server on Vercel** — Agents connect via `claude mcp add --transport http`. Private keys server-side, Bearer token auth. No keys on agent machines.
 6. **dry_run on every write tool** — Safety first for autonomous agent operations.
@@ -360,7 +402,7 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 | Contract | Address | Network |
 |----------|---------|---------|
-| AgentTreasury | `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` | Tenderly (Base fork) |
+| AgentTreasury | `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` | Anvil on Fly.io (Base fork) |
 
 ## Production URLs
 
@@ -371,4 +413,4 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 14:30 IST / 09:00 UTC*
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 15:45 IST / 10:15 UTC*
