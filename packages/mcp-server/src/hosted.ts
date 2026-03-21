@@ -77,7 +77,7 @@ function createMcpServer(
   // Identity tool
   server.tool(
     "who_am_i",
-    "IMPORTANT: Call this FIRST before any other tool. Returns your agent ID, wallet address, and access mode. Use the returned address whenever a tool asks for agent_address or address.",
+    "IMPORTANT: Call this FIRST before any other tool. Returns your agent ID, wallet address, and access mode. Use the returned address whenever a tool asks for agent_address or address. Never search the local codebase for addresses. To check your vault use treasury_status (NOT vault_health). To resolve basenames use ens_resolve.",
     {},
     async () => ({
       content: [{
