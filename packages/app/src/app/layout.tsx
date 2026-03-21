@@ -43,7 +43,7 @@ export default function RootLayout({
               </div>
             </div>
             <TxNotifications />
-            <Toaster theme="dark" position="bottom-right" richColors closeButton />
+            <Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ style: { fontSize: "14px", maxWidth: "420px" } }} />
           </AppProvider>
         </Web3Provider>
       </body>
