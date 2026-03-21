@@ -39,16 +39,9 @@ This deploys `AgentTreasury`, funds agents with ETH, deals wstETH, deposits 0.05
 
 Each agent machine runs one command to connect Claude Code to the hosted MCP server:
 
-**Hackaclaw's machine:**
 ```bash
 claude mcp add --transport http agentgate https://agent-gate-three.vercel.app/api/mcp-agent \
-  --header "Authorization: Bearer hackaclaw"
-```
-
-**Merkle's machine:**
-```bash
-claude mcp add --transport http agentgate https://agent-gate-three.vercel.app/api/mcp-agent \
-  --header "Authorization: Bearer merkle"
+  --header "Authorization: Bearer <your-agent-id>"
 ```
 
 ## 3. Demo Flow (18 steps)

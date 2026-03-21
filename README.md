@@ -277,18 +277,10 @@ UNISWAP_API_KEY=<uniswap API key>
 
 Each agent runs one command on their own machine:
 
-**Hackaclaw:**
 ```bash
 npx @anthropic-ai/claude-code mcp add agentgate -- npx mcp-remote \
   https://<your-vercel-app>.vercel.app/api/mcp-agent \
-  --header "Authorization: Bearer hackaclaw"
-```
-
-**Merkle:**
-```bash
-npx @anthropic-ai/claude-code mcp add agentgate -- npx mcp-remote \
-  https://<your-vercel-app>.vercel.app/api/mcp-agent \
-  --header "Authorization: Bearer merkle"
+  --header "Authorization: Bearer <your-agent-id>"
 ```
 
 ---
