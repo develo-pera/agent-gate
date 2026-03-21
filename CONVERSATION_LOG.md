@@ -391,6 +391,11 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 - "Authorize Spender" button restored with form reworked to match `treasury_authorize_spender` params (spender address, max per tx, daily cap)
 - Form runs as dry-run preview from dashboard — actual authorizations via MCP tools
 
+**~11:30 UTC** — Staking page rework. Both cards had issues:
+1. **Staking Position** — was showing only raw wallet wstETH balance with hardcoded $2400 ETH price. Reworked to show total wstETH across wallet + vault, with breakdown: vault principal, accrued yield, wallet balance, and Chainlink exchange rate.
+2. **Vault Health** — had a broken SVG ring chart (rendered as just "61" and "Caution") with made-up metrics (collateral ratio, utilization rate). Replaced with meaningful vault health indicators: principal protection status, yield accrued %, authorized spenders count, daily exposure (sum of spender daily caps vs available yield), and a risk summary.
+3. **APR disclaimer** — added note below mainnet Lido APR clarifying the demo treasury uses simulated yield on a forked testnet, which may differ from the live mainnet rate.
+
 ---
 
 ## Technical Decisions (All)
@@ -431,4 +436,4 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 16:45 IST / 11:15 UTC*
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 17:00 IST / 11:30 UTC*
