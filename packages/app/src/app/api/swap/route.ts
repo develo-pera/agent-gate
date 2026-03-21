@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createPublicClient,
+  createWalletClient,
   http,
   parseEther,
   formatEther,
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ── Execute (return unsigned tx) ───────────────────────────────
+    // ── Execute (impersonate + send on Anvil fork) ──────────────────
     if (action === "execute") {
       const recipient = body.recipient as Address;
       if (!recipient) {
@@ -185,8 +186,8 @@ export async function POST(request: NextRequest) {
       const slippageBps = body.slippage_bps || 50; // 0.5% default
 
       // Sync fork timestamp
+      const now = Math.floor(Date.now() / 1000);
       try {
-        const now = Math.floor(Date.now() / 1000);
         await (client as any).request({ method: "anvil_setNextBlockTimestamp", params: [`0x${now.toString(16)}`] });
         await (client as any).request({ method: "anvil_mine", params: ["0x1", "0x0"] });
       } catch { /* not on anvil */ }
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
       }
 
       const amountOutMin = quote.amountOut * BigInt(10000 - slippageBps) / 10000n;
-      const deadline = Math.floor(Date.now() / 1000) + 300;
+      const deadline = now + 300;
 
       const { data, value } = buildSwapCalldata({
         fee: quote.fee,
@@ -210,23 +211,35 @@ export async function POST(request: NextRequest) {
         deadline,
       });
 
-      return NextResponse.json({
-        mode: "unsigned_transaction",
-        transactions: [{
+      // Impersonate the user's address on Anvil and send directly
+      await (client as any).request({ method: "anvil_impersonateAccount", params: [recipient] });
+      try {
+        const walletClient = createWalletClient({ chain: base, transport: http(rpcUrl) });
+        const hash = await walletClient.sendTransaction({
+          account: recipient,
           to: UNIVERSAL_ROUTER,
           data,
-          value: value.toString(),
-          chainId: 8453,
-          meta: { tool: "swap_eth_wsteth", description: `Swap ${amountEth} ETH → wstETH` },
-        }],
-        quote: {
-          amount_in: amountEth,
-          expected_out: formatEther(quote.amountOut),
-          minimum_out: formatEther(amountOutMin),
-          fee_tier: quote.fee / 10000 + "%",
-          slippage_bps: slippageBps,
-        },
-      });
+          value,
+        });
+        const receipt = await client.waitForTransactionReceipt({ hash });
+
+        return NextResponse.json({
+          mode: "executed",
+          action: "swap_eth_wsteth",
+          tx_hash: hash,
+          status: receipt.status,
+          block_number: receipt.blockNumber.toString(),
+          quote: {
+            amount_in: amountEth,
+            expected_out: formatEther(quote.amountOut),
+            minimum_out: formatEther(amountOutMin),
+            fee_tier: quote.fee / 10000 + "%",
+            slippage_bps: slippageBps,
+          },
+        });
+      } finally {
+        await (client as any).request({ method: "anvil_stopImpersonatingAccount", params: [recipient] });
+      }
     }
 
     return NextResponse.json({ error: "Invalid action. Use ?action=quote or ?action=execute" }, { status: 400 });

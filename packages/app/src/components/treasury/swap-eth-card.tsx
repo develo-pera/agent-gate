@@ -2,8 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { sendTransaction, waitForTransactionReceipt } from "wagmi/actions";
-import { wagmiConfig } from "@/lib/wagmi-config";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,23 +84,10 @@ export function SwapEthCard() {
         return;
       }
 
-      for (const tx of data.transactions) {
-        const hash = await sendTransaction(wagmiConfig, {
-          to: tx.to as `0x${string}`,
-          data: tx.data as `0x${string}`,
-          value: tx.value !== "0" ? BigInt(tx.value) : undefined,
-        });
-        await waitForTransactionReceipt(wagmiConfig, { hash });
-        setTxHash(hash);
-      }
-
+      setTxHash(data.tx_hash);
       setStatus("success");
-      setQuote({ ...quote, amount_out: data.quote.expected_out });
+      setQuote({ ...quote!, amount_out: data.quote.expected_out });
     } catch (e) {
-      if (e instanceof Error && (e.message.includes("User rejected") || e.message.includes("user rejected"))) {
-        setStatus("idle");
-        return;
-      }
       setStatus("error");
       setError(e instanceof Error ? e.message : "Swap failed");
     }

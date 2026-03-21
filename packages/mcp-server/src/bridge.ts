@@ -7,6 +7,7 @@
 
 import {
   createPublicClient,
+  createWalletClient,
   http,
   formatEther,
   parseEther,
@@ -252,43 +253,58 @@ const dryRunStub =
     ...params,
   });
 
-// ── Unsigned Transaction Helper ─────────────────────────────────────
+// ── Anvil Impersonation Helper ──────────────────────────────────────
+// Executes a transaction on the Anvil fork by impersonating the user's
+// address. Avoids MetaMask RPC mismatch (MetaMask uses real Base RPC,
+// not the fork). Safe because this is a test environment.
 
-function unsignedTx(
+const rpcUrl = process.env.RPC_URL || "https://mainnet.base.org";
+
+async function impersonateAndSend(
+  ctx: BridgeContext,
   to: Address,
   abi: readonly unknown[],
   functionName: string,
   args: readonly unknown[],
   tool: string,
-  description: string,
-  value?: bigint,
 ) {
-  return {
-    mode: "unsigned_transaction" as const,
-    transactions: [{
+  const sender = ctx.walletAddress as Address;
+  const data = encodeFunctionData({ abi: abi as any, functionName, args });
+
+  await (ctx.publicClient as any).request({ method: "anvil_impersonateAccount", params: [sender] });
+  try {
+    const walletClient = createWalletClient({ chain: base, transport: http(rpcUrl) });
+    const hash = await walletClient.sendTransaction({
+      account: sender,
       to,
-      data: encodeFunctionData({ abi: abi as any, functionName, args }),
-      value: (value || 0n).toString(),
-      chainId: 8453,
-      meta: { tool, description },
-    }],
-    instructions: "Sign this transaction with your wallet and submit to the network.",
-  };
+      data,
+    });
+    const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+    return {
+      mode: "executed" as const,
+      action: tool,
+      tx_hash: hash,
+      status: receipt.status,
+      block_number: receipt.blockNumber.toString(),
+    };
+  } finally {
+    await (ctx.publicClient as any).request({ method: "anvil_stopImpersonatingAccount", params: [sender] });
+  }
 }
 
-// ── Treasury Write Handlers (dry-run or unsigned tx) ────────────────
+// ── Treasury Write Handlers (dry-run or impersonate+execute) ────────
 
 const treasuryDeposit: ToolHandler = async (params, ctx) => {
   if (ctx.dryRun) return { mode: "dry_run", action: "treasury_deposit", ...params };
   const amount = parseEther(String(params.amount || params.amount_wsteth || "0"));
-  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "deposit", [amount], "treasury_deposit", "Deposit wstETH into the AgentTreasury");
+  return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "deposit", [amount], "treasury_deposit");
 };
 
 const treasuryWithdrawYield: ToolHandler = async (params, ctx) => {
   if (ctx.dryRun) return { mode: "dry_run", action: "treasury_withdraw_yield", ...params };
   const recipient = (params.recipient || ctx.walletAddress) as Address;
   const amount = parseEther(String(params.amount || params.amount_wsteth || "0"));
-  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "withdrawYield", [recipient, amount], "treasury_withdraw_yield", "Withdraw accrued yield from your vault");
+  return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "withdrawYield", [recipient, amount], "treasury_withdraw_yield");
 };
 
 const treasuryWithdrawYieldFor: ToolHandler = async (params, ctx) => {
@@ -296,7 +312,7 @@ const treasuryWithdrawYieldFor: ToolHandler = async (params, ctx) => {
   const agent = params.agent_address as Address;
   const recipient = (params.recipient || ctx.walletAddress) as Address;
   const amount = parseEther(String(params.amount || params.amount_wsteth || "0"));
-  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "withdrawYieldFor", [agent, recipient, amount], "treasury_withdraw_yield_for", "Withdraw yield from another agent's vault");
+  return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "withdrawYieldFor", [agent, recipient, amount], "treasury_withdraw_yield_for");
 };
 
 const treasuryAuthorizeSpender: ToolHandler = async (params, ctx) => {
@@ -306,26 +322,26 @@ const treasuryAuthorizeSpender: ToolHandler = async (params, ctx) => {
   const maxPerTx = params.max_per_tx ? parseEther(String(params.max_per_tx)) : 0n;
   const windowDuration = BigInt(Number(params.window_duration_seconds) || 0);
   const windowAllowance = params.window_allowance ? parseEther(String(params.window_allowance)) : 0n;
-  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "authorizeSpender", [spender, yieldOnly, maxPerTx, windowDuration, windowAllowance], "treasury_authorize_spender", "Authorize a spender on your vault");
+  return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "authorizeSpender", [spender, yieldOnly, maxPerTx, windowDuration, windowAllowance], "treasury_authorize_spender");
 };
 
 const treasuryRevokeSpender: ToolHandler = async (params, ctx) => {
   if (ctx.dryRun) return { mode: "dry_run", action: "treasury_revoke_spender", ...params };
   const spender = params.spender as Address;
-  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "revokeSpender", [spender], "treasury_revoke_spender", "Revoke a spender's authorization");
+  return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "revokeSpender", [spender], "treasury_revoke_spender");
 };
 
 const treasurySetRecipientWhitelist: ToolHandler = async (params, ctx) => {
   if (ctx.dryRun) return { mode: "dry_run", action: "treasury_set_recipient_whitelist", ...params };
   const enabled = Boolean(params.enabled);
-  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "setRecipientWhitelist", [enabled], "treasury_set_recipient_whitelist", "Toggle recipient whitelist");
+  return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "setRecipientWhitelist", [enabled], "treasury_set_recipient_whitelist");
 };
 
 const treasurySetAllowedRecipient: ToolHandler = async (params, ctx) => {
   if (ctx.dryRun) return { mode: "dry_run", action: "treasury_set_allowed_recipient", ...params };
   const recipient = params.recipient as Address;
   const allowed = Boolean(params.allowed);
-  return unsignedTx(TREASURY_ADDRESS, TREASURY_ABI, "setAllowedRecipient", [recipient, allowed], "treasury_set_allowed_recipient", "Add or remove a whitelisted recipient");
+  return impersonateAndSend(ctx, TREASURY_ADDRESS, TREASURY_ABI, "setAllowedRecipient", [recipient, allowed], "treasury_set_allowed_recipient");
 };
 
 // ── Tool Registry ───────────────────────────────────────────────────
