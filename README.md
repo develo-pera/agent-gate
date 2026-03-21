@@ -235,7 +235,7 @@ Full MCP server with 7 Lido tools (stake, wrap, APR, balances, rewards, governan
 5 trading/Aave MCP tools enabling a delegated agent to execute the "Yield Harvest & Lend" recipe autonomously: withdraw yield → swap to USDC → supply to Aave V3 → earn lending interest → withdraw profit → transfer back to the depositor → re-deposit for compounding. No human intervention after initial delegation.
 
 ### Synthesis — Open Track
-End-to-end agent-to-agent DeFi infrastructure: hosted MCP server, treasury contracts, delegation framework, Aave V3 lending integration, real-time dashboard, and a complete 16-step demo flow showing two AI agents collaborating on yield management and autonomous trading.
+End-to-end agent-to-agent DeFi infrastructure: hosted MCP server, treasury contracts, delegation framework, Aave V3 lending integration, real-time dashboard, and a complete 18-step demo flow showing two AI agents collaborating on yield management and autonomous trading.
 
 ---
 
