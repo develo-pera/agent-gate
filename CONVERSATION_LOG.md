@@ -742,4 +742,32 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 03:30 IST / 21:10 UTC (Mar 21)*
+## Session 7 — Faucet for Human Wallets (Mar 21, 2026 ~22:00 UTC)
+
+**Problem** — Agents get 1 ETH automatically upon registration, but human users who connect their wallets via RainbowKit have no way to get test ETH on the Anvil fork.
+
+**Solution** — Built a signature-protected faucet: one-click "Request 1 test ETH" button in the dashboard header.
+
+**Security discussion** — Initial implementation was a simple POST endpoint, but Petar flagged that anyone could curl it with arbitrary addresses. Added wallet signature verification: the frontend uses wagmi's `useSignMessage` to sign a fixed message (`"I am requesting 1 test ETH from the AgentGate faucet"`), and the API verifies the signature matches the claimed address via viem's `verifyMessage`. Each address can only claim once (tracked in Upstash Redis with `faucet:{address}` keys).
+
+**Network visibility** — Petar raised that users can't see their balance in MetaMask since the Anvil fork isn't in their wallet's network list. Solution: the `FaucetButton` component uses wagmi's `useBalance` hook to read the balance directly from the Anvil RPC and displays it inline in the top bar (e.g., `1.0000 ETH`). No need to add a custom network — the dashboard shows everything.
+
+**Flow:**
+1. User connects wallet via RainbowKit (auto-pointed at Anvil via `NEXT_PUBLIC_RPC_URL`)
+2. Clicks "Request 1 test ETH" — wallet prompts signature
+3. Signature + address sent to `POST /api/faucet`
+4. Server verifies signature, checks Redis for prior claims
+5. Reads current balance, adds 1 ETH via `anvil_setBalance`, marks claimed
+6. Balance shown inline next to the faucet button
+
+**Files added:**
+- `packages/app/src/app/api/faucet/route.ts` — Faucet API endpoint with signature verification + Redis dedup
+- `packages/app/src/components/faucet-button.tsx` — Faucet button with balance display, signature flow, state management
+
+**Files modified:**
+- `packages/app/src/components/demo-banner.tsx` — Integrated FaucetButton next to ConnectButton
+- `.env.example` — Updated treasury addresses
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 04:00 IST / 22:00 UTC (Mar 21)*

@@ -2,6 +2,7 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { AgentWalletConnect } from "@/components/agent-wallet-connect";
+import { FaucetButton } from "@/components/faucet-button";
 import { Bot, ArrowRight } from "lucide-react";
 
 export function DemoBanner() {
@@ -22,11 +23,14 @@ export function DemoBanner() {
       </a>
       <div className="flex items-center justify-between">
         <AgentWalletConnect />
-        <ConnectButton
-          showBalance={false}
-          chainStatus="icon"
-          accountStatus="full"
-        />
+        <div className="flex items-center gap-3">
+          <FaucetButton />
+          <ConnectButton
+            showBalance={false}
+            chainStatus="icon"
+            accountStatus="full"
+          />
+        </div>
       </div>
     </div>
   );
