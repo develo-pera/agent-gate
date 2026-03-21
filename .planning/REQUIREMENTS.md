@@ -64,28 +64,28 @@ Deferred to future release.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
-| INFRA-03 | TBD | Pending |
-| INFRA-04 | TBD | Pending |
-| INFRA-05 | TBD | Pending |
-| INFRA-06 | TBD | Pending |
-| DASH-01 | TBD | Pending |
-| DASH-02 | TBD | Pending |
-| DASH-03 | TBD | Pending |
-| DASH-04 | TBD | Pending |
-| DASH-05 | TBD | Pending |
-| SPRITE-01 | TBD | Pending |
-| SPRITE-02 | TBD | Pending |
-| SPRITE-03 | TBD | Pending |
-| SPRITE-04 | TBD | Pending |
-| DEMO-01 | TBD | Pending |
+| INFRA-01 | Phase 5 | Pending |
+| INFRA-02 | Phase 5 | Pending |
+| INFRA-03 | Phase 5 | Pending |
+| INFRA-04 | Phase 6 | Pending |
+| INFRA-05 | Phase 6 | Pending |
+| INFRA-06 | Phase 6 | Pending |
+| DASH-01 | Phase 8 | Pending |
+| DASH-02 | Phase 8 | Pending |
+| DASH-03 | Phase 8 | Pending |
+| DASH-04 | Phase 8 | Pending |
+| DASH-05 | Phase 8 | Pending |
+| SPRITE-01 | Phase 7 | Pending |
+| SPRITE-02 | Phase 7 | Pending |
+| SPRITE-03 | Phase 7 | Pending |
+| SPRITE-04 | Phase 7 | Pending |
+| DEMO-01 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after initial definition*
+*Last updated: 2026-03-22 after roadmap creation*
