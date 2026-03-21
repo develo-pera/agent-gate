@@ -4,7 +4,7 @@
 
 Built for [The Synthesis](https://synthesis.md/hack) hackathon.
 
-**[Live Dashboard](https://agent-gate-three.vercel.app/treasury)**
+**[Live Demo](https://agent-gate-three.vercel.app/treasury)**
 
 ---
 
@@ -237,7 +237,7 @@ Full MCP server with 7 Lido tools (stake, wrap, APR, balances, rewards, governan
 ### Uniswap — Agentic Finance
 3 Uniswap MCP tools (quote, swap, tokens) enabling agents to autonomously trade on Uniswap V3. Agents convert yield to stablecoins, rebalance positions, and swap profits back for compounding — all through natural language commands.
 
-### Autonomous Trading Agent
+### Base — Autonomous Trading Agent
 5 trading/Aave MCP tools enabling a delegated agent to execute the "Yield Harvest & Lend" recipe autonomously: withdraw yield → swap to USDC → supply to Aave V3 → earn lending interest → withdraw profit → transfer back to the depositor → re-deposit for compounding. No human intervention after initial delegation.
 
 ### Synthesis — Open Track

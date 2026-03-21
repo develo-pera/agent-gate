@@ -46,6 +46,12 @@
 ### 🔖 ENS Open Integration — ENS ($300)
 - [x] ENS as core to agent identity experience
 
+### 🤖 Autonomous Trading Agent — Base ($5,000)
+- [x] Multi-step DeFi recipe: withdraw yield → swap → lend → withdraw → transfer → re-deposit
+- [x] 5 trading/Aave MCP tools (trading_list_recipes, aave_supply, aave_withdraw, aave_position, transfer_token)
+- [x] Autonomous execution after initial delegation (no human intervention)
+- [x] Autonomous Trading page on dashboard with recipes + open positions
+
 ### 🌐 Synthesis Open Track — Community ($25,058)
 - [x] Auto-eligible
 
