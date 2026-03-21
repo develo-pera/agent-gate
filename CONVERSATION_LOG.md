@@ -529,4 +529,40 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 17:45 IST / 12:15 UTC*
+### Session 3 — Mar 21, 2026 (afternoon–evening IST)
+
+**UI Polish & Vault Visibility**
+- Renamed "Connect Agent" button to "View as Agent"
+- Vault overview now always visible (defaults to demo treasury address) — both agents can see principal + total balance
+- Non-depositors (e.g. Merkle) see "Your Available Yield" as 0; only the depositor sees real yield
+- Removed address input from treasury page
+- Renamed "Available Yield" to "Your Available Yield"
+- Moved Vault Health card from staking page to treasury page
+- Replaced all "vault owner" language with "vault position" / "depositor" across contract, docs, hooks, and schemas
+- Removed bounty prize amounts from README
+- Deleted DEMO_SCRIPT.md
+
+**Notification Filtering**
+- Toast notifications now only show events involving the connected agent (deposits, delegations, swaps, Aave actions relevant to the viewer)
+
+**Uniswap Swap Fix**
+- Forced CLASSIC routing (UniswapX doesn't work on Anvil forks — no fillers)
+- Added direct `Permit2.approve()` to set Universal Router allowance on-chain (bypasses permit signature which fails on forks due to timestamp mismatch)
+- Removed permit signing from swap flow entirely — the direct approval handles authorization
+
+**Autonomous Trading Page**
+- New `/trading` route with "Autonomous Trading" sidebar tab
+- Always shows "Available Recipes" section with "Yield Harvest & Lend" strategy steps
+- "Your Open Positions" section appears only when agent has an active Aave V3 position (aUSDC > 0)
+- Position card shows supplied aUSDC, collateral, debt, and health factor
+- Removed Aave position from treasury page
+
+**Staking Position Fix**
+- Non-depositors (Merkle) now only see their own wallet wstETH balance, not the shared vault data
+
+**APY Display**
+- Total Balance now shows overall APY (calculated from real vault yield) for all viewers, not 0 for non-depositors
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 21:30 IST / 16:00 UTC*
