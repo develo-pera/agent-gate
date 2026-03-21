@@ -1,25 +1,59 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { normalize } from "viem/ens";
-import type { Address } from "viem";
+import { namehash, type Address } from "viem";
 import type { AgentGateContext } from "../context.js";
+
+// ── Base L2 Basename contracts ────────────────────────────────────────
+const REVERSE_REGISTRAR = "0x79ea96012eea67a83431f1701b3dff7e37f9e282" as Address;
+const L2_RESOLVER = "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD" as Address;
+
+const REVERSE_REGISTRAR_ABI = [
+  {
+    name: "node",
+    type: "function",
+    stateMutability: "pure" as const,
+    inputs: [{ name: "addr", type: "address" }],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+] as const;
+
+const L2_RESOLVER_ABI = [
+  {
+    name: "name",
+    type: "function",
+    stateMutability: "view" as const,
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    name: "addr",
+    type: "function",
+    stateMutability: "view" as const,
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;
 
 export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
 
-  // ── ens_resolve: ENS name → address ─────────────────────────────────
+  // ── ens_resolve: Basename → address ────────────────────────────────
   server.tool(
     "ens_resolve",
-    "Resolve an ENS name to its Ethereum address. Agents can use ENS names instead of raw hex addresses for identity and payments.",
+    "Resolve a Base name (e.g. hackaclaw.base.eth) to its address. Works with Basenames on Base L2.",
     {
-      name: z.string().describe("ENS name to resolve (e.g., 'vitalik.eth')"),
+      name: z.string().describe("Base name to resolve (e.g., 'hackaclaw.base.eth')"),
     },
     async ({ name }) => {
       try {
-        const ensAddress = await ctx.publicClient.getEnsAddress({
-          name: normalize(name),
+        const node = namehash(name);
+        const address = await ctx.publicClient.readContract({
+          address: L2_RESOLVER,
+          abi: L2_RESOLVER_ABI,
+          functionName: "addr",
+          args: [node],
         });
 
-        if (!ensAddress) {
+        if (!address || address === "0x0000000000000000000000000000000000000000") {
           return {
             content: [{
               type: "text" as const,
@@ -32,28 +66,13 @@ export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
           };
         }
 
-        // Also try to get avatar and text records
-        let avatar: string | null = null;
-        let description: string | null = null;
-        try {
-          avatar = await ctx.publicClient.getEnsAvatar({ name: normalize(name) });
-        } catch { /* optional */ }
-        try {
-          description = await ctx.publicClient.getEnsText({
-            name: normalize(name),
-            key: "description",
-          });
-        } catch { /* optional */ }
-
         return {
           content: [{
             type: "text" as const,
             text: JSON.stringify({
               name,
               resolved: true,
-              address: ensAddress,
-              avatar: avatar || undefined,
-              description: description || undefined,
+              address,
             }, null, 2),
           }],
         };
@@ -61,7 +80,7 @@ export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
         return {
           content: [{
             type: "text" as const,
-            text: `Error resolving ENS name: ${e instanceof Error ? e.message : "unknown"}`,
+            text: `Error resolving name: ${e instanceof Error ? e.message : "unknown"}`,
           }],
           isError: true,
         };
@@ -69,17 +88,27 @@ export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
     }
   );
 
-  // ── ens_reverse: address → ENS name ─────────────────────────────────
+  // ── ens_reverse: address → Basename ────────────────────────────────
   server.tool(
     "ens_reverse",
-    "Reverse-resolve an Ethereum address to its primary ENS name. Useful for displaying human-readable agent identities.",
+    "Reverse-resolve an address to its Base name. Returns the human-readable name for an agent address.",
     {
-      address: z.string().describe("Ethereum address to reverse-resolve"),
+      address: z.string().describe("Address to reverse-resolve"),
     },
     async ({ address }) => {
       try {
-        const name = await ctx.publicClient.getEnsName({
-          address: address as Address,
+        const node = await ctx.publicClient.readContract({
+          address: REVERSE_REGISTRAR,
+          abi: REVERSE_REGISTRAR_ABI,
+          functionName: "node",
+          args: [address as Address],
+        });
+
+        const name = await ctx.publicClient.readContract({
+          address: L2_RESOLVER,
+          abi: L2_RESOLVER_ABI,
+          functionName: "name",
+          args: [node],
         });
 
         return {
@@ -87,8 +116,8 @@ export function registerEnsTools(server: McpServer, ctx: AgentGateContext) {
             type: "text" as const,
             text: JSON.stringify({
               address,
-              ens_name: name || null,
-              has_ens: !!name,
+              basename: name || null,
+              has_basename: !!name,
             }, null, 2),
           }],
         };
