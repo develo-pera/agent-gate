@@ -23,6 +23,7 @@ export default function TradingPage() {
 
       <Card className="border-border/50 bg-card/60 backdrop-blur-lg">
         <CardContent className="pt-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Available Recipes</p>
           <CardTitle className="text-lg font-semibold mb-3">
             Yield Harvest &amp; Lend
           </CardTitle>
