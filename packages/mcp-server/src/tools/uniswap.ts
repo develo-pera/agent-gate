@@ -326,38 +326,17 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           };
         }
 
-        // Step 2: Sign permit2 if needed
-        let permit2Signature: string | undefined;
-        if (quoteResponse.permitData) {
-          const { domain, types, values } = quoteResponse.permitData;
-          permit2Signature = await ctx.walletClient.signTypedData({
-          account: ctx.walletAccount!,
-            domain,
-            types,
-            primaryType: "PermitSingle",
-            message: values,
-          });
-        }
+        // Step 2: Skip permit signing — we set the Permit2 allowance directly above,
+        // so we intentionally omit signature/permitData from the /swap request.
+        // This prevents the API from including a PERMIT2_PERMIT command in the
+        // calldata, which would fail on forks due to timestamp mismatch.
 
-        // Step 3: Get swap calldata
-        // API expects quote response fields spread into body, not nested under {quote: ...}
-        const { permitData: pd, ...cleanQuote } = quoteResponse;
+        // Step 3: Get swap calldata (without permit data)
+        const { permitData: _pd, ...cleanQuote } = quoteResponse;
         const swapBody: Record<string, unknown> = {
           ...cleanQuote,
           simulateTransaction: false,
         };
-
-        const isUniswapX = ["DUTCH_V2", "DUTCH_V3", "PRIORITY"].includes(quoteResponse.routing);
-        if (isUniswapX) {
-          // UniswapX: signature only — permitData must NOT go to /swap
-          if (permit2Signature) swapBody.signature = permit2Signature;
-        } else {
-          // CLASSIC: both signature and permitData, or neither
-          if (permit2Signature && pd && typeof pd === "object") {
-            swapBody.signature = permit2Signature;
-            swapBody.permitData = pd;
-          }
-        }
 
         const swapResponse = await uniswapFetch("/swap", swapBody);
 
