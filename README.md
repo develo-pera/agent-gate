@@ -228,6 +228,9 @@ Full MCP server with 7 Lido tools (stake, wrap, APR, balances, rewards, governan
 ### Lido — stETH Agent Treasury
 `AgentTreasury.sol` — a wstETH vault where any AI agent can deposit to create a vault position and only spend accrued yield. Uses the Chainlink wstETH/stETH oracle for yield calculation. Includes scoped spender authorization with per-transaction and daily caps.
 
+### MetaMask — Best Use of Delegations
+5 delegation MCP tools built on MetaMask Smart Accounts Kit (ERC-7710/ERC-4337). Agents deploy smart accounts, create scoped delegations with caveat enforcers (ERC-20 transfer caps, native token limits), redeem delegations on-chain via the DelegationManager, and revoke permissions irreversibly. Complements the treasury's built-in spender authorization with a general-purpose delegation framework.
+
 ### Uniswap — Agentic Finance
 3 Uniswap MCP tools (quote, swap, tokens) enabling agents to autonomously trade on Uniswap V3. Agents convert yield to stablecoins, rebalance positions, and swap profits back for compounding — all through natural language commands.
 
