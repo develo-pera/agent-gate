@@ -373,6 +373,13 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 **Anvil endpoint:** `https://agentgate-anvil.fly.dev/`
 
+**~10:20 UTC** — Basenames missing on dashboard after migration. Root cause: `ReverseRegistrar.setName()` registrations only existed on old Tenderly fork. Re-registered `hackaclaw.base.eth` and `merkle.base.eth` on Anvil fork. Added Basename registration step to `anvil-demo-setup.sh` to prevent recurrence.
+
+**~10:30 UTC** — Dashboard UI polish (3 commits):
+1. **Sidebar updates** — Treasury icon changed from `Vault` to `Landmark` (taller, more recognizable bank icon). Playground label renamed to "MCP Playground".
+2. **Address input debounce** — Treasury page address input no longer requires pressing Enter. Fires vault lookup on every keystroke with 400ms debounce. Clear button cancels pending debounce.
+3. **Vault overview redesign** — Replaced stacked stat cards + donut chart with Uniswap-inspired 3-column stat bar: Principal (with Chainlink rate), Total Balance (with yield %), Available Yield (with % of principal). Clean horizontal layout matching Uniswap's TVL display style.
+
 ---
 
 ## Technical Decisions (All)
@@ -413,4 +420,4 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 15:45 IST / 10:15 UTC*
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 16:00 IST / 10:30 UTC*
