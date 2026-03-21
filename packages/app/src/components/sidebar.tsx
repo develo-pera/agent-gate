@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Vault, TrendingUp, Users, Terminal } from "lucide-react";
+import { Landmark, TrendingUp, Users, Terminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -14,10 +14,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/treasury", label: "Treasury", icon: Vault },
+  { href: "/treasury", label: "Treasury", icon: Landmark },
   { href: "/staking", label: "Staking", icon: TrendingUp },
   { href: "/delegations", label: "Delegations", icon: Users },
-  { href: "/playground", label: "Playground", icon: Terminal },
+  { href: "/playground", label: "MCP Playground", icon: Terminal },
 ];
 
 export function Sidebar() {
