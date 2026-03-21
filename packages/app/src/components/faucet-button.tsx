@@ -12,7 +12,7 @@ export function FaucetButton() {
   const { signMessageAsync } = useSignMessage();
   const { data: balance, refetch: refetchBalance } = useBalance({
     address,
-    query: { enabled: isConnected && !!address },
+    query: { enabled: isConnected && !!address, refetchInterval: 5_000 },
   });
   const [status, setStatus] = useState<"idle" | "signing" | "loading" | "success" | "claimed" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
