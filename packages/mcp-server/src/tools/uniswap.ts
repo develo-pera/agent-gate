@@ -307,6 +307,13 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           }
         }
 
+        // Sync Anvil fork timestamp to real-world time (prevents deadline errors)
+        try {
+          const now = Math.floor(Date.now() / 1000);
+          await (ctx.publicClient as any).request({ method: "anvil_setNextBlockTimestamp", params: [`0x${now.toString(16)}`] });
+          await (ctx.publicClient as any).request({ method: "anvil_mine", params: ["0x1", "0x0"] });
+        } catch { /* not an Anvil fork — ignore */ }
+
         // Step 1: Get quote
         const quoteResponse = await uniswapFetch("/quote", {
           type: "EXACT_INPUT",

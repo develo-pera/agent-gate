@@ -83,6 +83,7 @@ export function useDelegations() {
       if (!authorized) return;
 
       const q = uniqueQueries[i];
+      if (!q) return;
       const direction =
         q.owner.toLowerCase() === activeLower ? "granted" : "received";
 
