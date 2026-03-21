@@ -39,10 +39,11 @@ Full details: `milestones/v1.0-ROADMAP.md`
   2. When executeOrPrepare performs an on-chain write, the resulting tx hash and status are captured in the ActivityEvent
   3. The in-memory buffer holds the last 500 events and discards oldest when full
   4. Activity data survives across multiple HTTP requests within the same server process (module-level singleton, not per-request)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD (run /gsd:plan-phase 5 to break down)
+- [ ] 05-01-PLAN.md — ActivityLog module with TDD (CircularBuffer, ActivityLog class, globalThis singleton)
+- [ ] 05-02-PLAN.md — Instrument hosted.ts and executeOrPrepare with activity logging
 
 ### Phase 6: API and Real-Time Endpoints
 **Goal**: Dashboard clients can fetch agent registry data, query activity history, and receive real-time event streams
@@ -99,7 +100,7 @@ Note: Phases 6 and 7 can be parallelized (no mutual dependency), but both must c
 | 2. Dashboard Pages | v1.0 | 4/4 | Complete | 2026-03-20 |
 | 3. MCP Playground | v1.0 | 3/3 | Complete | 2026-03-20 |
 | 4. Foundation Verification & Config Fix | v1.0 | 2/2 | Complete | 2026-03-20 |
-| 5. Activity Foundation | v1.1 | 0/? | Not started | - |
+| 5. Activity Foundation | v1.1 | 0/2 | Not started | - |
 | 6. API and Real-Time Endpoints | v1.1 | 0/? | Not started | - |
 | 7. Sprite Animation System | v1.1 | 0/? | Not started | - |
 | 8. Dashboard Page Assembly | v1.1 | 0/? | Not started | - |
