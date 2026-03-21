@@ -431,7 +431,7 @@ Same contracts the dashboard `use-basename.ts` hook already uses successfully.
 
 | Contract | Address | Network |
 |----------|---------|---------|
-| AgentTreasury | `0xc5C3f787eC2C0dd35B244D8FEE6666011F590b9D` | Anvil on Fly.io (Base fork) |
+| AgentTreasury | `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` | Anvil on Fly.io (Base fork) |
 
 ## Production URLs
 
@@ -565,4 +565,43 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 21:30 IST / 16:00 UTC*
+## Mar 21 — Day 4: wallet_balance Tool, Anvil Fork Reset, Demo Prep
+
+### Petar ↔ Hackaclaw (Claude Code, Claude Opus 4.6) — continued
+
+**~13:30 UTC** — Petar checks treasury vault status and deposits 0.01 wstETH. Both operations succeed. Then authorizes `merkle.base.eth` as yield spender with 0.001 wstETH per-tx cap and 0.005 daily cap. ENS resolved, spender authorized on-chain.
+
+**~13:40 UTC** — Petar asks to swap all USDC to wstETH on Uniswap. Problem: no MCP tool exists to check ERC-20 token balances. The dashboard shows USDC balance (via wagmi `useReadContract`), but agents have no equivalent tool.
+
+**~13:45 UTC** — Added `wallet_balance` tool to `packages/mcp-server/src/tools/monitor.ts`. Checks native ETH + 6 known ERC-20s on Base (USDC, wstETH, WETH, DAI, USDT, aUSDC). Supports optional `token` filter for single-token queries. Also fixed pre-existing build errors: missing `.js` extensions in `hosted.ts` imports (reverted — Next.js bundles `.ts` directly) and missing `PrivateKeyAccount` import in `index.ts`.
+
+> Commit: `56dfdfd` — pushed to main, Vercel auto-deployed via GitHub Actions.
+
+**~14:00 UTC** — Demo reset requested. Anvil fork on Fly.io needed a clean slate — all test deposits, spender authorizations, and yield simulations had to be wiped.
+
+**~14:05 UTC** — First attempt: `fly machine restart` — failed because Anvil uses `--state /data/anvil-state.json` on a persistent Fly volume. Restart just reloads the saved state.
+
+**~14:10 UTC** — Second attempt: stop machine, `rm /data/anvil-state.json`, start machine — failed because Anvil wrote new state from memory before shutdown, racing with the delete.
+
+**~14:15 UTC** — Third attempt (successful): destroyed the machine entirely (`fly machine destroy --force`), destroyed the volume (`fly volumes destroy`), created a fresh volume (`fly volumes create anvil_data --region ams --size 1`), and redeployed (`fly deploy` from `infra/anvil/`). Verified: treasury contract no longer exists on fresh fork (confirmed via `eth_getCode`).
+
+**~14:20 UTC** — Ran `anvil-demo-setup.sh` on fresh fork. `forge script` deploy step failed silently (output parsing issue in bash), but manual `forge script` succeeded. Ran remaining steps manually: approve + deposit 0.05 wstETH, deploy mock Chainlink oracle with 5% rate bump, register basenames. Treasury deployed at `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380`.
+
+> **Treasury address changed** from `0xc5C3f787eC2C0dd35B244D8FEE6666011F590b9D` to `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` (deterministic deploy from fresh nonce).
+
+**~14:25 UTC** — Updated treasury address in all `.env` files (root + `packages/app/`). Updated Vercel env vars (`TREASURY_ADDRESS` + `NEXT_PUBLIC_TREASURY_ADDRESS`). `.env` files are gitignored, so pushed env changes to Vercel directly.
+
+**~14:30 UTC** — Production deployment issue. Ran `vercel --prod` from CLI to update env vars, which accidentally overwrote the latest GitHub Actions deploy (missing Voraz's autonomous trading page commits). Fixed by re-triggering the latest GitHub Actions workflow (`gh run rerun`). Production now has all of Voraz's changes + correct treasury address.
+
+**~14:35 UTC** — Dashboard confirmed working with fresh fork state: vault loads correctly with 0.05 wstETH principal, ~5% simulated yield.
+
+**Vault state after reset:**
+- Principal: 0.05 wstETH
+- Available yield: ~0.00238 wstETH (simulated via oracle rate bump)
+- Yield %: ~4.76%
+- Basenames registered: hackaclaw.base.eth, merkle.base.eth
+- Both agents funded with 100 ETH
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 20:00 IST / 14:30 UTC*
