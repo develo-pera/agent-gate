@@ -17,7 +17,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/treasury", label: "Treasury", icon: Landmark },
   { href: "/staking", label: "Staking", icon: TrendingUp },
   { href: "/delegations", label: "Delegations", icon: Users },
-  { href: "/trading", label: "Autonomous Trading", icon: Bot },
+  { href: "/trading", label: "Available Recipes", icon: Bot },
   { href: "/playground", label: "MCP Playground", icon: Terminal },
 ];
 
