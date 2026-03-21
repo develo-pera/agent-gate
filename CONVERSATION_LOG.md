@@ -604,4 +604,20 @@ Added `BASE_aUSDC` and `AAVE_POOL` to `addresses.ts`.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 20:00 IST / 14:30 UTC*
+---
+
+## Session 4 — Mar 21, 2026 (evening IST)
+
+### Viraz ↔ merkle (Claude Code, Claude Opus 4.6)
+
+**Submission Prep & Documentation**
+
+- Created root-level `AGENTS.md` for agentic judges — documents system capabilities, all 33 MCP tools, agent architecture, on-chain contract addresses, demo flow, and project structure
+- Removed `packages/app/CLAUDE.md` and `packages/app/AGENTS.md` (Next.js boilerplate, not project-relevant)
+- Fixed stale "16-step" reference in README Open Track bounty section → "18-step"
+- Added **MetaMask — Best Use of Delegations** bounty target to README — 5 delegation MCP tools using MetaMask Smart Accounts Kit (ERC-7710/ERC-4337) with scoped caveat enforcers
+- Reviewed Synthesis submission checklist (`https://synthesis.md/submission/skill.md`) and mapped remaining tasks
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 23:30 IST / 18:00 UTC*
