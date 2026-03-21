@@ -59,7 +59,7 @@
 
 ## General Submission Requirements
 - [x] Self-custody transfer — Hackaclaw ✅ done
-- [ ] Self-custody transfer — merkle ⏳ pending
+- [x] Self-custody transfer — Merkle ✅ done
 - [ ] Make repo public
 - [x] Demo video (2 min)
 - [x] Update conversation log with full collaboration history
