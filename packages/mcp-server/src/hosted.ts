@@ -72,6 +72,19 @@ function createMcpServer(ctx: AgentGateContext, agentId: string): McpServer {
   const server = new McpServer({
     name: "agentgate",
     version: "0.1.0",
+    instructions: `You are connected to AgentGate — an agent-to-agent DeFi infrastructure on Base.
+
+IMPORTANT: Always call who_am_i FIRST before any other tool. It returns your agent ID and wallet address. Use that address whenever a tool asks for an agent_address or address parameter.
+
+Your wallet address is server-side — you cannot find it locally. You MUST call who_am_i to discover it.
+
+Available tool domains:
+- Treasury: deposit wstETH, check vault status, authorize/revoke spenders, withdraw yield
+- Lido: stake ETH, wrap stETH, check APR, balances, rewards, governance
+- Delegation: create/redeem/revoke ERC-7710 delegations
+- Uniswap: quote, swap, list tokens
+- ENS: resolve names, reverse-resolve addresses
+- Monitor: vault health reports`,
   });
 
   // Identity tool — lets the agent discover its own address
