@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Landmark, TrendingUp, Users, Terminal } from "lucide-react";
+import { Landmark, TrendingUp, Users, Terminal, Bot } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { useHasAavePosition } from "@/lib/hooks/use-aave-position";
 
 interface NavItem {
   href: string;
@@ -13,7 +14,7 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const STATIC_NAV: NavItem[] = [
   { href: "/treasury", label: "Treasury", icon: Landmark },
   { href: "/staking", label: "Staking", icon: TrendingUp },
   { href: "/delegations", label: "Delegations", icon: Users },
@@ -22,6 +23,11 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const hasAavePosition = useHasAavePosition();
+
+  const NAV_ITEMS = hasAavePosition
+    ? [...STATIC_NAV.slice(0, 3), { href: "/trading", label: "Autonomous Trading", icon: Bot }, STATIC_NAV[3]]
+    : STATIC_NAV;
 
   return (
     <nav
