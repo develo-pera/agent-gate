@@ -203,6 +203,12 @@ State reset for demo by revoking Merkle's access.
 - Dashboard: https://agent-gate-three.vercel.app
 - MCP endpoint: https://agent-gate-three.vercel.app/api/mcp-agent
 
+**~00:15 UTC Mar 21** — TODO 5: Agent setup. Registered MCP server for Hackaclaw via `claude mcp add --transport http agentgate`. Tested in a new Claude Code session — "check my treasury vault" returns live vault data from Tenderly fork. Merkle setup command shared with Viraj for his machine.
+
+> **All 5 implementation TODOs complete.** Only TODO 6 (record demo) remains — manual screen recording of the 8-step flow.
+
+**~00:30 UTC** — Repo transferred from `viraj124` to `develo-pera` GitHub account to enable Vercel GitHub integration (Vercel GitHub App needs to be installed on the repo owner's account). Remote URL updated. Viraj set up GitHub Actions workflow for auto-deploy: pushes to `main` trigger production deploy, pushes to `dev` trigger preview.
+
 ---
 
 ## Viraj ↔ merkle
@@ -211,4 +217,4 @@ State reset for demo by revoking Merkle's access.
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 21, 2026 00:00 UTC*
+*This log is updated as the project evolves. Last updated: Mar 21, 2026 00:30 UTC*
