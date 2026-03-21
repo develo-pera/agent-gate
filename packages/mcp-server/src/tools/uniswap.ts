@@ -133,6 +133,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           amount: amountRaw,
           swapper,
           slippageTolerance: slippage / 100,
+          configs: [{ routingType: "CLASSIC", protocols: ["V3", "V2"] }],
         });
 
         const amountOut = quoteResponse.quote?.amountOut
@@ -250,7 +251,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           }
         }
 
-        // Step 1: Get quote
+        // Step 1: Get quote (force CLASSIC routing — UniswapX doesn't work on forks)
         const quoteResponse = await uniswapFetch("/quote", {
           type: "EXACT_INPUT",
           tokenInChainId: chainId,
@@ -260,6 +261,7 @@ export function registerUniswapTools(server: McpServer, ctx: AgentGateContext) {
           amount: amountRaw,
           swapper,
           slippageTolerance: slippage / 100,
+          configs: [{ routingType: "CLASSIC", protocols: ["V3", "V2"] }],
         });
 
         const quoteId = quoteResponse.quote?.quoteId;
