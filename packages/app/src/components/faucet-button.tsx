@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useBalance, useSignMessage } from "wagmi";
+import { useAccount, useBalance, useSignMessage, useReadContract } from "wagmi";
 import { Droplets, Check, Loader2, Wallet } from "lucide-react";
 import { formatEther } from "viem";
 
 const FAUCET_MESSAGE = "I am requesting 1 test ETH from the AgentGate faucet";
+const WSTETH_ADDRESS = "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as const;
+const ERC20_BALANCE_ABI = [{
+  name: "balanceOf", type: "function", stateMutability: "view",
+  inputs: [{ name: "account", type: "address" }],
+  outputs: [{ name: "", type: "uint256" }],
+}] as const;
 
 export function FaucetButton() {
   const { address, isConnected } = useAccount();
@@ -14,13 +20,20 @@ export function FaucetButton() {
     address,
     query: { enabled: isConnected && !!address, refetchInterval: 5_000 },
   });
+  const { data: wstethRaw } = useReadContract({
+    address: WSTETH_ADDRESS,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: isConnected && !!address, refetchInterval: 5_000 },
+  });
   const [status, setStatus] = useState<"idle" | "signing" | "loading" | "success" | "claimed" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   if (!isConnected || !address) return null;
 
   const ethBalance = balance ? parseFloat(formatEther(balance.value)).toFixed(4) : null;
-  const hasBalance = balance && balance.value > 0n;
+  const wstethBalance = wstethRaw ? parseFloat(formatEther(wstethRaw as bigint)).toFixed(4) : null;
 
   const handleClaim = async () => {
     setErrorMsg("");
@@ -65,11 +78,14 @@ export function FaucetButton() {
 
   return (
     <div className="flex items-center gap-2">
-      {/* ETH balance on the fork */}
-      {ethBalance !== null && (
+      {/* Balances on the fork */}
+      {(ethBalance !== null || wstethBalance !== null) && (
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <Wallet className="h-3 w-3" />
-          {ethBalance} ETH
+          {ethBalance !== null && <>{ethBalance} ETH</>}
+          {ethBalance !== null && wstethBalance !== null && wstethBalance !== "0.0000" && (
+            <> · {wstethBalance} wstETH</>
+          )}
         </span>
       )}
 
