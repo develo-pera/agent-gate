@@ -195,7 +195,7 @@ Every write tool supports a `dry_run: true` flag that simulates the action and r
 
 | Contract | Address | Network |
 |----------|---------|---------|
-| AgentTreasury | `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` | Base (Anvil fork) |
+| AgentTreasury | `0x21743309154f5176DB531c5f8226e7EA666d3E49` | Base (Anvil fork) |
 | wstETH | `0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452` | Base |
 | Chainlink wstETH/stETH | `0xB88BAc61a4Ca37C43a3725912B1f472c9A5bc061` | Base |
 | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Base |
