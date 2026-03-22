@@ -884,4 +884,43 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 07:00 IST / 01:30 UTC (Mar 22)*
+---
+
+## Session 12 — Mar 22, 2026 (morning IST)
+
+### Viraz ↔ merkle (Claude Code, Claude Opus 4.6)
+
+**Documentation Sync After Hackaclaw's Sessions 5–11**
+
+Pulled latest from main — Hackaclaw had pushed significant changes across sessions 5–11:
+- Dynamic agent registration (challenge-response, EIP-191, Upstash Redis)
+- Dual-mode architecture (first-party server-signs vs third-party unsigned-tx)
+- Fork-aware Uniswap routing (QuoterV2 on Anvil, Trading API on mainnet)
+- Signature-protected faucet for human wallets
+- ETH → wstETH swap card on treasury page
+- Anvil impersonation for human wallet writes (no MetaMask RPC mismatch)
+- Wallet cookie persistence, balance display, bridge write handlers
+- `agentgate.skill.md` agent onboarding docs served at `/skill.md`
+- `scripts/register-agent.sh` operator setup script
+
+**AGENTS.md — Full Rewrite**
+
+Rewrote `AGENTS.md` to reflect the current system state:
+- Dual-mode architecture diagram (first-party vs third-party agents)
+- Challenge-response registration flow documentation
+- Tool count updated from 33 → 38 (added `who_am_i`, `register_challenge`, `register_agent`, `submit_tx_hash`, `wallet_balance`)
+- Fork-aware Uniswap routing explanation
+- Updated project structure with all new files: `registry.ts`, `execute-or-prepare.ts`, `bridge.ts`, `agent-store.ts`, faucet/swap endpoints, `agentgate.skill.md`
+- Dashboard section updated with faucet, human wallet impersonation, agent registration CTA
+
+**README.md Updates**
+
+- Architecture diagram updated for dual-mode auth (first-party token → env var key vs third-party token → API key hash)
+- Tool count 34 → 38, added Identity & Registration tools table
+- Core capabilities: added dynamic registration and human wallet support bullets
+- Dashboard features: faucet, ETH → wstETH swap, agent registration CTA, 10s agent list polling
+- Project structure section updated with all new files and directories
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 11:00 IST / 05:30 UTC*
