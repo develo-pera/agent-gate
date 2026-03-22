@@ -84,6 +84,7 @@ export function useDemoMode(agents: AgentInfo[]) {
       intervalRef.current = null;
     }
     setIsRunning(false);
+    setDemoEvents([]);
   }, []);
 
   useEffect(() => {

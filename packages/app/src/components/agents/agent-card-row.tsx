@@ -20,7 +20,7 @@ export function AgentCardRow({
   onSelect,
 }: AgentCardRowProps) {
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
       {agents.map((agent) => (
         <AgentCard
           key={agent.agent_id}

@@ -34,7 +34,7 @@ export function AgentCard({ agent, isSelected, onClick }: AgentCardProps) {
       onClick={onClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        "min-w-[160px] flex-1 max-w-[240px] px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors",
+        "h-full px-3 py-2 gap-0.5 cursor-pointer hover:bg-muted/50 transition-colors",
         isSelected && "ring-1 ring-primary/50"
       )}
     >
@@ -53,13 +53,11 @@ export function AgentCard({ agent, isSelected, onClick }: AgentCardProps) {
       </div>
       <AddressDisplay
         address={agent.address}
-        className="text-xs font-mono text-muted-foreground text-left"
+        className="text-xs font-mono text-muted-foreground text-left leading-tight"
       />
-      {agent.lastAction && (
-        <p className="text-xs text-muted-foreground">
-          Last: {agent.lastAction}
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground leading-tight">
+        {agent.lastAction ? `Last: ${agent.lastAction}` : "\u00A0"}
+      </p>
     </Card>
   );
 }

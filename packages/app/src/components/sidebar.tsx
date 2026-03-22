@@ -14,11 +14,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/agents", label: "Live Agents", icon: Activity },
   { href: "/treasury", label: "Treasury", icon: Landmark },
   { href: "/staking", label: "Staking", icon: TrendingUp },
   { href: "/delegations", label: "Delegations", icon: Users },
   { href: "/trading", label: "Autonomous Trading", icon: Bot },
-  { href: "/agents", label: "Live Agents", icon: Activity },
   { href: "/playground", label: "MCP Playground", icon: Terminal },
 ];
 

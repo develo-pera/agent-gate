@@ -89,8 +89,9 @@ export default function LiveAgentsPage() {
   return (
     <div className="flex flex-col gap-8">
       {/* Header row */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-xl font-semibold">Live Agents</h1>
+      <div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-xl font-semibold">Live Agents</h1>
         <LiveStatBar agentCount={agentCount} eventCount={eventCount} activeCount={activeCount} />
         {isDemoRunning && (
           <Badge
@@ -101,6 +102,10 @@ export default function LiveAgentsPage() {
             Demo Mode &times;
           </Badge>
         )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          Live view of independent AI agents interacting with AgentGate — tool calls, transactions, and status updates in real time.
+        </p>
       </div>
 
       {/* Sprite scene banner */}
