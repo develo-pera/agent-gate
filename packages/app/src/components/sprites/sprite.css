@@ -7,23 +7,24 @@
 }
 
 .sprite-strip {
-  width: 192px;
-  height: 144px;
+  width: 384px;
+  height: 288px;
+  transform-origin: top left;
 }
 
 @keyframes sprite-idle {
-  from { transform: translateX(0) translateY(0); }
-  to   { transform: translateX(-192px) translateY(0); }
+  from { transform: scale(0.5) translateX(0) translateY(0); }
+  to   { transform: scale(0.5) translateX(-384px) translateY(0); }
 }
 
 @keyframes sprite-walk {
-  from { transform: translateX(0) translateY(-48px); }
-  to   { transform: translateX(-192px) translateY(-48px); }
+  from { transform: scale(0.5) translateX(0) translateY(-96px); }
+  to   { transform: scale(0.5) translateX(-384px) translateY(-96px); }
 }
 
 @keyframes sprite-work {
-  from { transform: translateX(0) translateY(-96px); }
-  to   { transform: translateX(-192px) translateY(-96px); }
+  from { transform: scale(0.5) translateX(0) translateY(-192px); }
+  to   { transform: scale(0.5) translateX(-384px) translateY(-192px); }
 }
 
 .anim-idle  { animation: sprite-idle 1s steps(4) infinite; }

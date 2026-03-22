@@ -48,6 +48,11 @@ function useWander(
   }));
   const [isMoving, setIsMoving] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track status in a ref so the wander loop can read it without restarting
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  const hoveredRef = useRef(isHovered);
+  hoveredRef.current = isHovered;
 
   const clearWanderTimeout = useCallback(() => {
     if (timeoutRef.current !== null) {
@@ -56,15 +61,23 @@ function useWander(
     }
   }, []);
 
+  // Pause/resume movement based on status without restarting the wander loop
   useEffect(() => {
-    // Only idle agents wander. Active stays put (working). Registered stays put (stationary).
     if (status === "active" || status === "registered" || isHovered) {
       setIsMoving(false);
-      clearWanderTimeout();
-      return;
     }
+  }, [status, isHovered]);
 
+  // Single wander loop that runs once and checks status via ref
+  useEffect(() => {
     const pickNewDestination = () => {
+      // Check current status via ref — don't move if active/registered/hovered
+      if (statusRef.current === "active" || statusRef.current === "registered" || hoveredRef.current) {
+        // Re-check after a short delay
+        timeoutRef.current = setTimeout(pickNewDestination, 1000);
+        return;
+      }
+
       const maxX = Math.max(
         BOUNDARY_INSET + 1,
         sceneWidth - BOUNDARY_INSET - SPRITE_SIZE
@@ -95,7 +108,7 @@ function useWander(
     timeoutRef.current = setTimeout(pickNewDestination, initialDelay);
 
     return () => clearWanderTimeout();
-  }, [status, sceneWidth, isHovered, clearWanderTimeout]);
+  }, [sceneWidth, clearWanderTimeout]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -71,12 +71,12 @@ export function AgentSprite({
       </div>
 
       {/* Always-visible name label */}
-      <div className="flex items-center justify-center gap-0.5 -mt-0.5" data-testid="sprite-label">
+      <div className="flex items-center justify-center gap-1 mt-0.5 w-[80px] -ml-[16px]" data-testid="sprite-label">
         <span
-          className="h-1.5 w-1.5 rounded-full shrink-0"
+          className="h-2 w-2 rounded-full shrink-0"
           style={{ backgroundColor: dotColor }}
         />
-        <span className="text-xs font-medium leading-none text-muted-foreground truncate max-w-[80px]">
+        <span className="text-[11px] font-medium leading-none text-muted-foreground truncate">
           {agent.name}
         </span>
       </div>
