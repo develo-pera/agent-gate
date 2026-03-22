@@ -69,10 +69,11 @@ Plans:
   2. AgentSprite component renders a sprite with idle, walking, and working animations using CSS steps() — no JS timers or React state for frame advancement
   3. Sprites move freely across a scene area on the page with crisp pixelated rendering (no anti-aliasing blur)
   4. Hovering over a sprite reveals a details card showing the agent's name, address, current action, and status
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: TBD (run /gsd:plan-phase 7 to break down)
+- [ ] 07-01-PLAN.md — Sprite utilities, inline SVG robot template, CSS animation keyframes, AgentSprite component with hover card
+- [ ] 07-02-PLAN.md — SpriteScene container with random wandering, direction facing, and visual verification
 
 ### Phase 8: Dashboard Page Assembly
 **Goal**: Users see a complete, live command-center dashboard with agent cards, real-time activity feed, animated sprites, and demo mode fallback
@@ -103,5 +104,5 @@ Note: Phases 6 and 7 can be parallelized (no mutual dependency), but both must c
 | 4. Foundation Verification & Config Fix | v1.0 | 2/2 | Complete | 2026-03-20 |
 | 5. Activity Foundation | v1.1 | 0/2 | Not started | - |
 | 6. API and Real-Time Endpoints | v1.1 | 0/2 | Not started | - |
-| 7. Sprite Animation System | v1.1 | 0/? | Not started | - |
+| 7. Sprite Animation System | v1.1 | 0/2 | Not started | - |
 | 8. Dashboard Page Assembly | v1.1 | 0/? | Not started | - |
