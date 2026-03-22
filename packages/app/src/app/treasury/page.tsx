@@ -12,11 +12,11 @@ export default function TreasuryPage() {
       <h1 className="text-xl font-semibold">Treasury Vault</h1>
       <VaultOverview />
       <HealthReport />
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <SwapEthCard />
         <DepositForm />
+        <WithdrawForm />
       </div>
-      <WithdrawForm />
     </div>
   );
 }

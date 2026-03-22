@@ -11,4 +11,5 @@ export interface AgentGateContext {
   dryRun: boolean;
   chain: Chain;
   allAddresses?: `0x${string}`[];
+  activeEventId?: number;  // Set by activity logging wrapper during tool execution
 }

@@ -7,6 +7,7 @@
 
 import { encodeFunctionData, type Abi, type Address } from "viem";
 import type { AgentGateContext } from "./context";
+import { activityLog } from "./activity-log";
 
 export interface WriteContractParams {
   address: Address;
@@ -61,12 +62,22 @@ export async function executeOrPrepare(
       value: params.value,
     });
     const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
-    return {
+    const result: ExecuteResult = {
       mode: "executed",
       tx_hash: hash,
       status: receipt.status,
       block_number: receipt.blockNumber.toString(),
     };
+
+    if (ctx.activeEventId != null) {
+      activityLog.enrichEvent(ctx.activeEventId, {
+        txHash: result.tx_hash,
+        txStatus: result.status,
+        blockNumber: result.block_number,
+      });
+    }
+
+    return result;
   }
 
   // Third-party: return unsigned transaction
@@ -112,12 +123,22 @@ export async function executeOrPrepareMany(
       });
       lastReceipt = await ctx.publicClient.waitForTransactionReceipt({ hash: lastHash });
     }
-    return {
+    const result: ExecuteResult = {
       mode: "executed",
       tx_hash: lastHash,
       status: lastReceipt.status,
       block_number: lastReceipt.blockNumber.toString(),
     };
+
+    if (ctx.activeEventId != null) {
+      activityLog.enrichEvent(ctx.activeEventId, {
+        txHash: result.tx_hash,
+        txStatus: result.status,
+        blockNumber: result.block_number,
+      });
+    }
+
+    return result;
   }
 
   // Third-party: return all unsigned transactions in order

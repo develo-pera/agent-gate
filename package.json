@@ -11,7 +11,9 @@
     "start": "cd packages/mcp-server && npm start",
     "dev": "cd packages/app && npm run dev",
     "dev:mcp": "cd packages/mcp-server && npm run dev",
-    "test:contracts": "cd packages/treasury-contract && forge test -vvv"
+    "test:contracts": "cd packages/treasury-contract && forge test -vvv",
+    "rebalance": "npx tsx scripts/rebalance-pools.ts",
+    "rebalance:watch": "npx tsx scripts/rebalance-pools.ts --watch"
   },
   "license": "MIT"
 }

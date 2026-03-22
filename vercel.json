@@ -2,5 +2,15 @@
   "buildCommand": "npm run build --workspace=@agentgate/app",
   "outputDirectory": "packages/app/.next",
   "installCommand": "npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/rebalance",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/yield-tick",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }

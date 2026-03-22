@@ -1,209 +1,168 @@
 # Project Research Summary
 
-**Project:** AgentGate Dashboard
-**Domain:** DeFi Dashboard + MCP Tool Playground (hackathon demo, ~2-day build)
-**Researched:** 2026-03-19
+**Project:** AgentGate Dashboard — Live Agent Activity Dashboard (v1.1)
+**Domain:** Real-time AI agent monitoring with pixel-art visualization
+**Researched:** 2026-03-22
 **Confidence:** HIGH
 
 ## Executive Summary
 
-AgentGate is a Next.js frontend layered on top of an existing MCP server in a monorepo, targeting multiple Synthesis hackathon bounties within a 2-day build window. The stack is unambiguous: Next.js 15, wagmi 3, viem 2, RainbowKit 2, Tailwind 4 + shadcn/ui — the standard 2026 DeFi frontend setup, with all packages fully compatible with the viem 2.x already present in the monorepo. The architectural decision of most consequence is the HTTP bridge: import tool handler functions directly via a thin Next.js REST API route rather than spawning a child process or using full MCP protocol transport. This eliminates the highest-risk implementation path while preserving every visual demo advantage.
+AgentGate v1.1 adds a live agent activity dashboard to an existing Next.js 16 + Tailwind v4 + shadcn/ui monorepo. The core innovation is a "command center" page that shows registered AI agents as animated pixel-art sprites whose states react in real time to MCP tool calls. Research confirms this is achievable with zero new npm dependencies — every capability maps to browser built-ins, Node.js core modules, or CSS features already available in the stack.
 
-The single most important feature is the MCP Playground. No competing hackathon project will have interactive live tool execution with formatted JSON request/response display, and it targets multiple bounties simultaneously (Lido MCP at $3K/$2K/$1K, MetaMask delegation, Synthesis Open Track). Everything else — Treasury dashboard, Staking overview, Delegation viewer — supports the story the Playground tells. The entire project should be designed around a pre-scripted 2-minute demo video; features that cannot fit that script should not be built. The architecture confirms a clean dual data path: direct viem reads for dashboard data (fast, typed, cacheable), MCP bridge calls only for the Playground and write operations.
+The recommended approach follows a strict dependency-first build order: instrument the MCP server with an activity logging middleware backed by an in-memory singleton, expose the data via REST and SSE endpoints, then build the React components on top. The pixel-art sprites must use CSS `steps()` animation (not any JS animation library) because sprite sheet stepping requires discrete frame advancement, not smooth interpolation. SSE is the right transport choice over WebSocket because the data flow is unidirectional and SSE works natively with Next.js Route Handlers without custom server infrastructure.
 
-The primary risk to the demo is reliability under time pressure: live RPC calls failing during video recording, the HTTP bridge becoming a 3-hour time sink, and scope creep producing six half-finished pages instead of three polished ones. Mitigation must be applied from day one — aggressive React Query caching with fallback mock data, a hard 3-hour timebox on bridge work, and a strict 3-page limit enforced before a single component is written. Read-only demo mode with a hardcoded treasury address is not a workaround; it is the primary demo path.
+The primary risks are architectural, not technical. Two structural decisions must be made correctly before any other work begins: the activity store must be a module-level singleton (not per-request) to survive across the per-request MCP server lifecycle, and the SSE route handler must return its `Response` immediately (not after awaiting an event loop). Getting either of these wrong results in a dashboard that silently shows nothing — a catastrophic demo failure that is invisible until the demo itself.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The full stack is HIGH confidence with verified npm versions. Next.js 15 (explicitly not 16 — too fresh, wallet libs not fully validated against it) with the App Router uses React 19 and TypeScript 5.7. wagmi 3 wraps viem 2 natively, sharing the same version already present in the MCP server package. RainbowKit 2.2 provides a zero-config wallet connect modal with dark theme built-in and confirmed React 19 support. Tailwind CSS 4 uses CSS-first config (no `tailwind.config.js` required), and the shadcn/ui CLI v4 (March 2026) fully supports it — every dashboard primitive (Card, Table, Tabs, Dialog, Badge, Sheet) is available as copy-paste components with no runtime dependency. Recharts 3 via shadcn's Chart components handles visualization with minimal configuration. The `motion` package (formerly framer-motion) adds spring-physics animations that make demo video recordings distinctive.
+The v1.0 stack (Next.js 16, React 19, TypeScript 5, Tailwind v4, shadcn/ui, wagmi, react-query) is entirely sufficient for v1.1. No new npm packages are needed. The three new capabilities — sprite animation, real-time streaming, and activity logging — all map to built-in APIs.
 
-**Core technologies:**
-- **Next.js 15 (App Router):** Framework — stable, battle-tested, wagmi provider wrappers marked "use client", server components for layout/static content
-- **wagmi 3 + viem 2:** Ethereum reads and writes — wraps existing monorepo viem natively, no duplicate dependencies, hooks for balance, tx signing, chain state
-- **RainbowKit 2.2:** Wallet modal — zero-config, MetaMask + WalletConnect, dark theme built-in, React 19 confirmed
-- **@tanstack/react-query 5:** Async state — required wagmi peer dependency, powers `stale-while-revalidate` caching for RPC call protection
-- **Tailwind CSS 4 + shadcn/ui:** Styling and components — zero-runtime, CSS variables for dark mode, every dashboard primitive covered
-- **Recharts 3:** Charts — integrated via shadcn Chart components, declarative React, minimal config
-- **motion 12:** Animations — spring physics for glow borders and number reveals, 15KB, makes demo video pop
-
-**What not to use:** ethers.js (viem already present), web3.js (legacy), styled-components/emotion (runtime CSS-in-JS), Next.js Pages Router, Prisma/database (stateless app), tRPC (one endpoint, plain fetch sufficient), Next.js 16.
+**Core technologies for v1.1:**
+- CSS `steps()` + `background-position`: sprite frame animation — the standard technique for pixel-art; no library does this better
+- Browser `EventSource` API: SSE consumption — native auto-reconnect, ~20 lines for a full custom hook
+- Next.js `ReadableStream` Route Handler: SSE endpoint — works with `force-dynamic` + `runtime = 'nodejs'`, zero infrastructure
+- Node.js `EventEmitter` (`node:events`): in-process pub/sub — connects logging middleware to SSE subscribers at zero latency
+- Node.js `crypto.randomUUID()`: event IDs — enables SSE `Last-Event-ID` reconnection
+- `tw-animate-css` (already installed): `animate-ping` for active status dots
+- `image-rendering: pixelated` CSS: crisp sprite upscaling — prevents anti-aliasing on scaled pixel art
 
 ### Expected Features
 
-Features are ranked by demo-day impact within the 2-day constraint.
-
 **Must have (table stakes):**
-- Dark crypto theme (`#0a0e1a` background, electric blue/green accent) — missing this reads as "generic React app" to judges
-- Wallet connect button (RainbowKit) + read-only demo mode with hardcoded treasury address — judges expect live chain data
-- Vault status display (principal, yield, total balance) via direct viem reads — three big number cards, the treasury contract is the core innovation
-- MCP Playground with live tool execution — centerpiece for 3+ bounties, no competitor will have this
-- Transaction feedback (success/error toast with Basescan link) after any write
-- Loading/error states with skeleton loaders — blank screens during RPC calls are immediately disqualifying
+- Agent cards with pulsing status indicators (active/idle/error) — monitoring dashboards require at-a-glance entity status
+- Real-time activity feed showing tool calls with agent, tool name, timestamp, and result status — core promise of a "live" dashboard
+- Activity logging middleware in MCP server — without this, there is no data; it is the critical path
+- REST endpoints (`/api/agents`, `/api/activity`) — feed initial page load and polling fallback
+- Transaction hash display linking to BaseScan — DeFi dashboards must show on-chain evidence
+- Agent type badges (first-party vs third-party) — registry already has the `type` field
+- Demo mode with seeded activity events — existing app has demo mode; the new page must match
 
 **Should have (differentiators):**
-- Principal vs yield visualization (styled progress bar or donut chart) — makes principal-protection story instantly comprehensible
-- Dry-run simulation panel (show estimated outcome before execution) — safety feature and demo differentiator
-- Vault health report card (color-coded risk indicators) — low effort, targets Vault Monitor bounty
-- Staking APR display with real Lido data — targets Lido stETH Treasury bounty
-- Delegation flow visualization (ERC-7710 permission cards) — makes MetaMask bounty story tangible
-- Request/response JSON viewer with syntax highlighting and copy button in Playground
+- Animated pixel-art sprites per agent with state-driven animations (idle/active/error) — the visual hook that makes the demo memorable
+- Command center layout: agent sprite scene + activity feed sidebar — "war room" feel
+- SSE real-time streaming upgrade over polling — events appear instantly without manual refresh
+- Live stats counter (total calls, active agents, transactions) — running numbers feel alive
 
-**Defer entirely (explicit anti-features for this timeline):**
-- Real swap execution UI — Uniswap swap untested on mainnet, execution risk kills demo credibility; show `uniswap_quote` in Playground only
-- Mobile responsive layout — every hour on responsive CSS is wasted
-- Historical time-series charts — requires indexers (The Graph/Dune), too heavy for 2 days
-- WebSocket real-time updates — 15-second polling with manual refresh is sufficient for a demo
-- ENS dedicated page — include ENS tools in the Playground only
-- Multi-chain switching — hardcode Base, treat L1 as secondary read source
-- Governance voting UI — requires LDO tokens on L1, unreliable for demo
-
-**Highest ROI single feature:** MCP Playground. Targets 3+ bounties, no competitor will have it, visually distinctive. Build it above everything except the basic app shell.
+**Defer (v2+):**
+- Agent activity sparklines — only valuable with sustained activity; 2-minute demo won't showcase it
+- Tool call detail JSON expansion — MCP Playground already covers this; don't duplicate
+- CRT/scan-line visual effects — polish layer, only if all core features are done
+- Full agent management CRUD UI — registration happens via API; read-only list is sufficient for demo
 
 ### Architecture Approach
 
-The architecture separates into two explicit data paths that never cross. Dashboard pages use direct viem `readContract()` calls against Base mainnet for fast, typed, cacheable data — React Query with `stale-while-revalidate` and a 60-second minimum TTL protects against RPC rate limits. The MCP Playground uses a thin REST bridge (`/api/mcp/[tool]/route.ts`) that imports tool handler functions directly from `packages/mcp-server/src/tools/` — no child process spawning, no MCP protocol negotiation, no JSON-RPC framing. Wallet state lives exclusively in client components (`"use client"`) behind a `WalletModeProvider` context that transparently switches between connected-wallet mode and read-only demo mode.
+The v1.1 architecture adds three layers to the existing monorepo without touching any existing tool handlers or page components. An `ActivityLog` singleton module in `packages/mcp-server` serves as the shared event store. Middleware wrappers intercept tool dispatch in `bridge.ts` and `hosted.ts` (the two entry points for MCP calls) and push structured events to the singleton. New Next.js API routes import the singleton via a subpath export (`@agentgate/mcp-server/activity`) and expose it as REST history or SSE stream. The frontend `/agents` page consumes the API with react-query for agent list and a custom `useAgentActivity` hook for SSE events.
 
 **Major components:**
-1. **Next.js Pages** (Treasury, Staking/Delegations, Playground) — UI rendering, 4-section layout, client-only wallet interactions
-2. **Direct viem Hooks** (`useVaultStatus`, `useLidoPositions`, `useDelegations`) — fast on-chain reads, React Query caching, 15-second refetch interval
-3. **REST API Bridge** (`/api/mcp/[tool]/route.ts`) — imports tool handler functions from MCP server package, POST endpoint, returns JSON
-4. **MCP Client Hook** (`useMcpTool`) — React Query mutation calling the REST bridge, surfaces request/response pairs to Playground UI
-5. **Wallet Provider Layer** (wagmi + RainbowKit + WalletModeProvider) — connection state, demo mode fallback, all in "use client" boundaries
-6. **Static Tool Registry** (`lib/tool-registry.ts`) — build-time metadata for all 27 tools, powers Playground tool selector and parameter form generation without MCP protocol discovery
-
-**Monorepo change required:** Add `tool-executor.ts` to `packages/mcp-server/src/lib/` exporting tool handler functions callable without the MCP `server` instance. The existing stdio entry point (`index.ts`) remains unchanged.
-
-**Anti-patterns confirmed:** Never spawn MCP stdio as a child process from an API route. Never import `@modelcontextprotocol/sdk/client` in browser components. Never route dashboard display data through the MCP bridge. Never access wallet state in server components.
+1. `ActivityLog` singleton (`packages/mcp-server/src/activity-log.ts`) — ring buffer (500 events), subscriber set, module-level export; must use `globalThis` pattern to survive Next.js HMR
+2. Activity middleware in `bridge.ts` + `hosted.ts` — wraps tool dispatch at the registry level, not inside individual tool files; fire-and-forget to avoid latency
+3. SSE Route Handler (`/api/activity/sse/route.ts`) — `ReadableStream` + `force-dynamic` + `runtime = 'nodejs'`; subscribes to `ActivityLog`, returns `Response` immediately
+4. `useAgentActivity` hook — `EventSource` with `useEffect` cleanup, hydrates from `/api/activity` on mount, then streams live updates
+5. `AgentSprite` component — CSS `steps()` animation via class switching; no `useState` for frame index; `image-rendering: pixelated`; preloaded from `/public/sprites/`
+6. `/agents` page — server shell + `AgentsClient` ("use client"); `AgentCardGrid` + `ActivityFeed`; demo mode seeds events when no wallet connected
 
 ### Critical Pitfalls
 
-1. **Live RPC failures during demo recording** — Public RPCs rate-limit under simultaneous page loads. Prevention: React Query `stale-while-revalidate` with 60-second minimums, authenticated Alchemy/Infura URLs (free tier gives 10x the limits), pre-warm all pages before recording, implement fallback mock data. Must be addressed in Phase 1 data layer setup — not retroactively.
+1. **SSE route handler buffering** — if you `await` anything before returning the `Response`, Next.js buffers the entire stream and delivers it as one batch at timeout. Return `new Response(stream)` immediately; start async work inside `ReadableStream.start()` without awaiting. Add `export const dynamic = 'force-dynamic'` and `export const runtime = 'nodejs'`.
 
-2. **HTTP bridge becoming a time sink** — Implementing full MCP protocol transport, process spawning, or JSON-RPC framing eats the entire 2-day budget. Hard rule: if writing `child_process.spawn` or pipe handling code, stop immediately and use direct function imports. Timebox: 3 hours maximum. If not working in 3 hours, show pre-recorded tool call/response JSON in the Playground as a convincing fallback.
+2. **Per-request MCP server loses activity state** — `hosted.ts` creates and destroys a new `McpServer` per request. The `ActivityLog` must be a module-level singleton, not attached to the server instance. Use the `globalThis` pattern to also survive HMR.
 
-3. **Scope creep: 6 half-finished pages instead of 3 polished ones** — Script the 2-minute video before writing any code. Build exactly what the script requires. Enforce a strict 3-page limit (Playground, Treasury, Staking/Delegations). The out-of-scope list (Uniswap swap, ENS page, governance voting) is immovable. If building a 4th page, stop and polish the existing 3.
+3. **Sprite animation causes React re-render cascade** — storing frame index in `useState` triggers full re-renders at animation framerate across all agent cards. Use CSS `steps()` animation exclusively; switch animation state by changing CSS class, not JS state.
 
-4. **SSE buffering in Next.js App Router destroys Playground feel** — App Router buffers SSE responses (vercel/next.js#48427), delivering all chunks at once after handler completion. Prevention: use POST endpoints returning complete JSON. Fake the streaming experience client-side — show request JSON immediately, pulsing "processing" state, reveal response with typing animation. This is more reliable and looks identical in a video.
+4. **SSE memory leak from uncleaned connections** — client must call `EventSource.close()` in `useEffect` cleanup; server must listen to `request.signal` (AbortSignal) and remove the subscriber on abort.
 
-5. **Wallet connection complexity displacing core features** — DeFi dashboards "need" wallet connect, but this is a recorded demo. Default to read-only demo mode; use a hardcoded address for all display data. Add RainbowKit with zero customization only if a bounty explicitly requires wallet signing. Avoid writing any `window.ethereum` handling code directly.
+5. **Activity logging adds latency to tool calls** — use fire-and-forget: `void logActivity(event).catch(console.error)`. Never `await` any I/O in the tool dispatch path.
 
 ## Implications for Roadmap
 
-Research identifies four distinct phases with strict dependency ordering. Phases 2 and 3 can overlap once Phase 1 is complete.
+Based on the dependency graph in ARCHITECTURE.md, the build order is strict. Nothing on the frontend works until the backend singleton and middleware exist.
 
-### Phase 1: Foundation (hours 0-8)
+### Phase 1: Activity Foundation
+**Rationale:** Everything else depends on this. The activity log singleton and middleware are the critical path with no predecessors. Must be built and verified before any API endpoints or frontend work begins.
+**Delivers:** Working activity capture — every MCP tool call emits a structured `ActivityEvent` stored in the in-memory ring buffer with agent identity, tool name, params, result, timestamp, and txHash.
+**Addresses:** Activity logging middleware, shared `ActivityEvent` type definition, agent identity attribution for bridge calls
+**Avoids:** Pitfall 4 (per-request state loss — use module-level singleton), Pitfall 3 (logging latency — fire-and-forget), Pitfall 8 (schema mismatch — define shared type first), Pitfall 9 (HMR resets — use `globalThis` pattern)
+**Research flag:** Standard patterns — no additional research needed.
 
-**Rationale:** All subsequent features depend on the app shell, data layer, and bridge being operational. Caching and demo-mode fallbacks implemented here prevent catastrophic demo failures in recording. Monorepo workspace configuration must be validated before any feature code. This phase uses exclusively well-documented patterns — no per-phase research needed.
+### Phase 2: SSE Streaming Endpoint
+**Rationale:** REST endpoints reuse the existing bridge pattern and are fast to build; SSE requires careful implementation. Build both so the frontend has all data APIs available. SSE must be correct from the start — buffering bugs are invisible until demo time.
+**Delivers:** `/api/agents` (agent list + derived status), `/api/activity` (history), `/api/activity/sse` (real-time stream)
+**Uses:** Node.js `ReadableStream`, Next.js Route Handler with `force-dynamic` + `runtime = 'nodejs'`, `@agentgate/mcp-server/activity` subpath export
+**Avoids:** Pitfall 1 (SSE buffering — return Response immediately), Pitfall 2 (memory leaks — AbortSignal cleanup), Pitfall 11 (transport confusion — activity SSE at `/api/activity/sse`, completely separate from MCP transport at `/api/mcp-agent`)
+**Research flag:** Verify SSE `request.signal` AbortSignal behavior in Next.js 16 with Turbopack. Test with `curl` before building frontend.
 
-**Delivers:** Working Next.js app with dark theme, navigation, wallet connect + read-only demo mode, viem client config with React Query caching, REST API bridge to MCP tool handlers, and `tool-executor.ts` extraction from MCP server.
+### Phase 3: Sprite Assets and Animation System
+**Rationale:** Sprite assets are independent of the backend work and can be developed in parallel with Phase 2. Must be complete before page assembly. Asset creation is the only time-uncertain element.
+**Delivers:** Sprite sheet PNGs for hackaclaw, merkle, and a generic third-party pool; `AgentSprite` React component with CSS `steps()` idle/active/error state switching.
+**Uses:** CSS `steps()` + `background-position`, `image-rendering: pixelated`, Aseprite or Pixelorama for asset creation; sprites served from `/public/sprites/` (not `next/image`)
+**Avoids:** Pitfall 5 (React re-render cascade — CSS-only animation), Pitfall 7 (image loading race — preload in layout head), Pitfall 12 (blurry scaling — `pixelated` rendering), Pitfall 14 (timer proliferation — zero JS timers)
+**Research flag:** No technical research needed. Budget time for sprite art creation — even simple 4-frame 32x32 sprites take 1-2 hours.
 
-**Addresses features:** Dark crypto theme, wallet connect button, read-only demo mode, loading/error states foundation.
-
-**Avoids pitfalls:** Monorepo workspace setup (#6 — validate `npm install` before writing feature code), environment variable leaks (#11 — server-side only for sensitive vars), RPC failure groundwork (#1 — caching pattern established from day one), HTTP bridge timebox (#2 — start the clock in Phase 1), wallet complexity (#5 — default to demo mode), dark theme foundation (#7 — establish design tokens before building pages).
-
-**Parallelizable sub-tasks:**
-- Track A: Next.js scaffold, Tailwind 4 + shadcn/ui init, dark theme tokens, nav layout shell
-- Track B: `tool-executor.ts` extraction from MCP server, REST API route `/api/mcp/[tool]/route.ts`
-- Track C: viem client config (`lib/clients.ts`), wagmi + RainbowKit providers, WalletModeProvider
-
-### Phase 2: Dashboard Pages + Direct Reads (hours 8-16)
-
-**Rationale:** With the data layer operational, build the three dashboard pages using direct viem reads. These are independent of the bridge and validate chain connectivity before the Playground depends on it. Treasury is the core bounty page; Staking and Delegations show breadth.
-
-**Delivers:** Treasury vault status page with principal/yield visualization, Staking overview with Lido APR and position display, Delegation viewer with ERC-7710 permission cards.
-
-**Addresses features:** Vault status display, principal vs yield visualization, Staking APR display, Delegation flow visualization, Vault health report card, transaction feedback toasts.
-
-**Avoids pitfalls:** Chart rabbit hole (#12 — use big numbers and simple bars, not D3), live transaction timing (#8 — dry-run only from the start), scope creep (#3 — 3 pages maximum, no 4th page).
-
-**Uses:** `useVaultStatus`, `useLidoPositions`, `useDelegations` hooks; Recharts via shadcn Chart; React Query with `stale-while-revalidate`.
-
-### Phase 3: MCP Playground (hours 12-18, overlaps Phase 2)
-
-**Rationale:** The Playground is the highest-ROI feature and the centerpiece of the demo video. It depends on the bridge from Phase 1 but can be built in parallel with simpler Phase 2 pages. Keep the UI to 4 elements maximum — tool selector dropdown, pre-filled parameter textarea, Run button, JSON response block.
-
-**Delivers:** Tool selector with 6 domain categories and badge counts, dynamic parameter form from static tool registry, POST execution against REST bridge, JSON response viewer with syntax highlighting and copy, request/response history panel.
-
-**Addresses features:** MCP Playground with live tool execution, tool categorization, request/response JSON viewer, dry-run simulation panel.
-
-**Avoids pitfalls:** Overcomplicating the Playground (#9 — 4 UI elements maximum, pre-populate 3-4 "star" tools), SSE buffering (#4 — POST only, fake streaming animation client-side), bridge time sink (#2 — bridge already established in Phase 1).
-
-**Implements:** MCP Client Hook (`useMcpTool`), Static Tool Registry (`lib/tool-registry.ts`), ToolSelector + ParamForm + ResponseViewer components.
-
-### Phase 4: Polish + Demo Optimization (hours 18-24)
-
-**Rationale:** With all pages functional, convert a working product into an impressive demo video. Animations, loading states, and deposit/withdraw forms with dry-run simulation are purely additive — they cannot break existing functionality. Demo recording setup must be validated before final recording.
-
-**Delivers:** motion animations (glow borders on hero elements, number reveals, page transitions), skeleton loaders on all data-fetching components, deposit/withdraw forms with dry-run simulation and confirmation preview, demo recording setup validated.
-
-**Addresses features:** Deposit/Withdraw UI, spender authorization UI (if time allows), transaction feedback, visual polish.
-
-**Avoids pitfalls:** Video recording setup (#10 — test before final recording, fullscreen at 1920x1080, clean browser profile), scope creep (#3 — reject all new page requests at this stage).
-
-**Uses:** motion library for spring animations; shadcn Skeleton, Dialog, Sheet components.
+### Phase 4: Agent Dashboard Page
+**Rationale:** Assembly phase — all components and APIs exist. Wire them together into the `/agents` page with command center layout, demo mode support, and sidebar nav addition.
+**Delivers:** Complete live agent dashboard at `/agents`; agent cards with sprites + status; activity feed timeline; live stats bar; sidebar nav item; demo mode with seeded events; SSE-driven sprite state transitions.
+**Implements:** Full component tree: `AgentsPage` → `AgentsClient` → `AgentCardGrid` + `ActivityFeed`; `StatusIndicator`, `AgentStats`, `ActivityRow`, `ToolBadge`, `TxLink`
+**Avoids:** Pitfall 6 (reconnection flood — custom hook with ref-guarded EventSource, `retry:` field in SSE), Pitfall 13 (empty demo mode — seed events on init), Pitfall 15 (hydration mismatch — `"use client"` + mounted-state pattern), Pitfall 16 (RPC rate limiting — derive chain data from activity log, not additional RPC calls)
+**Research flag:** Standard patterns — follows established page patterns from treasury, staking, and delegation pages.
 
 ### Phase Ordering Rationale
 
-- Phase 1 before everything: the viem clients and REST bridge are hard dependencies for every other phase. Monorepo workspace must be validated before feature code.
-- Phases 2 and 3 overlap: direct viem reads (Phase 2) are independent of the bridge, but the Playground (Phase 3) requires it. Build Playground in parallel with simpler Phase 2 pages once Phase 1 is complete.
-- Dry-run architecture set in Phase 2: deposit/withdraw forms in Phase 4 must assume the dry-run pattern decided in Phase 2; retrofitting is expensive.
-- Phase 4 always compresses under time pressure — design Phases 1-3 to be demo-worthy without Phase 4 polish.
+- Phase 1 before Phase 2: SSE endpoint requires `ActivityLog.subscribe()` to exist and be populated; REST endpoint requires the ring buffer.
+- Phase 1 before Phase 3: `AgentSprite` component needs the `AgentStatus` type defined in Phase 1.
+- Phases 2 and 3 can be parallelized — they share no dependencies on each other.
+- Phase 4 requires both Phase 2 (data hooks depend on API endpoints) and Phase 3 (page uses sprite component).
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 1 (Bridge extraction):** The `tool-executor.ts` extraction depends on how tool handlers are currently structured in `packages/mcp-server/src/tools/`. Read the existing tool registration code before estimating the extraction effort. If handlers are tightly coupled to the MCP `server` instance, a wrapper shim is needed.
-- **Phase 3 (Tool registry):** The static tool registry must accurately capture all 27 tools' parameter schemas. Consider auto-generating it from the MCP server's existing tool definitions during Phase 1 bridge work to avoid manual errors.
+Needs additional attention during planning:
+- **Phase 2 (SSE):** Test SSE `request.signal` / AbortSignal in Next.js 16 + Turbopack before building the frontend hook. Document the exact headers needed (`X-Accel-Buffering: no` may be required even in dev).
+- **Phase 1 (Agent identity):** Decide how bridge calls attribute agent identity (`wallet_address` from body vs "dashboard-user" fallback) before implementing the middleware — this decision shapes the `ActivityEvent` schema.
 
-Phases with standard patterns (skip additional research):
-- **Phase 1 (App shell):** Next.js 15 + Tailwind 4 + shadcn/ui init is thoroughly documented. RainbowKit + wagmi + Next.js App Router patterns are standard — follow official docs directly.
-- **Phase 2 (viem reads):** React Query + viem `readContract` is a known pattern with multiple production examples.
-- **Phase 4 (Polish):** motion + Tailwind + shadcn animations are well-documented. No research needed.
+Standard patterns (skip research-phase):
+- **Phase 1 (Activity Foundation):** EventEmitter singleton + `globalThis` HMR pattern is identical to the Prisma docs recommendation — well understood.
+- **Phase 3 (Sprites):** CSS `steps()` sprite animation is a CSS3 standard with multiple authoritative tutorials.
+- **Phase 4 (Dashboard Page):** Component assembly follows existing page patterns already proven in the codebase.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All packages verified at specific npm versions. wagmi 3 + viem 2 + RainbowKit 2 + React 19 compatibility matrix explicitly confirmed. Tailwind v4 + shadcn/ui CLI v4 compatibility confirmed as of March 2026. |
-| Features | HIGH | Derived from existing codebase (27 known tools, known contract interfaces), not speculative market research. Anti-feature list is time-constrained and well-reasoned. |
-| Architecture | HIGH | Direct function import approach is proven; full MCP protocol transport identified as higher-risk and reserved as bonus only. Dual data path (viem direct + REST bridge) is architecturally clean with concrete code patterns documented. |
-| Pitfalls | HIGH | Most pitfalls grounded in specific GitHub issues (Next.js SSE buffering: vercel/next.js#48427), official viem RPC documentation, and MCP SDK architecture. Phase-specific warnings are actionable and timed. |
+| Stack | HIGH | Zero new dependencies required; every technique maps to built-in APIs with multiple 2025-2026 sources confirming the patterns |
+| Features | HIGH | Clear table stakes derived from monitoring dashboard conventions; differentiators well-scoped to hackathon constraints |
+| Architecture | HIGH | Primary source is the actual codebase; singleton pattern and middleware injection points verified against live code in `hosted.ts` and `bridge.ts` |
+| Pitfalls | HIGH | SSE buffering and memory leak pitfalls verified via Next.js GitHub issues (#48427, #53949); per-request server lifecycle directly observed in codebase |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Existing MCP tool handler structure:** Validate that tool handlers in `packages/mcp-server/src/tools/` are separable functions before Phase 1 bridge work. If tightly coupled to the MCP `server` instance, the extraction approach requires a wrapper shim rather than direct re-export.
-- **Contract ABIs availability:** Direct viem reads require ABI definitions for the AgentTreasury contract. Confirm ABIs are exported from the `treasury-contract` package or available as JSON before building hooks in Phase 2.
-- **Demo address with real data:** Read-only demo mode requires a known treasury contract address on Base mainnet with actual deposits. Confirm this address exists and is funded before Phase 1 completes.
-- **Authenticated RPC URLs:** Alchemy or Infura URLs (free tier) for Base and L1 mainnet must be provisioned before Phase 2 data work. Public RPCs are insufficient for demo reliability.
-- **WalletConnect Project ID:** Required for RainbowKit if real wallet connect is needed. Register at cloud.walletconnect.com (free tier). Can be skipped if demoing with injected MetaMask only.
+- **Sprite asset creation time:** The CSS technique is known but actual pixel art must be created or sourced. Quality depends on artistic skill. Even simple 4-frame 32x32 sprites take 1-2 hours to draw. Plan accordingly or source free assets.
+- **Next.js 16 + Turbopack SSE behavior:** The `globalThis` singleton and SSE streaming patterns are well-documented for Next.js 13-15. Verify they behave identically under Next.js 16 with Turbopack during Phase 1-2 implementation before building the full frontend.
+- **Bridge call agent identity:** The architecture proposes using `wallet_address` from the request body to attribute bridge calls. This needs a decision before Phase 1 middleware is implemented — it affects the `ActivityEvent` schema.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Next.js releases](https://github.com/vercel/next.js/releases) — v15.5 stable, v16 excluded for hackathon risk
-- [wagmi npm v3.5.0](https://www.npmjs.com/package/wagmi) — wagmi 3 + viem 2 compatibility
-- [viem npm v2.47.4](https://www.npmjs.com/package/viem) — version alignment with MCP server package
-- [RainbowKit npm v2.2.10](https://www.npmjs.com/package/@rainbow-me/rainbowkit) — React 19 + wagmi 3 confirmed support
-- [Tailwind CSS v4.2](https://tailwindcss.com/blog/tailwindcss-v4) — CSS-first config, 5x faster builds
-- [shadcn/ui Next.js installation](https://ui.shadcn.com/docs/installation/next) — component and dark mode patterns
-- [shadcn/ui CLI v4 changelog (March 2026)](https://ui.shadcn.com/docs/changelog/2026-03-cli-v4) — Tailwind v4 support confirmed
-- [MCP TypeScript SDK - Server docs](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/server.md) — StreamableHTTPServerTransport patterns
-- [MCP Transports specification (2025-03-26)](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports) — Streamable HTTP replacing SSE
-- [Next.js SSE buffering issue - vercel/next.js#48427](https://github.com/vercel/next.js/discussions/48427) — confirmed buffering behavior, POST-only decision
+- Existing codebase (`packages/mcp-server/src/hosted.ts`, `bridge.ts`, `execute-or-prepare.ts`) — per-request lifecycle, tool dispatch patterns, Upstash singleton model
+- [Next.js SSE Discussion #48427](https://github.com/vercel/next.js/discussions/48427) — SSE route handler buffering issues
+- [Next.js EventEmitter Leak #53949](https://github.com/vercel/next.js/issues/53949) — MaxListenersExceededWarning with SSE
+- [Next.js Route Handlers documentation](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) — streaming response patterns
+- [Josh Comeau — Sprites on the Web](https://www.joshwcomeau.com/animation/sprites/) — CSS sprite animation reference
+- [Alec Horner — Animating Pixel Sprites with CSS](https://alechorner.com/blog/animating-pixel-sprites-with-css/) — React + CSS steps() integration
 
 ### Secondary (MEDIUM confidence)
-- [Vercel mcp-handler](https://github.com/vercel/mcp-handler) — Next.js App Router MCP integration (relatively new library)
-- [Wagmi + Viem + Next.js DApp patterns](https://medium.com/@vahdatfardin/building-production-ready-web3-dapps-with-wagmi-viem-and-next-js-cfc5d12f766b) — standard DeFi frontend patterns
-- [Next.js + Wagmi + WalletConnect integration](https://docs.berachain.com/build/guides/community/walletconnect-nextjs) — wallet connection patterns
-- [MCP stdio to HTTP bridge patterns](https://github.com/sparfenyuk/mcp-proxy) — existing bridge solutions context
+- [Damian Hodgkiss — Real-Time Updates with SSE in Next.js 15](https://damianhodgkiss.com/tutorials/real-time-updates-sse-nextjs) — SSE configuration patterns
+- [Pedro Alonso — Real-Time Notifications with SSE in Next.js](https://www.pedroalonso.net/blog/sse-nextjs-real-time-notifications/) — connection cleanup patterns
+- [HackerNoon — Streaming in Next.js 15: WebSockets vs SSE](https://hackernoon.com/streaming-in-nextjs-15-websockets-vs-server-sent-events) — SSE vs WebSocket tradeoffs
+- [Smashing Magazine: UX Strategies for Real-Time Dashboards](https://www.smashingmagazine.com/2025/09/ux-strategies-real-time-dashboards/) — monitoring dashboard conventions
+- [kirupa.com — Sprite Sheet Animations Using Only CSS](https://www.kirupa.com/html5/sprite_sheet_animations_using_only_css.htm) — steps() deep dive
 
 ### Tertiary (LOW confidence)
-- [MIT Sloan: Avoid These Five Pitfalls at Your Next Hackathon](https://sloanreview.mit.edu/article/avoid-these-five-pitfalls-at-your-next-hackathon/) — general hackathon strategy (informed scope pitfall framing)
+- [Mission Control](https://github.com/builderz-labs/mission-control) — open-source AI agent orchestration dashboard (feature reference only)
+- [FastMCP Middleware](https://gofastmcp.com/servers/middleware) — middleware pattern for MCP logging (pattern reference, not direct dependency)
 
 ---
-*Research completed: 2026-03-19*
+*Research completed: 2026-03-22*
 *Ready for roadmap: yes*
