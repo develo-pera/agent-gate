@@ -26,7 +26,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 - [ ] **Phase 5: Activity Foundation** - ActivityLog singleton, middleware instrumentation, in-memory event buffer
 - [ ] **Phase 6: API and Real-Time Endpoints** - REST agent/activity endpoints and SSE streaming
 - [ ] **Phase 7: Sprite Animation System** - Pixel-art sprite sheets and CSS-driven animation components
-- [ ] **Phase 8: Dashboard Page Assembly** - Live Agent Activity page with agent cards, activity feed, real-time updates, and demo mode
+- [x] **Phase 8: Dashboard Page Assembly** - Live Agent Activity page with agent cards, activity feed, real-time updates, and demo mode (completed 2026-03-22)
 
 ## Phase Details
 
@@ -106,4 +106,4 @@ Note: Phases 6 and 7 can be parallelized (no mutual dependency), but both must c
 | 5. Activity Foundation | v1.1 | 0/2 | Not started | - |
 | 6. API and Real-Time Endpoints | v1.1 | 0/2 | Not started | - |
 | 7. Sprite Animation System | v1.1 | 0/2 | Not started | - |
-| 8. Dashboard Page Assembly | v1.1 | 0/2 | Not started | - |
+| 8. Dashboard Page Assembly | 2/2 | Complete   | 2026-03-22 | - |

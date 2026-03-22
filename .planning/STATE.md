@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Live Agent Activity Dashboard
 status: unknown
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-03-22T13:42:19.022Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-03-22T13:55:19.397Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -48,6 +48,7 @@ Plan: 2 of 2
 | Phase 07 P01 | 3min | 2 tasks | 6 files |
 | Phase 07 P02 | 2min | 1 tasks | 3 files |
 | Phase 08 P01 | 3min | 3 tasks | 8 files |
+| Phase 08 P02 | 8min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase 07]: CSS custom properties (--sprite-body, --sprite-visor) for per-agent color theming
 - [Phase 07]: isWalking prop on AgentSprite rather than CSS override for walk animation during movement
 - [Phase 08]: Hooks placed in src/lib/hooks/ (existing convention) not src/hooks/ (plan path)
+- [Phase 08]: Demo mode drips 12 seed events at 2.5s intervals telling a coherent DeFi workflow story
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-22T13:42:19.017Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-03-22T13:55:19.394Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None

@@ -33,7 +33,7 @@ Requirements for Live Agent Activity Dashboard milestone.
 
 ### Demo Mode
 
-- [ ] **DEMO-01**: Demo mode shows seed activity data and animated agents so the dashboard isn't empty without live agents
+- [x] **DEMO-01**: Demo mode shows seed activity data and animated agents so the dashboard isn't empty without live agents
 
 ## v2 Requirements
 
@@ -79,7 +79,7 @@ Deferred to future release.
 | SPRITE-02 | Phase 7 | Complete |
 | SPRITE-03 | Phase 7 | Complete |
 | SPRITE-04 | Phase 7 | Complete |
-| DEMO-01 | Phase 8 | Pending |
+| DEMO-01 | Phase 8 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 16 total
