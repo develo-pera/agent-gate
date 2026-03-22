@@ -1197,4 +1197,79 @@ Built the scene and wandering system:
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 ~13:45 UTC*
+## Mar 22 (cont.) — Phase 8: Dashboard Page Assembly
+
+### merkle — Phase 8 Execution
+
+**~14:30 UTC** — Executed Phase 8 (dashboard-page-assembly) with 2 plans across 2 waves.
+
+**Wave 1 — Plan 08-01: Data Hooks & UI Components**
+Built all foundational pieces for the Live Agents dashboard:
+- `useAgents` hook — fetches `/api/agents`, returns typed agent data with react-query
+- `useActivitySSE` hook — connects to `/api/activity/sse`, accumulates real-time events
+- `AgentCard` — renders agent name, address, status dot, last action
+- `AgentCardRow` — filterable row of agent cards with "All" button
+- `ActivityRow` — expandable row with timestamp, agent name, tool, status badge
+- `ActivityFeed` — scrollable list with auto-scroll and "N new events" badge
+- `LiveStatBar` — stat badges for agent/event/active counts
+- Sidebar nav entry for "Live Agents" linking to `/agents`
+
+**Wave 2 — Plan 08-02: Page Assembly & Demo Mode (checkpoint)**
+Assembled the full page at `/agents`:
+- `LiveAgentsPage` wiring SpriteScene, AgentCardRow, ActivityFeed, LiveStatBar
+- `useDemoMode` hook — drips 12 seed events at 2.5s intervals
+- `DemoModeButton` — empty state CTA
+- Real-time SSE event merging with demo events, deduplication by ID
+- Agent status derivation from merged events (active/idle/registered)
+- Click-to-filter agent cards → activity feed
+
+**Checkpoint:** Petar verified the dashboard manually. Identified 3 issues:
+1. No way to exit demo mode
+2. Sprite scene too small, sprites too large for 500+ agents
+3. No agent names visible under sprites
+
+**Fixes applied during checkpoint:**
+- Added `stopDemo()` to `useDemoMode` hook, clickable "Demo Mode ×" badge
+- Halved sprite viewport from 96px to 48px via CSS `scale(0.5)`, increased scene height to 400px
+- Fixed sprite name label clipping — root cause was `inline-block` container sizing to 48px viewport, clipping the 80px label. Changed to `flex flex-col` with explicit width.
+- Fixed constant left-right flipping — wander loop was restarting on every status change (active↔idle during demo). Decoupled via `useRef` so status changes don't restart the loop.
+- Fixed missing agent names — `listAgents()` in `registry.ts` mapped `a.name` to `agent_id` but never included `name` in the API response. Added `name: a.name` to the return.
+- Let active agents wander too (only registered agents stay frozen)
+
+**Verification:** Passed 10/10 must-haves after inline gap fix (agent type display in cards).
+
+### Petar ↔ merkle — Dashboard Polish
+
+**~16:30 UTC** — Iterative polish session:
+- Removed `first-party`/`third-party` type label from cards (not useful info)
+- Left-aligned address display in cards
+- Switched cards from flex to CSS grid (`auto-fill, minmax(160px, 1fr)`) for uniform sizing
+- Overrode shadcn Card's `gap-4` with `gap-0.5` for tighter card spacing
+- Always render "Last:" line (or `&nbsp;`) so all card rows are equal height
+- Added 5 dummy agents to test multi-row layout, then removed them
+- Moved "Live Agents" to first position in sidebar nav
+- Changed home redirect from `/treasury` to `/agents`
+- `stopDemo` now clears all demo events (full page reset)
+- Added page subtitle: "Live view of independent AI agents interacting with AgentGate..."
+
+**Commits:**
+- `22828de` — feat(08-01): add sidebar nav entry and data hooks
+- `cd8cee7` — feat(08-01): build AgentCard, AgentCardRow, and LiveStatBar
+- `f59dcc0` — feat(08-01): build ActivityRow and ActivityFeed
+- `53cf5a9` — docs(08-01): complete plan
+- `336d2f7` — feat(08-02): add useDemoMode hook and DemoModeButton
+- `ecb3164` — feat(08-02): assemble LiveAgentsPage with full data flow
+- `82715d5` — fix(08-02): smaller sprites, taller scene, stop demo button
+- `089456f` — docs(08-02): complete plan
+- `afaebd1` — fix(08): display agent type in AgentCard (DASH-02 gap)
+- `51c3c5d` — fix(08): fix sprite rendering, name labels, flip-flop wander
+- `3b72b86` — fix(08): include name field in listAgents API response
+- `29055b2` — fix(08): fix name label clipping, let agents wander while active
+- `564354a` — fix(08): slim down agent cards
+- `74f38ea` — feat(08): polish dashboard — cards, sidebar, demo exit, subtitle
+
+**Phase 8 complete.** All v1.1 milestone phases (5-8) shipped.
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 ~16:45 UTC*
