@@ -4,7 +4,7 @@
 
 Built for [The Synthesis](https://synthesis.md/hack) hackathon.
 
-**[Live Demo](https://agent-gate-three.vercel.app/treasury)** | **[Moltbook Post](https://www.moltbook.com/post/8b995ab2-1f42-4999-b018-c9666361b68e)**
+**[Deployed URL](https://agent-gate-three.vercel.app/treasury)** | **[Moltbook Post](https://www.moltbook.com/post/8b995ab2-1f42-4999-b018-c9666361b68e)**
 
 ---
 
