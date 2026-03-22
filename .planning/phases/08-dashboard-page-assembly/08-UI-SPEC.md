@@ -50,7 +50,7 @@ Exceptions: Sprite scene banner height fixed at 250px (per CONTEXT.md decision).
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 14px | 400 (regular) | 1.5 | Activity row text, agent card details, timestamps |
-| Label | 12px | 500 (medium) | 1.4 | Stat badges, status labels, "Demo Mode" chip text |
+| Label | 12px | 600 (semibold) | 1.4 | Stat badges, status labels, "Demo Mode" chip text |
 | Heading | 20px | 600 (semibold) | 1.2 | Page title "Live Agents" |
 | Display | 30px | 600 (semibold) | 1.2 | Not used this phase |
 
@@ -58,6 +58,7 @@ Notes:
 - Existing pattern uses `text-xl font-semibold` for page headings (from treasury/page.tsx). Phase 8 follows this exactly.
 - `text-xs font-semibold` for stat labels (from stat-card.tsx pattern).
 - Monospace font (`--font-geist-mono`) used only for addresses and tx hashes.
+- Two declared weights only: 400 (regular) and 600 (semibold). Label uses semibold; visual distinction from body is achieved via size (12px vs 14px).
 
 ---
 
