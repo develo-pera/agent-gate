@@ -986,4 +986,215 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 22:30 IST / 17:00 UTC (Mar 22)*
+## Session 16 — Live Agent Dashboard: Phase 05 UAT (Mar 22, 2026 ~18:00 UTC)
+
+**Context** — Milestone v1.1 (Live Agent Activity Dashboard) phase 05 was built in a previous session on the `feat/live-agent-dashboard` branch. This session ran user acceptance testing against the completed phase.
+
+**Branch confusion** — Session started on `main` instead of `feat/live-agent-dashboard` (unclear how). Switched to the correct branch to access the phase 05 code. Discovered an uncommitted treasury layout fix (3-column grid for Swap/Deposit/Withdraw cards) had been auto-stashed during the branch switch — popped it back.
+
+**Phase 05 UAT — all 6 tests passed:**
+
+1. **Unit Tests Pass** — All 26 vitest tests pass (20 ActivityLog + 6 MCP instrumentation)
+2. **ActivityLog Singleton** — `getActivityLog()` returns same instance (globalThis pattern verified in tests)
+3. **CircularBuffer Cap** — Buffer overflow at 500 tested, oldest events dropped correctly
+4. **MCP Tool Events** — `wrapServerWithLogging` creates pending→success/error events with agent identity
+5. **Tx Enrichment** — `executeOrPrepare` enriches events with txHash/txStatus/blockNumber; bridge paths skip enrichment
+6. **BigInt Safety** — BigInt params serialized without TypeError at ingestion time
+
+**No issues found.** Phase 05 verified and ready for phase 06 (SSE route to stream events to dashboard).
+
+**Stash recovery** — Treasury page layout (`lg:grid-cols-3` with all three cards in one row) was never committed — existed only as a working tree change. Recovered from `stash@{0}` and applied.
+
+---
+
+## Session 17 — Phase 06: Discuss Context (Mar 22, 2026 ~19:00 UTC)
+
+**Goal:** Capture implementation decisions for Phase 06 (API and Real-Time Endpoints) before planning — the discuss-phase step of the GSD workflow.
+
+**Prior context loaded:** PROJECT.md, REQUIREMENTS.md, STATE.md, Phase 05 CONTEXT.md (activity logging decisions), codebase maps (ARCHITECTURE.md, CONVENTIONS.md). Scouted existing code: `activity-log.ts` (Phase 05 output), existing `/api/agents` route, `/api/mcp-agent` route, and all API route patterns.
+
+**Phase boundary:** Dashboard clients can fetch agent registry data, query activity history, and receive real-time event streams. Three endpoints: enhanced GET /api/agents, new GET /api/activity, new GET /api/activity/sse.
+
+**Four gray areas identified and discussed:**
+
+### Activity query API
+- Full dump of all 500 events (no pagination — buffer is capped anyway)
+- `?agent=<agentId>` filter only — no status or time-range filters
+- Newest-first sort order (reverse chronological)
+- Raw payloads — no field truncation or stripping
+
+### SSE event stream
+- Stream both pending (tool call started) AND completion (success/error) — enables real-time "working" indicators
+- Last-Event-ID reconnection support — server replays missed events from buffer
+- 30-second heartbeat comment to keep connections alive through proxies
+- Stream all events (no per-agent filtering) — client-side filtering if needed
+- Activity events only — no separate agent-status event type in the stream
+
+### Agent status derivation
+- Three states: **active** (has pending event), **idle** (has completed events, none pending), **registered** (in registry but zero activity ever)
+- Status computed server-side in the /api/agents response — single source of truth
+- Phase 8 infers status changes from SSE activity events
+
+### Existing /api/agents enhancement
+- Enhance existing route in-place (no new endpoint)
+- Add `status` (active/idle/registered) and `lastActivityAt` timestamp fields
+- Keep existing fields: name, address, type, registration date
+
+**Output:** `.planning/phases/06-api-and-real-time-endpoints/06-CONTEXT.md` — committed as `docs(06): capture phase context`.
+
+**Next step:** `/gsd:plan-phase 6` to create the implementation plan.
+
+---
+
+## Session 18 — Phase 06: API and Real-Time Endpoints Execution (Mar 22, 2026 ~19:30 UTC)
+
+**Goal:** Execute Phase 06 — build REST API endpoints for agent data and SSE streaming for real-time activity updates. Two plans across two waves.
+
+**Plan 06-01 (Wave 1): REST API Endpoints** — Three tasks executed with TDD:
+
+1. **Activity-log subpath export** — Added `./activity-log` subpath export to `packages/mcp-server/package.json` so the Next.js app can import `getActivityLog()`. Added `createdAt` field to `listAgents()` in `registry.ts`.
+
+2. **Enhanced GET /api/agents** — Added `deriveStatus()` function that computes agent status from activity log events:
+   - `active` — has a pending (in-progress) event
+   - `idle` — has completed events but none pending
+   - `registered` — in registry but zero activity
+
+   Response now includes `status`, `lastActivityAt`, and `createdAt` per agent. 5 tests.
+
+3. **New GET /api/activity** — Returns all activity events from the circular buffer in newest-first order. Supports `?agent=<agentId>` query param for filtering. 4 tests.
+
+**Plan 06-02 (Wave 2): SSE Streaming Endpoint** — Two tasks executed with TDD:
+
+1. **GET /api/activity/sse** — ReadableStream-based SSE endpoint using `text/event-stream` content type. Subscribes to `ActivityLog.onEvent()` for live events. 30-second heartbeat interval (`: heartbeat\n\n`) to keep connections alive through proxies. Cleanup on `req.signal` abort (unsubscribe, clear interval, close stream). `export const dynamic = "force-dynamic"` to prevent Next.js caching.
+
+2. **Last-Event-ID reconnection** — Parses `Last-Event-ID` header on reconnect, replays missed events from the buffer (events with `id > lastId`), then subscribes for new events. 5 tests total covering headers, streaming, cleanup, reconnection, and force-dynamic export.
+
+**Verification — 7/7 must-haves passed:**
+- All three status derivation paths tested (active/idle/registered)
+- Activity endpoint with newest-first ordering and agent filtering
+- SSE streaming with live event delivery
+- 30s heartbeat keepalive
+- Disconnect cleanup (unsub + clearInterval + controller.close)
+- Last-Event-ID replay with correct filtering
+- Requirements INFRA-04, INFRA-05, INFRA-06 all satisfied
+
+3 items flagged for human verification (runtime behaviors): live SSE delivery from real MCP calls, 30s heartbeat timing, and agent status transitions from actual activity.
+
+**Commits (10):**
+- `3806662` — feat(06-01): add activity-log subpath export and createdAt to listAgents
+- `ec0343e` — test(06-01): add failing tests for enhanced agents endpoint
+- `a52c3bc` — feat(06-01): enhanced GET /api/agents with status derivation
+- `00dfe3c` — test(06-01): add failing tests for GET /api/activity endpoint
+- `26d71e9` — feat(06-01): add GET /api/activity endpoint with agent filtering
+- `30c8ded` — docs(06-01): complete REST API endpoints plan
+- `2d99069` — test(06-02): add failing tests for SSE streaming endpoint
+- `e90a814` — feat(06-02): implement SSE streaming endpoint with heartbeat and Last-Event-ID
+- `0432c3a` — docs(06-02): complete SSE streaming endpoint plan
+- `303d810` — docs(phase-06): complete phase execution
+
+**Key files created:**
+- `packages/app/src/app/api/activity/route.ts` — Activity history endpoint
+- `packages/app/src/app/api/activity/sse/route.ts` — SSE streaming endpoint
+- `packages/app/src/app/api/agents/route.test.ts` — 5 agent endpoint tests
+- `packages/app/src/app/api/activity/route.test.ts` — 4 activity endpoint tests
+- `packages/app/src/app/api/activity/sse/route.test.ts` — 5 SSE endpoint tests
+
+**Key files modified:**
+- `packages/mcp-server/package.json` — Added `./activity-log` subpath export
+- `packages/mcp-server/src/registry.ts` — Added `createdAt` to `listAgents()`
+- `packages/app/src/app/api/agents/route.ts` — Enhanced with `deriveStatus()`
+
+**Test totals:** 14 new tests (app package), 26 existing (mcp-server) — all passing.
+
+**Next step:** Phase 7 (Sprite Animation System) — pixel-art agent avatars with state-driven animations.
+
+### Phase 06 UAT — merkle (Claude Code)
+
+**~11:25 UTC** — Ran `/gsd:verify-work 6` to validate all Phase 06 endpoints against live server.
+
+**Test results:** 5/5 passed — GET /api/agents (status derivation, createdAt), GET /api/activity (empty events array, correct), SSE stream (connects, heartbeat received at ~30s), SSE Last-Event-ID (unit-tested, stream verified).
+
+**Blocker found & fixed during UAT:** Both `/api/activity` and `/api/activity/sse` routes hung indefinitely in Next.js dev mode — server accepted TCP connections but never responded. `next build` compiled fine in 14.7s, confirming it was a Turbopack dev-mode issue.
+
+**Root cause:** `transpilePackages: ["@agentgate/mcp-server"]` in `next.config.ts` caused Turbopack to hang when compiling new routes. Next.js 16 Turbopack resolves monorepo `.ts` subpath exports natively — the setting was unnecessary and harmful.
+
+**Fixes applied:**
+1. Removed `transpilePackages` from `next.config.ts` — fixed Turbopack compilation hang
+2. Removed 10s polling interval from `agent-wallet-connect.tsx` — was hitting `/api/agents` every 10s on every page, competing with route compilation and unnecessary now that SSE exists for real-time updates
+
+**Commits:**
+- `db50f25` — test(06): complete UAT - 5 passed, 0 issues
+
+### Phase 07 Context Discussion — merkle (Claude Code)
+
+**~12:00 UTC** — Ran `/gsd:discuss-phase 7` to capture implementation decisions for Phase 7: Sprite Animation System.
+
+**Discussion covered 4 gray areas:**
+
+1. **Character design** — Pixel robots (Cursouls-inspired). SVG sprite sheets with parameterized template — one base robot SVG with CSS variable slots for body color, visor style, antenna shape. Each agent gets a unique visual derived from their address hash. 32x32 pixel frames at 3x scale (~96px on screen), 4 frames × 3 animation rows (idle, walk, work).
+
+2. **Scene movement** — Random wandering in a full-width top banner area (~250px tall) above agent cards and activity feed. Sprites pick random destinations, walk there via CSS transitions, pause 2-5s, repeat. Dark page background with subtle dot grid. Sprites face walking direction via CSS `scaleX(-1)` flip.
+
+3. **State-animation mapping** — Direct mapping from Phase 6 agent status: `active` → working animation (stationary), `idle` → wander cycle, `registered` → idle only (no movement). AgentSprite component is prop-driven with demo default — Phase 7 works standalone, Phase 8 wires real SSE status. Frame rate: ~4 FPS (250ms/frame) for retro charm.
+
+4. **Hover card behavior** — Floating card above sprite on hover, sprite pauses movement when hovered. Card shows name, truncated address, colored status dot (green/amber/gray), current action. Fade in/out animation. Uses existing Card/Tooltip styling.
+
+**Key decision: SVG over PNG** — User chose SVG sprite sheets specifically to enable truly randomized, distinguishable characters without hand-drawn art per agent. Parameterized SVG template with address-hash-derived features.
+
+**Deferred to v2:** Celebration animations (VIS-01), speech bubbles (VIS-02), scene environment (VIS-03).
+
+**Output:** `.planning/phases/07-sprite-animation-system/07-CONTEXT.md`
+
+**Commits:**
+- `f6c3e8c` — docs(07): capture phase context
+- `1c1c042` — docs(state): record phase 7 context session
+
+**Next step:** `/gsd:plan-phase 7` — break down into executable plans.
+
+---
+
+### Session 12 — Phase 7 Execution: Sprite Animation System
+
+**~13:00 UTC** — Ran `/gsd:execute-phase 7` to build the sprite animation system. 2 plans across 2 waves.
+
+**Wave 1 — Plan 07-01: Sprite Foundation**
+Built the core sprite infrastructure:
+- `sprite-utils.ts` — 4 utility functions: `addressToSpriteColor` (deterministic hue from wallet address), `statusToAnimation`, `statusToColor`, `statusToActionText`
+- `robot-svg.tsx` — Inline SVG pixel robot template with 12 frames (4 idle, 4 walk, 4 work)
+- `sprite.css` — CSS keyframes using `steps(4)` for retro frame-by-frame animation
+- `AgentSprite.tsx` — Interactive sprite component with hover detail card
+- 24 tests (14 unit + 10 component)
+
+**Wave 2 — Plan 07-02: Sprite Scene Container**
+Built the scene and wandering system:
+- `SpriteScene.tsx` — Full-width banner container (250px) with `ResizeObserver`, random wandering via CSS transitions, idle pause cycles (2-5s)
+- Only idle agents wander; active agents stay stationary (work animation); registered agents stay stationary (idle animation)
+- 7 additional tests
+
+**Visual verification checkpoint** — Added SpriteScene temporarily to treasury page for live testing. Three user-requested refinements during checkpoint:
+
+1. **Persistent name labels** — Added always-visible name + status dot below each sprite (not just on hover). User feedback: "hard to tell which agent is what without hovering."
+2. **Font size tweak** — Changed from `text-[11px]` to `text-xs`, tightened gap and margin per user preference.
+3. **Flip direction fix** — `scaleX(-1)` was on the outer wrapper, flipping name labels and hover cards mirror-style. Moved flip to sprite viewport only, added `facingLeft` prop to AgentSprite.
+
+**Test fix** — Updated hover card test to use `getByTestId("hover-card")` instead of `queryByText("TestBot")` to avoid matching the new persistent label. All 31 sprite tests passing.
+
+**Verification:** gaps_found (1 test gap) → fixed inline → all requirements covered (SPRITE-01 through SPRITE-04).
+
+**Commits:**
+- `7e313c8` — test(07-01): add failing tests for sprite-utils functions
+- `3df14ea` — feat(07-01): implement sprite-utils, robot SVG template, and CSS animations
+- `2d0d406` — feat(07-01): add AgentSprite component with hover card and tests
+- `367e5b8` — docs(07-01): complete sprite foundation plan
+- `acc1368` — feat(07-02): SpriteScene with random wandering movement and tests
+- `6c2ca14` — docs(07-02): complete sprite scene plan
+- `7519287` — fix(07-02): add persistent name label and fix sprite flip direction
+- `7523d71` — test(07-02): fix hover card test for persistent name label
+- `aa6f02e` — docs(phase-07): complete phase execution
+- `632dc05` — docs(phase-07): evolve PROJECT.md after phase completion
+
+**Next step:** `/gsd:plan-phase 8` — dashboard page assembly.
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 ~13:45 UTC*
