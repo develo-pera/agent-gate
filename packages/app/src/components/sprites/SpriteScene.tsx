@@ -127,7 +127,6 @@ function WanderingSprite({
         left: pos.x,
         top: pos.y,
         transition: `left ${TRANSITION_DURATION}ms ease-in-out, top ${TRANSITION_DURATION}ms ease-in-out`,
-        transform: pos.facingLeft ? "scaleX(-1)" : "scaleX(1)",
       }}
       data-testid="sprite-wrapper"
     >
@@ -136,6 +135,7 @@ function WanderingSprite({
         status={agent.status}
         action={agent.action}
         isWalking={isMoving}
+        facingLeft={pos.facingLeft}
         onHoverChange={setIsHovered}
       />
     </div>

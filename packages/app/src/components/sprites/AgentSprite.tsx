@@ -17,6 +17,7 @@ interface AgentSpriteProps {
   action?: string;
   className?: string;
   isWalking?: boolean;
+  facingLeft?: boolean;
   onHoverChange?: (hovered: boolean) => void;
 }
 
@@ -26,6 +27,7 @@ export function AgentSprite({
   action,
   className,
   isWalking,
+  facingLeft,
   onHoverChange,
 }: AgentSpriteProps) {
   const [hovered, setHovered] = useState(false);
@@ -61,11 +63,22 @@ export function AgentSprite({
         style={
           {
             "--sprite-body": bodyColor,
-            transform: "scaleX(1)",
+            transform: facingLeft ? "scaleX(-1)" : "scaleX(1)",
           } as React.CSSProperties
         }
       >
         <RobotSvg className={`sprite-strip ${animClass}`} />
+      </div>
+
+      {/* Always-visible name label */}
+      <div className="flex items-center justify-center gap-0.5 -mt-0.5" data-testid="sprite-label">
+        <span
+          className="h-1.5 w-1.5 rounded-full shrink-0"
+          style={{ backgroundColor: dotColor }}
+        />
+        <span className="text-xs font-medium leading-none text-muted-foreground truncate max-w-[80px]">
+          {agent.name}
+        </span>
       </div>
 
       {hovered && (
