@@ -29,17 +29,18 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 - ✓ Tool schema registry covering all domains with 25 bridge handlers — v1.0
 - ✓ NEXT_PUBLIC_TREASURY_ADDRESS env var for wagmi reads — v1.0
 - ✓ Phase 1 retroactive verification with evidence for all FOUN-* requirements — v1.0
+- ✓ Activity logging middleware capturing all MCP tool calls with agent identity — v1.1
+- ✓ Agent registry API with status derivation via REST endpoints — v1.1
+- ✓ Live Agent Activity dashboard with real-time activity feed — v1.1
+- ✓ Animated pixel-art agent sprites with CSS steps() animation and wandering — v1.1
+- ✓ Agent activity timeline with chronological feed across all agents — v1.1
+- ✓ On-chain transaction tracking (tx hashes, status from executeOrPrepare) — v1.1
+- ✓ Agent live status indicators (active/idle/registered) in real-time — v1.1
+- ✓ SSE streaming for real-time dashboard updates without page refresh — v1.1
 
 ### Active
 
-- [x] Activity logging middleware in MCP server — track all tool calls with agent identity, timestamps, parameters, results (Phase 05)
-- [x] Agent registry API — expose registered agents list and status via REST endpoints (Phase 06)
-- [x] Live Agent Activity dashboard page — command-center-style UI with real-time activity feed (Phase 08)
-- [x] Animated pixel-art agent avatars — sprite-based characters representing registered agents with state animations (Phase 07)
-- [x] Agent activity timeline — chronological feed of all tool calls and transactions across agents (Phase 08)
-- [x] On-chain transaction tracking — capture and display tx hashes, status, amounts from executeOrPrepare (Phase 05)
-- [x] Agent live status indicators — real-time active/idle/error state per agent (Phase 06)
-- [x] SSE or polling for real-time updates — push activity events to dashboard without page refresh (Phase 06)
+(None — define in next milestone via `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -50,26 +51,20 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 - Production deployment — local dev server is fine for demo recording
 - Smart account creation UI — happens behind the scenes in MCP tools
 
-## Current Milestone: v1.1 Live Agent Activity Dashboard
+## Current Milestone
 
-**Goal:** A command-center-style live dashboard showing all registered AI agents and their real-time activity — tool calls, transactions, status — with animated pixel-art agent characters, built for maximum hackathon demo impact.
-
-**Target features:**
-- Activity logging middleware in MCP server (instrument executeOrPrepare + tool calls)
-- REST API exposing registered agents and their activity history
-- Live Agent Activity page with real-time feed, agent cards, and transaction history
-- Animated pixel-art sprites representing each agent with state-driven animations
-- SSE/polling for real-time dashboard updates
+No active milestone. Run `/gsd:new-milestone` to start the next one.
 
 ## Context
 
 **Shipped v1.0** with 5,105 LOC TypeScript across 96 files in 2 days.
+**Shipped v1.1** with ~10,000 additional LOC across 79 files in 1 day — live agent dashboard with sprites and real-time activity.
 **Tech stack:** Next.js 15, Tailwind CSS v4, shadcn/ui, wagmi, viem, RainbowKit, @tanstack/react-query
 **Hackathon:** Synthesis (https://synthesis.md/hack/)
 **Demo format:** 2-minute recorded video for judging
 **Repo structure:** Monorepo with npm workspaces — `packages/mcp-server`, `packages/treasury-contract`, `packages/app/`
 
-**Known tech debt (6 items):** Dead code (WalletDisplay, PlaceholderPage, formatPercent, treasuryAddress context field), data source mismatch in health-report, undeclared workspace dependency.
+**Known tech debt (6 items from v1.0):** Dead code (WalletDisplay, PlaceholderPage, formatPercent, treasuryAddress context field), data source mismatch in health-report, undeclared workspace dependency.
 
 ## Constraints
 
@@ -97,6 +92,11 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 | Pixel-art sprites for agents | Visual wow-factor for hackathon, inspired by Cursouls | ✓ Good |
 | Activity logging via middleware | Central instrumentation at executeOrPrepare + server.tool() | ✓ Good |
 | SSE for real-time updates | Lower latency than polling, better demo experience | ✓ Good |
+| globalThis singleton for ActivityLog | Survives HMR in Next.js dev mode | ✓ Good |
+| Inline SVG robots (no external assets) | Zero file dependencies, deterministic from address | ✓ Good |
+| CSS steps() animation (no JS timers) | Performant, no React re-renders for frame advancement | ✓ Good |
+| Demo mode with 12-event DeFi story | Dashboard never empty, coherent narrative for judges | ✓ Good |
+| Zero new npm dependencies for v1.1 | Faster builds, smaller bundle, hackathon constraint | ✓ Good |
 
 ---
-*Last updated: 2026-03-22 after Phase 08 (dashboard-page-assembly) completion — all v1.1 phases complete*
+*Last updated: 2026-03-22 after v1.1 milestone completion*
