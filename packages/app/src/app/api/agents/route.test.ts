@@ -1,27 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock activity-log
-const mockGetAll = vi.fn<() => any[]>().mockReturnValue([]);
+const { mockGetAll, mockListAgents } = vi.hoisted(() => ({
+  mockGetAll: vi.fn<() => any[]>().mockReturnValue([]),
+  mockListAgents: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@agentgate/mcp-server/activity-log", () => ({
   getActivityLog: () => ({ getAll: mockGetAll }),
 }));
 
-// Mock hosted (AgentRegistry)
-const mockListAgents = vi.fn().mockResolvedValue([]);
 vi.mock("@agentgate/mcp-server/hosted", () => ({
-  AgentRegistry: vi.fn().mockImplementation(() => ({
-    listAgents: mockListAgents,
-  })),
+  AgentRegistry: class MockAgentRegistry {
+    constructor() {}
+    listAgents = mockListAgents;
+  },
 }));
 
-// Mock agent store
 vi.mock("@/lib/agent-store", () => ({
-  UpstashAgentStore: vi.fn(),
+  UpstashAgentStore: class MockStore {},
 }));
+
+import { GET } from "./route";
 
 describe("GET /api/agents", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mockGetAll.mockReturnValue([]);
     mockListAgents.mockResolvedValue([]);
   });
@@ -32,7 +34,6 @@ describe("GET /api/agents", () => {
     ]);
     mockGetAll.mockReturnValue([]);
 
-    const { GET } = await import("./route");
     const res = await GET();
     const data = await res.json();
 
@@ -49,7 +50,6 @@ describe("GET /api/agents", () => {
       { id: 1, agentId: "agent-1", agentAddress: "0xAAA", toolName: "stake", params: {}, result: null, status: "pending", timestamp: 5000, durationMs: null, txHash: null, txStatus: null, blockNumber: null },
     ]);
 
-    const { GET } = await import("./route");
     const res = await GET();
     const data = await res.json();
 
@@ -66,7 +66,6 @@ describe("GET /api/agents", () => {
       { id: 2, agentId: "agent-1", agentAddress: "0xAAA", toolName: "wrap", params: {}, result: "ok", status: "success", timestamp: 4000, durationMs: 50, txHash: null, txStatus: null, blockNumber: null },
     ]);
 
-    const { GET } = await import("./route");
     const res = await GET();
     const data = await res.json();
 
@@ -80,7 +79,6 @@ describe("GET /api/agents", () => {
     ]);
     mockGetAll.mockReturnValue([]);
 
-    const { GET } = await import("./route");
     const res = await GET();
     const data = await res.json();
 
@@ -97,7 +95,6 @@ describe("GET /api/agents", () => {
     mockListAgents.mockResolvedValue([]);
     mockGetAll.mockReturnValue([]);
 
-    const { GET } = await import("./route");
     const res = await GET();
     const data = await res.json();
 
