@@ -18,11 +18,11 @@ Requirements for Live Agent Activity Dashboard milestone.
 
 ### Dashboard UI
 
-- [ ] **DASH-01**: Live Agent Activity page accessible from sidebar navigation
-- [ ] **DASH-02**: Agent cards display each registered agent's name, address, type, and current status (active/idle)
-- [ ] **DASH-03**: Live activity timeline shows chronological feed of tool calls and transactions across all agents
-- [ ] **DASH-04**: Activity timeline updates in real-time via SSE without page refresh
-- [ ] **DASH-05**: Agent status indicators update in real-time (active when tool call in progress, idle otherwise)
+- [x] **DASH-01**: Live Agent Activity page accessible from sidebar navigation
+- [x] **DASH-02**: Agent cards display each registered agent's name, address, type, and current status (active/idle)
+- [x] **DASH-03**: Live activity timeline shows chronological feed of tool calls and transactions across all agents
+- [x] **DASH-04**: Activity timeline updates in real-time via SSE without page refresh
+- [x] **DASH-05**: Agent status indicators update in real-time (active when tool call in progress, idle otherwise)
 
 ### Animated Agents
 
@@ -70,11 +70,11 @@ Deferred to future release.
 | INFRA-04 | Phase 6 | Complete |
 | INFRA-05 | Phase 6 | Complete |
 | INFRA-06 | Phase 6 | Complete |
-| DASH-01 | Phase 8 | Pending |
-| DASH-02 | Phase 8 | Pending |
-| DASH-03 | Phase 8 | Pending |
-| DASH-04 | Phase 8 | Pending |
-| DASH-05 | Phase 8 | Pending |
+| DASH-01 | Phase 8 | Complete |
+| DASH-02 | Phase 8 | Complete |
+| DASH-03 | Phase 8 | Complete |
+| DASH-04 | Phase 8 | Complete |
+| DASH-05 | Phase 8 | Complete |
 | SPRITE-01 | Phase 7 | Complete |
 | SPRITE-02 | Phase 7 | Complete |
 | SPRITE-03 | Phase 7 | Complete |
