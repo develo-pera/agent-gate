@@ -4,7 +4,7 @@ import {
   ActivityLog,
   ActivityEvent,
   getActivityLog,
-} from "./activity-log";
+} from "./activity-log.js";
 
 describe("CircularBuffer", () => {
   it("starts with size 0", () => {
@@ -41,8 +41,8 @@ describe("CircularBuffer", () => {
     const buf = new CircularBuffer<{ id: number }>(5);
     buf.push({ id: 1 });
     buf.push({ id: 2 });
-    expect(buf.findById((item) => item.id === 2)).toEqual({ id: 2 });
-    expect(buf.findById((item) => item.id === 99)).toBeUndefined();
+    expect(buf.findById((item: { id: number }) => item.id === 2)).toEqual({ id: 2 });
+    expect(buf.findById((item: { id: number }) => item.id === 99)).toBeUndefined();
   });
 });
 
@@ -132,7 +132,7 @@ describe("ActivityLog", () => {
         params: {},
       });
       log.completeEvent(e.id, { result: "ok", status: "success" });
-      const updated = log.getAll().find((ev) => ev.id === e.id)!;
+      const updated = log.getAll().find((ev: ActivityEvent) => ev.id === e.id)!;
       expect(updated.status).toBe("success");
       expect(updated.result).toBe("ok");
     });
@@ -145,7 +145,7 @@ describe("ActivityLog", () => {
         params: {},
       });
       log.completeEvent(e.id, { result: "ok", status: "success" });
-      const updated = log.getAll().find((ev) => ev.id === e.id)!;
+      const updated = log.getAll().find((ev: ActivityEvent) => ev.id === e.id)!;
       expect(updated.durationMs).toBeTypeOf("number");
       expect(updated.durationMs!).toBeGreaterThanOrEqual(0);
     });
@@ -170,7 +170,7 @@ describe("ActivityLog", () => {
         txStatus: "confirmed",
         blockNumber: "123",
       });
-      const updated = log.getAll().find((ev) => ev.id === e.id)!;
+      const updated = log.getAll().find((ev: ActivityEvent) => ev.id === e.id)!;
       expect(updated.txHash).toBe("0xabc");
       expect(updated.txStatus).toBe("confirmed");
       expect(updated.blockNumber).toBe("123");
@@ -402,7 +402,7 @@ describe("wrapServerWithLogging integration", () => {
         blockNumber: "1",
       });
     }
-    const updated = log.getAll().find((e) => e.id === event.id)!;
+    const updated = log.getAll().find((e: ActivityEvent) => e.id === event.id)!;
     expect(updated.txHash).toBeNull();
   });
 });
