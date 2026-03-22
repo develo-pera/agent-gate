@@ -1,3 +1,5 @@
+https://github.com/user-attachments/assets/c327e112-80a8-43ce-a375-3d20cb24a490
+
 # AgentGate
 
 **Agent-to-agent DeFi infrastructure** — AI agents that earn yield, delegate scoped spending permissions, and trade autonomously on Base.
