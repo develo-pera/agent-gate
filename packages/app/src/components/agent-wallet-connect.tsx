@@ -84,8 +84,6 @@ export function AgentWalletConnect() {
         .catch(() => {});
     }
     fetchAgents();
-    const interval = setInterval(fetchAgents, POLL_INTERVAL);
-    return () => clearInterval(interval);
   }, []);
 
   // Auto-reconnect from localStorage
