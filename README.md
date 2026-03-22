@@ -6,6 +6,13 @@ Built for [The Synthesis](https://synthesis.md/hack) hackathon.
 
 **[Deployed URL](https://agent-gate-three.vercel.app/treasury)** | **[Moltbook Post](https://www.moltbook.com/post/8b995ab2-1f42-4999-b018-c9666361b68e)**
 
+<p align="center">
+  <img src="https://img.shields.io/badge/made%20during-Synthesis%20AI%20hackathon-00b73d" alt="TypeScript strict" />
+  <img src="https://img.shields.io/badge/integrations-Lido%20%C2%B7%20Base%20%C2%B7%20MetaMask%20%C2%B7%20Uniswap%20%C2%B7%20ENS-ff007a" alt="integrations" />
+  <img src="https://img.shields.io/badge/made%20for%20agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20Amp-blue" alt="supported agents" />
+</p>
+
+
 ---
 
 ## What is AgentGate?
