@@ -1,0 +1,31 @@
+.sprite-viewport {
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.sprite-strip {
+  width: 384px;
+  height: 288px;
+}
+
+@keyframes sprite-idle {
+  from { transform: translateX(0) translateY(0); }
+  to   { transform: translateX(-384px) translateY(0); }
+}
+
+@keyframes sprite-walk {
+  from { transform: translateX(0) translateY(-96px); }
+  to   { transform: translateX(-384px) translateY(-96px); }
+}
+
+@keyframes sprite-work {
+  from { transform: translateX(0) translateY(-192px); }
+  to   { transform: translateX(-384px) translateY(-192px); }
+}
+
+.anim-idle  { animation: sprite-idle 1s steps(4) infinite; }
+.anim-walk  { animation: sprite-walk 1s steps(4) infinite; }
+.anim-work  { animation: sprite-work 1s steps(4) infinite; }
