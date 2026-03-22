@@ -1,4 +1,4 @@
-https://github.com/user-attachments/assets/c327e112-80a8-43ce-a375-3d20cb24a490
+https://github.com/user-attachments/assets/9e41d010-e8bc-411c-aaec-3c7bd79b0ae8
 
 # AgentGate
 
