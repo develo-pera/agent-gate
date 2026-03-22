@@ -934,4 +934,36 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 21:30 IST / 16:00 UTC (Mar 22)*
+## Session 14 — Uniswap Pool Rebalancer (Mar 22, 2026 ~16:30 UTC)
+
+**Problem** — Uniswap V3 pools on the Anvil fork degrade over time as test swaps consume liquidity without arbitrageurs rebalancing. After heavy testing, 1 ETH → 0.005 wstETH instead of ~0.77 wstETH.
+
+**Solution** — Built a swap-based rebalancer that compares fork pool prices against live Base mainnet and corrects drift:
+
+1. **Local script** (`scripts/rebalance-pools.ts`) — Standalone TypeScript script using viem. Supports one-shot (`npm run rebalance`) and continuous watch mode (`npm run rebalance:watch`). Uses a dedicated rebalancer address (`0x...dEaDbA1A`) seeded with 1000 ETH, 500 WETH, 500 wstETH, and 1M USDC via `anvil_setStorageAt`. Monitors 5 pairs (WETH↔wstETH, WETH↔USDC, USDC→wstETH). Swaps via `anvil_impersonateAccount` — no private key needed.
+
+2. **Vercel cron function** (`/api/cron/rebalance`) — Same logic as an API route, triggered every 5 minutes via Vercel cron. Protected by `CRON_SECRET` header (auto-injected by Vercel). Returns JSON with per-pair drift percentages and rebalancing actions taken.
+
+**How it works:**
+- Queries QuoterV2 on both fork and mainnet with a small probe amount for each pair
+- Calculates drift percentage: `(forkOut - mainnetOut) / mainnetOut * 100`
+- If drift exceeds threshold (default 2%), swaps in the corrective direction
+- Swap amount scales with drift severity (10x probe × drift factor, capped at 20x)
+- Seeds rebalancer tokens before each run (idempotent — tops up if depleted)
+- Post-rebalance check confirms pools are back within threshold
+
+**Config:**
+- `vercel.json` — Added `crons` array with `*/5 * * * *` schedule
+- `CRON_SECRET` env var added to Vercel for auth
+
+**Files added:**
+- `scripts/rebalance-pools.ts` — Local rebalancer script
+- `packages/app/src/app/api/cron/rebalance/route.ts` — Vercel cron endpoint
+
+**Files modified:**
+- `vercel.json` — Added cron schedule
+- `package.json` — Added `rebalance` and `rebalance:watch` scripts
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 22:00 IST / 16:30 UTC (Mar 22)*
