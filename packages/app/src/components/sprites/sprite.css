@@ -1,29 +1,29 @@
 .sprite-viewport {
-  width: 96px;
-  height: 96px;
+  width: 48px;
+  height: 48px;
   overflow: hidden;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
 .sprite-strip {
-  width: 384px;
-  height: 288px;
+  width: 192px;
+  height: 144px;
 }
 
 @keyframes sprite-idle {
   from { transform: translateX(0) translateY(0); }
-  to   { transform: translateX(-384px) translateY(0); }
+  to   { transform: translateX(-192px) translateY(0); }
 }
 
 @keyframes sprite-walk {
-  from { transform: translateX(0) translateY(-96px); }
-  to   { transform: translateX(-384px) translateY(-96px); }
+  from { transform: translateX(0) translateY(-48px); }
+  to   { transform: translateX(-192px) translateY(-48px); }
 }
 
 @keyframes sprite-work {
-  from { transform: translateX(0) translateY(-192px); }
-  to   { transform: translateX(-384px) translateY(-192px); }
+  from { transform: translateX(0) translateY(-96px); }
+  to   { transform: translateX(-192px) translateY(-96px); }
 }
 
 .anim-idle  { animation: sprite-idle 1s steps(4) infinite; }

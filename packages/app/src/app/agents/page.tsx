@@ -17,7 +17,7 @@ export default function LiveAgentsPage() {
 
   const { agents, isLoading } = useAgents();
   const { events: sseEvents, isConnected } = useActivitySSE();
-  const { demoEvents, isRunning: isDemoRunning, startDemo } = useDemoMode(agents ?? []);
+  const { demoEvents, isRunning: isDemoRunning, startDemo, stopDemo } = useDemoMode(agents ?? []);
 
   // Merge SSE events and demo events, deduplicating by id
   const allEvents = useMemo(() => {
@@ -93,8 +93,12 @@ export default function LiveAgentsPage() {
         <h1 className="text-xl font-semibold">Live Agents</h1>
         <LiveStatBar agentCount={agentCount} eventCount={eventCount} activeCount={activeCount} />
         {isDemoRunning && (
-          <Badge variant="secondary" className="animate-in fade-in duration-150">
-            Demo Mode
+          <Badge
+            variant="secondary"
+            className="animate-in fade-in duration-150 cursor-pointer hover:bg-destructive/20"
+            onClick={stopDemo}
+          >
+            Demo Mode &times;
           </Badge>
         )}
       </div>

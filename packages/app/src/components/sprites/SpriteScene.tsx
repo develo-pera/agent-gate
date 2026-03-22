@@ -21,9 +21,9 @@ interface SpritePosition {
   facingLeft: boolean;
 }
 
-const SCENE_HEIGHT = 250;
-const SPRITE_SIZE = 96;
-const BOUNDARY_INSET = 48;
+const SCENE_HEIGHT = 400;
+const SPRITE_SIZE = 48;
+const BOUNDARY_INSET = 24;
 const TRANSITION_DURATION = 800; // ms for CSS transition
 const IDLE_MIN = 2000;
 const IDLE_MAX = 5000;

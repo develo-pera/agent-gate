@@ -78,11 +78,19 @@ export function useDemoMode(agents: AgentInfo[]) {
     }, 2500);
   }, [agents, isRunning]);
 
+  const stopDemo = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRunning(false);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
 
-  return { demoEvents, isRunning, startDemo };
+  return { demoEvents, isRunning, startDemo, stopDemo };
 }
