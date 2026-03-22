@@ -22,7 +22,7 @@ interface SpritePosition {
 }
 
 const SCENE_HEIGHT = 400;
-const SPRITE_SIZE = 48;
+const SPRITE_SIZE = 80; // matches agent-sprite container width (48px viewport + label)
 const BOUNDARY_INSET = 24;
 const TRANSITION_DURATION = 800; // ms for CSS transition
 const IDLE_MIN = 2000;
@@ -63,7 +63,7 @@ function useWander(
 
   // Pause/resume movement based on status without restarting the wander loop
   useEffect(() => {
-    if (status === "active" || status === "registered" || isHovered) {
+    if (status === "registered" || isHovered) {
       setIsMoving(false);
     }
   }, [status, isHovered]);
@@ -71,9 +71,8 @@ function useWander(
   // Single wander loop that runs once and checks status via ref
   useEffect(() => {
     const pickNewDestination = () => {
-      // Check current status via ref — don't move if active/registered/hovered
-      if (statusRef.current === "active" || statusRef.current === "registered" || hoveredRef.current) {
-        // Re-check after a short delay
+      // Only registered agents and hovered sprites stay put
+      if (statusRef.current === "registered" || hoveredRef.current) {
         timeoutRef.current = setTimeout(pickNewDestination, 1000);
         return;
       }
