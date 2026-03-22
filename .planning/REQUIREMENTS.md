@@ -28,7 +28,7 @@ Requirements for Live Agent Activity Dashboard milestone.
 
 - [x] **SPRITE-01**: Pixel-art sprite sheet with at least 2 unique agent character skins
 - [x] **SPRITE-02**: CSS `steps()` sprite animation with idle, walking, and working states per agent
-- [ ] **SPRITE-03**: Agent sprites walk freely on a scene area on the dashboard page
+- [x] **SPRITE-03**: Agent sprites walk freely on a scene area on the dashboard page
 - [x] **SPRITE-04**: Hovering a sprite reveals agent details card (name, address, current action, status)
 
 ### Demo Mode
@@ -77,7 +77,7 @@ Deferred to future release.
 | DASH-05 | Phase 8 | Pending |
 | SPRITE-01 | Phase 7 | Complete |
 | SPRITE-02 | Phase 7 | Complete |
-| SPRITE-03 | Phase 7 | Pending |
+| SPRITE-03 | Phase 7 | Complete |
 | SPRITE-04 | Phase 7 | Complete |
 | DEMO-01 | Phase 8 | Pending |
 
