@@ -33,13 +33,13 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 ### Active
 
 - [x] Activity logging middleware in MCP server — track all tool calls with agent identity, timestamps, parameters, results (Phase 05)
-- [ ] Agent registry API — expose registered agents list and status via REST endpoints
+- [x] Agent registry API — expose registered agents list and status via REST endpoints (Phase 06)
 - [ ] Live Agent Activity dashboard page — command-center-style UI with real-time activity feed
 - [ ] Animated pixel-art agent avatars — sprite-based characters representing registered agents with state animations
 - [ ] Agent activity timeline — chronological feed of all tool calls and transactions across agents
 - [x] On-chain transaction tracking — capture and display tx hashes, status, amounts from executeOrPrepare (Phase 05)
-- [ ] Agent live status indicators — real-time active/idle/error state per agent
-- [ ] SSE or polling for real-time updates — push activity events to dashboard without page refresh
+- [x] Agent live status indicators — real-time active/idle/error state per agent (Phase 06)
+- [x] SSE or polling for real-time updates — push activity events to dashboard without page refresh (Phase 06)
 
 ### Out of Scope
 
@@ -96,7 +96,7 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 
 | Pixel-art sprites for agents | Visual wow-factor for hackathon, inspired by Cursouls | — Pending |
 | Activity logging via middleware | Central instrumentation at executeOrPrepare + server.tool() | ✓ Good |
-| SSE for real-time updates | Lower latency than polling, better demo experience | — Pending |
+| SSE for real-time updates | Lower latency than polling, better demo experience | ✓ Good |
 
 ---
-*Last updated: 2026-03-22 after Phase 05 (activity-foundation) completion*
+*Last updated: 2026-03-22 after Phase 06 (api-and-real-time-endpoints) completion*
