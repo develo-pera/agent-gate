@@ -20,6 +20,11 @@
       "types": "./src/registry.ts",
       "import": "./src/registry.ts",
       "default": "./src/registry.ts"
+    },
+    "./activity-log": {
+      "types": "./src/activity-log.ts",
+      "import": "./src/activity-log.ts",
+      "default": "./src/activity-log.ts"
     }
   },
   "scripts": {
