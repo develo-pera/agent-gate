@@ -48,13 +48,13 @@ Exceptions: Sprite frame size is 32x32px native grid, rendered at 96px (3x scale
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px | 400 (regular) | 1.5 |
-| Label | 12px | 500 (medium) | 1.4 |
+| Label | 12px | 400 (regular) | 1.4 |
 | Heading | 16px | 600 (semibold) | 1.2 |
 
 Phase 7 typography is limited to the hover detail card. Only 3 sizes needed:
 - **Heading (16px/600):** Agent name in hover card
 - **Body (14px/400):** Current action text in hover card
-- **Label (12px/500):** Truncated address, status label in hover card
+- **Label (12px/400):** Truncated address, status label in hover card. Visually distinguished from body by smaller size, `font-mono`, and `muted-foreground` color -- no separate weight needed.
 
 ---
 
@@ -155,14 +155,14 @@ Default when no `status` prop: `idle` with random wandering.
 | Width | 200px fixed |
 | Background | `var(--card)` with `ring-1 ring-foreground/10` (matches Card component) |
 | Border radius | `var(--radius)` (0.75rem) |
-| Padding | 12px (3 x 4px grid) |
+| Padding | 16px |
 
 ### Card Content Layout
 
 ```
 +----------------------------------+
 | [status dot] Agent Name     16px |  -- heading weight 600
-| 0xAbCd...1234               12px |  -- label, muted-foreground
+| 0xAbCd...1234               12px |  -- label, font-mono, muted-foreground
 | Calling transfer()...       14px |  -- body, foreground
 +----------------------------------+
 ```
@@ -170,10 +170,10 @@ Default when no `status` prop: `idle` with random wandering.
 | Row | Content | Style |
 |-----|---------|-------|
 | 1 | Status dot (8x8px rounded-full) + agent name | dot: status color, name: 16px/600 foreground |
-| 2 | Truncated address (use AddressDisplay pattern: first 6 + last 4 chars) | 12px/500 muted-foreground, font-mono |
+| 2 | Truncated address (use AddressDisplay pattern: first 6 + last 4 chars) | 12px/400 muted-foreground, font-mono |
 | 3 | Current action text (or "Idle" / "Standing by") | 14px/400 foreground |
 
-Row gap: 4px. Status dot margin-right: 6px (closest multiple-of-2 for optical alignment with text).
+Row gap: 4px. Status dot margin-right: 4px.
 
 ### Hover Behavior
 
