@@ -923,4 +923,33 @@ Rewrote `AGENTS.md` to reflect the current system state:
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 11:00 IST / 05:30 UTC*
+## Session 13 — Mar 22, 2026 (afternoon IST)
+
+### Viraz ↔ merkle (Claude Code, Claude Opus 4.6)
+
+**Aggregate Vault Status — Contract + Tests**
+
+Hackaclaw's session 11 identified the need for contract-level aggregate data — the vault overview should show total principal and yield across ALL depositors, not just per-agent. The contract's `getVaultStatus(agent)` only returned per-agent data with no aggregate getter.
+
+**Contract changes (`AgentTreasury.sol`):**
+- Added `uint256 public totalPrincipalWstETH` state variable — aggregate principal across all depositors
+- Added `uint256 public depositorCount` — unique depositor counter (incremented on first deposit per agent)
+- `deposit()` — increments `totalPrincipalWstETH` by deposit amount, increments `depositorCount` on first deposit
+- `withdrawAll()` — decrements `totalPrincipalWstETH` by agent's principal before zeroing the vault
+- Added `getTotalVaultStatus()` view function returning `(totalPrincipal, totalBalance, totalYield, numDepositors)` where `totalBalance = wstETH.balanceOf(address(this))` and `totalYield = totalBalance - totalPrincipal`
+
+**New tests (`AgentTreasury.t.sol`) — 6 added:**
+- `test_total_principal_tracks_single_deposit` — single agent deposit updates aggregates
+- `test_total_principal_tracks_multi_agent_deposits` — two agents deposit, sums correctly, depositorCount = 2
+- `test_total_principal_decremented_on_withdraw_all` — withdrawAll removes agent's share from total
+- `test_total_yield_aggregate` — balance-based aggregate yield (0 when no external wstETH sent to contract)
+- `test_depositor_count_not_incremented_on_repeat_deposit` — same agent depositing twice stays count = 1
+- `test_total_principal_multiple_deposits_same_agent` — accumulates correctly for same agent
+
+All 27 unit tests pass (21 existing + 6 new).
+
+> Commit: `101c4cb` — `feat(treasury): add aggregate vault status — totalPrincipal, depositorCount, getTotalVaultStatus()`
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 15:30 IST / 10:00 UTC*
