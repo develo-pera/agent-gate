@@ -228,11 +228,12 @@ export class AgentRegistry {
   }
 
   /** List all registered agents (for dashboard). */
-  async listAgents(): Promise<Array<{ agent_id: string; address: string; type: string; createdAt: number }>> {
+  async listAgents(): Promise<Array<{ agent_id: string; name: string; address: string; type: string; createdAt: number }>> {
     await this.bootstrap();
     const agents = await this.store.list();
     return agents.map((a) => ({
       agent_id: a.name,
+      name: a.name,
       address: a.address,
       type: a.type,
       createdAt: a.createdAt,
