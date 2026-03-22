@@ -54,10 +54,11 @@ Plans:
   2. GET /api/activity returns the activity history from the buffer, filterable by agent
   3. GET /api/activity/sse streams new ActivityEvents to the client in real-time as they occur (SSE text/event-stream)
   4. SSE connection cleans up properly when the client disconnects (no memory leak)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD (run /gsd:plan-phase 6 to break down)
+- [ ] 06-01-PLAN.md — Subpath export, enhanced GET /api/agents with status derivation, GET /api/activity REST endpoint
+- [ ] 06-02-PLAN.md — GET /api/activity/sse streaming endpoint with heartbeat and Last-Event-ID
 
 ### Phase 7: Sprite Animation System
 **Goal**: Pixel-art agent characters animate on screen with state-driven animations, independent of live data
@@ -101,6 +102,6 @@ Note: Phases 6 and 7 can be parallelized (no mutual dependency), but both must c
 | 3. MCP Playground | v1.0 | 3/3 | Complete | 2026-03-20 |
 | 4. Foundation Verification & Config Fix | v1.0 | 2/2 | Complete | 2026-03-20 |
 | 5. Activity Foundation | v1.1 | 0/2 | Not started | - |
-| 6. API and Real-Time Endpoints | v1.1 | 0/? | Not started | - |
+| 6. API and Real-Time Endpoints | v1.1 | 0/2 | Not started | - |
 | 7. Sprite Animation System | v1.1 | 0/? | Not started | - |
 | 8. Dashboard Page Assembly | v1.1 | 0/? | Not started | - |
