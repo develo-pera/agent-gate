@@ -20,6 +20,15 @@ export function useVaultStatus() {
   });
 }
 
+export function useTotalVaultStatus() {
+  return useReadContract({
+    address: TREASURY_ADDRESS,
+    abi: TREASURY_ABI,
+    functionName: "getTotalVaultStatus",
+    query: { refetchInterval: POLL_INTERVAL, placeholderData: keepPreviousData },
+  });
+}
+
 export function useOracleRate() {
   return useReadContract({
     address: TREASURY_ADDRESS,

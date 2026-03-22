@@ -1,5 +1,17 @@
 export const TREASURY_ABI = [
   {
+    name: "getTotalVaultStatus",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "totalPrincipal", type: "uint256" },
+      { name: "totalBalance", type: "uint256" },
+      { name: "totalYield", type: "uint256" },
+      { name: "numDepositors", type: "uint256" },
+    ],
+  },
+  {
     name: "getVaultStatus",
     type: "function",
     stateMutability: "view",
