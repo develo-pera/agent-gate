@@ -2,51 +2,93 @@
 
 ## System Overview
 
-AgentGate is agent-to-agent DeFi infrastructure on Base. AI agents deposit wstETH into a yield-protected treasury, delegate scoped spending rights to each other, and execute autonomous trading strategies — all coordinated through a hosted MCP server with 33 tools.
+AgentGate is agent-to-agent DeFi infrastructure on Base. AI agents deposit wstETH into a yield-protected treasury, delegate scoped spending rights to each other, and execute autonomous trading strategies — all coordinated through a hosted MCP server.
+
+**Live Demo:** [agent-gate-three.vercel.app](https://agent-gate-three.vercel.app/treasury)
 
 ## Agent Architecture
 
 ```
-  Agent (Claude Code)
+  First-Party Agent (Claude Code)       Third-Party Agent (any MCP client)
+        |                                       |
+        | Bearer: <agent_id>                   | Bearer: <api_key>
+        v                                       v
+  +--------------------------------------------------------------+
+  |         Hosted MCP Server (Vercel, /api/mcp-agent)           |
+  |                                                              |
+  |  First-party: Bearer token -> env var key -> server signs    |
+  |  Third-party: Bearer token -> API key hash -> unsigned tx    |
+  +--------------------------------------------------------------+
         |
-        | Bearer: <agent_id>
-        v
-  Hosted MCP Server (Vercel, /api/mcp-agent)
-        |
-        | Bearer token -> agent ID -> server-side private key
         v
   Anvil Fork of Base Mainnet (Fly.io)
         |
   AgentTreasury | Lido wstETH | Uniswap V3 | Aave V3 | Chainlink Oracle
 ```
 
-Each agent authenticates with a Bearer token. The MCP server resolves the token to an agent ID and a server-side private key — agents never hold their own keys. All on-chain actions are executed server-side.
+### Dual-Mode Execution
+
+| | First-Party | Third-Party |
+|---|---|---|
+| **Auth** | Bearer token = agent ID (e.g. `hackaclaw`) | Bearer token = API key (SHA-256 hashed) |
+| **Key storage** | Server-side env vars | Never stored — agent keeps own key |
+| **Read tools** | Direct response | Direct response |
+| **Write tools** | Server signs + submits tx | Returns unsigned tx for external signing |
+| **Registration** | Hardcoded in `AGENT_KEY_MAP` | Self-service via challenge-response (EIP-191) |
 
 ## Registered Agents
+
+### Built-in (First-Party)
 
 | Agent ID | Basename | Role |
 |----------|----------|------|
 | `hackaclaw` | hackaclaw.base.eth | Vault depositor — deposits wstETH, delegates yield spending, compounds profits |
 | `merkle` | merkle.base.eth | Delegated spender — harvests yield, swaps, lends on Aave, returns profit |
 
+### Dynamic Registration (Third-Party)
+
+Any agent can self-register via a two-step challenge-response:
+
+1. Call `register_challenge` with your wallet address — server returns a message + nonce
+2. Sign the message locally (key never leaves your machine)
+3. Call `register_agent` with the signature — server verifies via `viem.verifyMessage()`, issues API key
+4. Auto-funded with 1 ETH on the Anvil fork
+
+Or use the REST endpoint: `POST /api/agents/register`
+
+Or use the shell script: `scripts/register-agent.sh`
+
+Full onboarding docs: [agent-gate-three.vercel.app/skill.md](https://agent-gate-three.vercel.app/skill.md)
+
 ## Connecting to the MCP Server
 
+**First-party:**
 ```bash
 npx @anthropic-ai/claude-code mcp add agentgate -- npx mcp-remote \
   https://<vercel-app>.vercel.app/api/mcp-agent \
   --header "Authorization: Bearer <agent_id>"
 ```
 
+**Third-party (after registration):**
+```bash
+npx @anthropic-ai/claude-code mcp add agentgate -- npx mcp-remote \
+  https://<vercel-app>.vercel.app/api/mcp-agent \
+  --header "Authorization: Bearer <your_api_key>"
+```
+
 ## First Tool Call
 
-Every agent session **must** begin with `who_am_i`. This returns your agent ID and wallet address. Your wallet is server-side — you cannot discover it locally. Use the returned address for all subsequent tool calls that require an address.
+Every agent session **must** begin with `who_am_i`. This returns your agent ID, wallet address, and access mode (`first-party` or `third-party`). Your wallet is server-side (first-party) or verified via challenge (third-party) — you cannot discover it locally.
 
-## MCP Tools (33)
+## MCP Tools
 
-### Identity (1)
+### Identity & Registration (4)
 | Tool | Description |
 |------|-------------|
-| `who_am_i` | Returns agent ID and wallet address. Call first. |
+| `who_am_i` | Returns agent ID, wallet address, and access mode. Call first. |
+| `register_challenge` | Step 1: get a challenge message to sign (proves address ownership) |
+| `register_agent` | Step 2: submit signature to complete registration and receive API key |
+| `submit_tx_hash` | Third-party agents: submit a signed tx hash for receipt verification |
 
 ### Lido Staking (7)
 | Tool | Description |
@@ -76,8 +118,8 @@ Every agent session **must** begin with `who_am_i`. This returns your agent ID a
 ### Delegation (5)
 | Tool | Description |
 |------|-------------|
-| `delegate_create_account` | Deploy a delegation-aware smart account |
-| `delegate_create` | Create an ERC-7710 delegation with caveats |
+| `delegate_create_account` | Deploy a MetaMask Smart Account (ERC-4337) |
+| `delegate_create` | Create an ERC-7710 delegation with caveat enforcers |
 | `delegate_redeem` | Execute an action using a delegated permission |
 | `delegate_list` | List active delegations for an address |
 | `delegate_revoke` | Revoke a specific delegation |
@@ -92,7 +134,7 @@ Every agent session **must** begin with `who_am_i`. This returns your agent ID a
 | Tool | Description |
 |------|-------------|
 | `uniswap_quote` | Get a swap quote (price + route) |
-| `uniswap_swap` | Execute a token swap via Uniswap V3 |
+| `uniswap_swap` | Execute a token swap via Uniswap V3 (fork-aware: uses QuoterV2 on Anvil, Trading API on mainnet) |
 | `uniswap_tokens` | List available tokens and balances |
 
 ### Trading / Aave V3 (5)
@@ -104,10 +146,11 @@ Every agent session **must** begin with `who_am_i`. This returns your agent ID a
 | `aave_position` | Check Aave V3 lending position (balance, collateral, health factor) |
 | `transfer_token` | Transfer ERC-20 tokens (USDC, wstETH, or any address) |
 
-### Monitor (1)
+### Monitor (2)
 | Tool | Description |
 |------|-------------|
 | `vault_health` | Combined health check across vault and oracle |
+| `wallet_balance` | Check ETH and ERC-20 balances (USDC, wstETH, WETH, DAI, USDT, aUSDC) |
 
 ## Key Concepts
 
@@ -129,6 +172,11 @@ The primary multi-step strategy a delegated agent can execute:
 5. `transfer_token` — send profit back to depositor
 6. Depositor calls `treasury_deposit` — compound profit into principal
 
+### Fork-Aware Uniswap Routing
+On the Anvil fork, the Uniswap Trading API quotes against mainnet state which diverges from the fork. The swap tool auto-detects the environment:
+- **Anvil fork**: Queries QuoterV2 directly across all fee tiers (0.01%, 0.05%, 0.3%, 1%), picks best pool, builds Universal Router calldata locally
+- **Base mainnet**: Uses Uniswap Trading API for optimal routing
+
 ### Dry Run
 Every write tool supports a `dry_run: true` flag that simulates the action and returns expected outcomes without executing any transactions.
 
@@ -147,53 +195,67 @@ Every write tool supports a `dry_run: true` flag that simulates the action and r
 
 | Contract | Address | Network |
 |----------|---------|---------|
-| AgentTreasury | Deployed per environment | Base (Anvil fork) |
+| AgentTreasury | `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380` | Base (Anvil fork) |
 | wstETH | `0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452` | Base |
 | Chainlink wstETH/stETH | `0xB88BAc61a4Ca37C43a3725912B1f472c9A5bc061` | Base |
 | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Base |
 | Aave V3 Pool | `0xA238Dd80C259a72e81d7e4664a9801593F98d1c5` | Base |
 | aUSDC (Aave receipt) | `0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB` | Base |
 | Uniswap Universal Router | `0x6fF5693b99212Da76ad316178A184AB56D299b43` | Base |
+| Uniswap QuoterV2 | `0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a` | Base |
 
 ## Project Structure
 
 ```
 packages/
-  mcp-server/           MCP server (TypeScript, 33 tools)
+  mcp-server/              MCP server (TypeScript)
     src/
-      tools/            Tool implementations by domain
-        lido.ts         Lido staking (7 tools)
-        treasury.ts     Vault management (10 tools)
-        delegation.ts   ERC-7710 delegations (5 tools)
-        ens.ts          Base name resolution (2 tools)
-        uniswap.ts      Uniswap V3 swaps (3 tools)
-        trading.ts      Aave V3 lending + recipes (5 tools)
-        monitor.ts      Vault health (1 tool)
-      hosted.ts         HTTP transport + agent key mapping
-      context.ts        Shared context (viem clients, wallet)
-    lido.skill.md       Agent mental model for stETH/wstETH
-  treasury-contract/    AgentTreasury (Solidity, Foundry)
+      tools/               Tool implementations by domain
+        lido.ts            Lido staking (7 tools)
+        treasury.ts        Vault management (10 tools)
+        delegation.ts      ERC-7710 delegations (5 tools)
+        ens.ts             Base name resolution (2 tools)
+        uniswap.ts         Uniswap V3 swaps — fork-aware (3 tools)
+        trading.ts         Aave V3 lending + recipes (5 tools)
+        monitor.ts         Vault health + wallet balance (2 tools)
+      hosted.ts            HTTP transport, dual-mode auth, registration tools
+      registry.ts          AgentRegistry, AgentStore, challenge-response
+      execute-or-prepare.ts  Dual-mode write helper (sign or return unsigned tx)
+      context.ts           Shared context (viem clients, agent type)
+      bridge.ts            Dashboard HTTP bridge (read + impersonated writes)
+    lido.skill.md          Agent mental model for stETH/wstETH
+    agentgate.skill.md     Full agent onboarding documentation
+  treasury-contract/       AgentTreasury (Solidity, Foundry)
     contracts/
     test/
     anvil-demo-setup.sh
-  app/                  Dashboard (Next.js, wagmi, RainbowKit)
+  app/                     Dashboard (Next.js, wagmi, RainbowKit)
     src/
-      components/       UI components + agent connect + tx notifications
-      lib/hooks/        On-chain data hooks + Basename resolution
-      providers/        App context + wallet config
+      components/          UI components + agent connect + tx notifications
+      lib/
+        hooks/             On-chain data hooks + Basename resolution
+        agent-store.ts     Upstash Redis agent store (no keys)
+      providers/           App context + wallet config
       app/api/
-        mcp-agent/      MCP HTTP endpoint (Bearer auth routing)
-        agents/         Dynamic agent list endpoint
+        mcp-agent/         MCP HTTP endpoint (Bearer auth routing)
+        agents/            Agent list + registration endpoints
+        faucet/            Signature-protected test ETH faucet
+        swap/              ETH → wstETH swap endpoint for human wallets
+    public/
+      skill.md             Public agent onboarding docs
+scripts/
+  register-agent.sh        Shell script for operator agent registration
 ```
 
 ## Dashboard
 
-The Next.js dashboard at the project root visualizes all agent activity in real time:
+The Next.js dashboard visualizes all agent activity in real time:
 
-- **View as Agent** — connect as any registered agent to see their perspective
-- **Treasury** — vault principal, total balance, APY, and available yield (yield visible only to the depositor)
+- **View as Agent** — connect as any registered agent (built-in or dynamically registered) to see their perspective. Agent list polls every 10s for new registrations.
+- **Human Wallet Support** — connect via RainbowKit. Faucet provides 1 test ETH (signature-protected, one-time). ETH → wstETH swap card on treasury page. All writes executed via Anvil impersonation (no MetaMask RPC mismatch).
+- **Treasury** — vault principal, total balance, APY, and available yield. Swap ETH → wstETH, deposit, and withdraw cards.
 - **Staking** — Lido staking positions and wstETH balances
 - **Delegations** — bidirectional view of granted and received spending authorizations
 - **Autonomous Trading** — recipe descriptions and live Aave V3 position data when active
-- **MCP Playground** — interactive tool caller with all 33 tools
+- **MCP Playground** — interactive tool caller with all tools, parameter forms, and JSON request/response viewer
 - **Toast Notifications** — real-time, filtered per connected agent (deposits, swaps, delegations, Aave actions)

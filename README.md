@@ -20,9 +20,11 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 - **Scoped agent-to-agent delegation** — an agent with a vault position can authorize another agent as a yield spender with per-transaction and daily caps, without exposing the principal.
 - **Autonomous trading recipes** — delegated agents can execute multi-step DeFi strategies: harvest yield, swap via Uniswap, lend on Aave V3, and return profits for compounding.
 - **Aave V3 integration** — agents supply USDC to Aave V3 on Base to earn lending interest, check positions, and withdraw with accrued profit.
-- **34 MCP tools across 7 domains** — Lido staking, treasury management, delegation, ENS/Basenames, Uniswap swaps, Aave V3 lending, and vault monitoring (including wallet balance checks).
-- **Hosted MCP server** — deployed on Vercel with HTTP transport and Bearer auth. Agents connect with one command; private keys never leave the server.
+- **38 MCP tools across 8 domains** — identity/registration, Lido staking, treasury management, delegation, ENS/Basenames, Uniswap swaps, Aave V3 lending, and vault monitoring.
+- **Hosted MCP server** — deployed on Vercel with HTTP transport and Bearer auth. First-party agents (server-side keys) and third-party agents (self-registered, unsigned tx pattern) supported.
+- **Dynamic agent registration** — any agent can self-register via challenge-response (EIP-191 signature verification). Server never touches private keys. Auto-funded with 1 ETH on the fork.
 - **Live dashboard** — Next.js app on Vercel with agent wallet connect, USDC balance display, Basename resolution, and real-time toast notifications for every on-chain action (treasury, swaps, Aave supply/withdraw).
+- **Human wallet support** — connect via RainbowKit, claim test ETH from faucet, swap ETH → wstETH, deposit/withdraw from treasury. All writes via Anvil impersonation.
 - **Dry-run simulation** — every tool supports a `dry_run` flag to simulate execution before committing transactions.
 
 ---
@@ -30,20 +32,22 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 ## Architecture
 
 ```
-  Hackaclaw (Claude Code)             Merkle (Claude Code)
+  First-Party Agents                    Third-Party Agents
+  (Hackaclaw, Merkle)                   (self-registered)
         |                                   |
-        | Bearer: hackaclaw                 | Bearer: merkle
+        | Bearer: agent_id                 | Bearer: api_key
         v                                   v
   +---------------------------------------------------+
   |         Hosted MCP Server (Vercel)                 |
   |         /api/mcp-agent                             |
   |                                                    |
-  |  Bearer token -> agent ID -> private key (env var) |
+  |  First-party: token -> env var key -> server signs |
+  |  Third-party: token -> API key hash -> unsigned tx |
   |                                                    |
-  |  34 tools:                                         |
-  |  Lido (7) | Treasury (10) | Delegation (5)         |
-  |  ENS (2)  | Uniswap (3)  | Trading/Aave (5)       |
-  |  Monitor (2)                                       |
+  |  38 tools:                                         |
+  |  Identity/Reg (4) | Lido (7) | Treasury (10)       |
+  |  Delegation (5) | ENS (2) | Uniswap (3)           |
+  |  Trading/Aave (5) | Monitor (2)                    |
   +------------------------+---------------------------+
                            |
                            v
@@ -73,7 +77,15 @@ Two agents (Hackaclaw and Merkle) each run Claude Code on separate machines, con
 
 ---
 
-## MCP Tools (34)
+## MCP Tools (38)
+
+### Identity & Registration (4)
+| Tool | Description |
+|------|-------------|
+| `who_am_i` | Returns agent ID, wallet address, and access mode. Call first. |
+| `register_challenge` | Step 1: get a challenge message to sign (proves address ownership) |
+| `register_agent` | Step 2: submit signature to complete registration and receive API key |
+| `submit_tx_hash` | Third-party agents: submit a signed tx hash for receipt verification |
 
 ### Lido (7)
 | Tool | Description |
@@ -211,15 +223,15 @@ This creates a demo problem:
 
 ## Dashboard Features
 
-- **View as Agent** — RainbowKit-styled button that dynamically lists all registered agents from the MCP server. Click to connect, auto-reconnects via localStorage. Shows resolved basename after connection.
-- **USDC Balance** — live-polling balance displayed next to the connected agent name. Updates in real-time during swaps and transfers.
+- **View as Agent** — RainbowKit-styled button that dynamically lists all registered agents (built-in + self-registered). Polls every 10s for new registrations. Click to connect, auto-reconnects via localStorage. Shows resolved basename after connection.
+- **Human Wallet Support** — connect via RainbowKit. Faucet provides 1 test ETH (signature-protected, one-time claim). Swap ETH → wstETH card on treasury page. All writes executed via Anvil impersonation (no MetaMask RPC mismatch). ETH + wstETH balances displayed in header.
 - **Vault Overview** — principal, total balance, and available yield with Chainlink exchange rate.
 - **Delegation Viewer** — bidirectional view showing both granted (I authorized someone) and received (someone authorized me) delegations with direction badges. Filtered to only show delegations involving the connected agent.
 - **Basename Resolution** — all addresses across the dashboard resolve to Base names (e.g., `hackaclaw.base.eth`). Vault overview, delegation cards/tables, address display tooltips, and toast notifications all show basenames.
 - **Autonomous Trading** — available recipes with strategy descriptions. "Your Open Positions" section appears when an Aave V3 lending position is active.
 - **Transaction Notifications** — real-time top-center toasts filtered per connected agent. Shows only events involving your address: deposits, yield withdrawals, spender authorization/revocation, Uniswap swaps, Aave supply/withdraw.
-- **MCP Playground** — interactive tool caller with all 34 tools, parameter forms, and JSON request/response viewer.
-- **Human Wallet Support** — connect via RainbowKit to interact with the treasury directly.
+- **MCP Playground** — interactive tool caller with all 38 tools, parameter forms, and JSON request/response viewer.
+- **Agent Registration** — "AI Agent? Register to access DeFi tools" CTA banner. "Register your agent" link in View as Agent dropdown.
 
 ---
 
@@ -289,28 +301,41 @@ npx @anthropic-ai/claude-code mcp add agentgate -- npx mcp-remote \
 
 ```
 packages/
-  mcp-server/          MCP server (TypeScript, 33 tools)
+  mcp-server/              MCP server (TypeScript)
     src/
-      tools/           Tool implementations by domain
-        lido.ts        Lido staking (7 tools)
-        treasury.ts    Vault management (10 tools)
-        delegation.ts  ERC-7710 delegations (5 tools)
-        ens.ts         Base name resolution (2 tools)
-        uniswap.ts     Uniswap V3 swaps (3 tools)
-        trading.ts     Aave V3 lending + recipes (5 tools)
-        monitor.ts     Vault health + wallet balance (2 tools)
-      hosted.ts        HTTP transport + agent key mapping
-    lido.skill.md      Agent mental model for stETH/wstETH
-  treasury-contract/   AgentTreasury (Solidity, Foundry)
+      tools/               Tool implementations by domain
+        lido.ts            Lido staking (7 tools)
+        treasury.ts        Vault management (10 tools)
+        delegation.ts      ERC-7710 delegations (5 tools)
+        ens.ts             Base name resolution (2 tools)
+        uniswap.ts         Uniswap V3 swaps — fork-aware (3 tools)
+        trading.ts         Aave V3 lending + recipes (5 tools)
+        monitor.ts         Vault health + wallet balance (2 tools)
+      hosted.ts            HTTP transport, dual-mode auth, registration tools
+      registry.ts          AgentRegistry, challenge-response, API key management
+      execute-or-prepare.ts  Dual-mode write (sign or return unsigned tx)
+      bridge.ts            Dashboard HTTP bridge (read + impersonated writes)
+    lido.skill.md          Agent mental model for stETH/wstETH
+    agentgate.skill.md     Full agent onboarding documentation
+  treasury-contract/       AgentTreasury (Solidity, Foundry)
     contracts/
     test/
     anvil-demo-setup.sh
-  app/                 Dashboard (Next.js, wagmi, RainbowKit)
+  app/                     Dashboard (Next.js, wagmi, RainbowKit)
     src/
-      components/      UI components + agent connect + tx notifications
-      lib/hooks/       On-chain data hooks + Basename resolution + basename map
-      providers/       App context + wallet config
-      app/api/agents/  Dynamic agent list endpoint
+      components/          UI components + agent connect + tx notifications
+      lib/
+        hooks/             On-chain data hooks + Basename resolution
+        agent-store.ts     Upstash Redis agent store
+      providers/           App context + wallet config
+      app/api/
+        mcp-agent/         MCP HTTP endpoint (Bearer auth routing)
+        agents/            Agent list + registration endpoints
+        faucet/            Signature-protected test ETH faucet
+        swap/              ETH → wstETH swap for human wallets
+    public/skill.md        Agent onboarding docs (public)
+scripts/
+  register-agent.sh        Shell script for operator agent setup
 ```
 
 ---
