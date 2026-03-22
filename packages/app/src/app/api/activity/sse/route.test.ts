@@ -74,7 +74,7 @@ describe("GET /api/activity/sse", () => {
     expect(text).toContain("id: 42");
     expect(text).toContain("event: activity");
     expect(text).toContain(`data: ${JSON.stringify(event)}`);
-    expect(text).toEndWith("\n\n");
+    expect(text.endsWith("\n\n")).toBe(true);
 
     reader.releaseLock();
   });
@@ -120,8 +120,12 @@ describe("GET /api/activity/sse", () => {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
 
-    const { value } = await reader.read();
-    const text = decoder.decode(value);
+    // Read all replayed chunks
+    let text = "";
+    const chunk1 = await reader.read();
+    text += decoder.decode(chunk1.value);
+    const chunk2 = await reader.read();
+    text += decoder.decode(chunk2.value);
 
     // Should contain events with id > 5
     expect(text).toContain("id: 7");
