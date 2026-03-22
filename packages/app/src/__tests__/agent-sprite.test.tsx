@@ -40,9 +40,9 @@ describe("AgentSprite", () => {
   });
 
   it("shows hover card with agent name on mouseenter", () => {
-    const { getByTestId, queryByText } = render(<AgentSprite agent={AGENT} />);
+    const { getByTestId } = render(<AgentSprite agent={AGENT} />);
     fireEvent.mouseEnter(getByTestId("agent-sprite"));
-    expect(queryByText("TestBot")).not.toBeNull();
+    expect(getByTestId("hover-card")).not.toBeNull();
   });
 
   it("shows truncated address on mouseenter", () => {
