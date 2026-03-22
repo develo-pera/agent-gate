@@ -32,12 +32,12 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 
 ### Active
 
-- [ ] Activity logging middleware in MCP server — track all tool calls with agent identity, timestamps, parameters, results
+- [x] Activity logging middleware in MCP server — track all tool calls with agent identity, timestamps, parameters, results (Phase 05)
 - [ ] Agent registry API — expose registered agents list and status via REST endpoints
 - [ ] Live Agent Activity dashboard page — command-center-style UI with real-time activity feed
 - [ ] Animated pixel-art agent avatars — sprite-based characters representing registered agents with state animations
 - [ ] Agent activity timeline — chronological feed of all tool calls and transactions across agents
-- [ ] On-chain transaction tracking — capture and display tx hashes, status, amounts from executeOrPrepare
+- [x] On-chain transaction tracking — capture and display tx hashes, status, amounts from executeOrPrepare (Phase 05)
 - [ ] Agent live status indicators — real-time active/idle/error state per agent
 - [ ] SSE or polling for real-time updates — push activity events to dashboard without page refresh
 
@@ -95,8 +95,8 @@ A visually impressive, functional demo that proves AgentGate's MCP tools work en
 | Demo delegations as constants in hook | Bridge has no persistent state | ✓ Good |
 
 | Pixel-art sprites for agents | Visual wow-factor for hackathon, inspired by Cursouls | — Pending |
-| Activity logging via middleware | Central instrumentation at executeOrPrepare + server.tool() | — Pending |
+| Activity logging via middleware | Central instrumentation at executeOrPrepare + server.tool() | ✓ Good |
 | SSE for real-time updates | Lower latency than polling, better demo experience | — Pending |
 
 ---
-*Last updated: 2026-03-21 after v1.1 milestone start*
+*Last updated: 2026-03-22 after Phase 05 (activity-foundation) completion*
