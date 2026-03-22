@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Landmark, TrendingUp, Users, Terminal, Bot } from "lucide-react";
+import { Landmark, TrendingUp, Users, Terminal, Bot, Activity } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/staking", label: "Staking", icon: TrendingUp },
   { href: "/delegations", label: "Delegations", icon: Users },
   { href: "/trading", label: "Autonomous Trading", icon: Bot },
+  { href: "/agents", label: "Live Agents", icon: Activity },
   { href: "/playground", label: "MCP Playground", icon: Terminal },
 ];
 
