@@ -85,10 +85,11 @@ Plans:
   3. A chronological activity timeline displays tool calls and transactions across all agents with agent identity, tool name, timestamp, and result
   4. Activity timeline and agent status indicators update in real-time via SSE without page refresh
   5. In demo mode (no wallet connected), the page shows seeded activity data and animated agents so the dashboard is never empty
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: TBD (run /gsd:plan-phase 8 to break down)
+- [ ] 08-01-PLAN.md — Sidebar nav entry, data hooks (useAgents, useActivitySSE), agent cards, activity feed components
+- [ ] 08-02-PLAN.md — Page assembly with demo mode, real-time wiring, and human verification
 
 ## Progress
 
@@ -105,4 +106,4 @@ Note: Phases 6 and 7 can be parallelized (no mutual dependency), but both must c
 | 5. Activity Foundation | v1.1 | 0/2 | Not started | - |
 | 6. API and Real-Time Endpoints | v1.1 | 0/2 | Not started | - |
 | 7. Sprite Animation System | v1.1 | 0/2 | Not started | - |
-| 8. Dashboard Page Assembly | v1.1 | 0/? | Not started | - |
+| 8. Dashboard Page Assembly | v1.1 | 0/2 | Not started | - |
