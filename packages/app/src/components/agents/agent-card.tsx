@@ -10,6 +10,7 @@ export interface AgentCardProps {
     agent_id: string;
     name: string;
     address: string;
+    type?: string;
     status: "active" | "idle" | "registered";
     lastAction?: string;
   };
@@ -50,6 +51,9 @@ export function AgentCard({ agent, isSelected, onClick }: AgentCardProps) {
           {agent.name}
         </span>
       </div>
+      {agent.type && (
+        <p className="text-xs text-muted-foreground">{agent.type}</p>
+      )}
       <AddressDisplay
         address={agent.address}
         className="text-xs font-mono text-muted-foreground"
