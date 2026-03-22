@@ -966,4 +966,24 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 22:00 IST / 16:30 UTC (Mar 22)*
+## Session 15 — Yield Tick Cron (Mar 22, 2026 ~17:00 UTC)
+
+**Problem** — The mock Chainlink oracle on the Anvil fork returns a fixed rate, so vault yield never grows after the initial setup. Users can't test yield accrual or observe APY changes over time.
+
+**Solution** — Added a Vercel cron function (`/api/cron/yield-tick`) that bumps the oracle rate every 5 minutes to simulate Lido staking yield.
+
+**Rate math:** Real Lido is ~3.5% APY (invisible in a demo). We target ~100% APY for demo-friendly visibility. With 105,120 ticks/year (every 5 min), the per-tick bump is 6593 per billion: `newRate = currentRate * 1_000_006_593 / 1_000_000_000`. This compounds to ~100% APY.
+
+**Tested directly against the fork** — manually ran 11 ticks, confirmed yield grew from 4.76% → 4.77% of principal. Oracle rate incremented correctly each tick.
+
+**Pending: localhost timeout** — The `/api/cron/yield-tick` route connects on localhost:3000 but hangs (times out after 30s+). Needs debugging — likely an issue with RPC calls in the Next.js route handler. Deferred to next session.
+
+**Files added:**
+- `packages/app/src/app/api/cron/yield-tick/route.ts` — Yield tick cron endpoint
+
+**Files modified:**
+- `vercel.json` — Added second cron job for yield-tick
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 22:30 IST / 17:00 UTC (Mar 22)*
