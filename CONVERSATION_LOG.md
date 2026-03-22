@@ -884,4 +884,54 @@ The bridge was originally designed as read-only since the server has no wallet t
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 07:00 IST / 01:30 UTC (Mar 22)*
+## Session 12 — Phase 05: Activity Foundation (Mar 22, 2026 ~12:00 UTC)
+
+**Goal:** Build the activity logging infrastructure in `packages/mcp-server` — the data layer that all live agent monitoring depends on.
+
+**Plan 05-01 (Wave 1): ActivityLog Module with TDD** — Created the foundation data layer using TDD (RED → GREEN → REFACTOR). Built `ActivityEvent` interface (id, agentId, agentAddress, toolName, params, result, status, timestamp, durationMs, tx fields), `CircularBuffer<T>` ring buffer (500 capacity, drops oldest on overflow), and `ActivityLog` class with two-phase event lifecycle (pending → success/error), listener pub/sub with unsubscribe, BigInt-safe param serialization, and `globalThis` singleton pattern to survive module re-evaluation. Added vitest to mcp-server package. 20 unit tests all passing.
+
+**Plan 05-02 (Wave 2): MCP Server Instrumentation** — Connected the ActivityLog to the real MCP execution flow. Added `wrapServerWithLogging()` function in `hosted.ts` that intercepts every `server.tool()` callback — captures agent identity, tool name, params, then completes with result/timing. Threads `activeEventId` through `AgentGateContext` so `executeOrPrepare` can enrich events with on-chain transaction data (txHash, txStatus, blockNumber). Both `executeOrPrepare` and `executeOrPrepareMany` enrichment implemented. Bridge/playground paths intentionally untouched — only hosted (agent) tool calls produce events. 6 integration tests added (26 total passing).
+
+**Verification gap fix** — Verifier caught 7 TypeScript errors in the test file: missing `.js` import extension and implicit `any` types on callback params. Fixed inline — all 26 tests pass, `tsc --noEmit` clean for phase 05 files.
+
+**Key design decisions:**
+- `CircularBuffer` with fixed 500 capacity — keeps memory bounded, no persistence needed for demo
+- `globalThis.__agentgate_activity_log__` singleton — survives HMR/re-evaluation in dev
+- `wrapServerWithLogging` patches `server.tool` before any tool registration — zero changes to individual tool handlers
+- `enrichEvent` is separate from `completeEvent` — tx data arrives after tool callback returns, doesn't re-trigger listeners
+- Bridge calls produce NO events — only hosted MCP server (agent) calls are tracked
+
+**Files created:**
+- `packages/mcp-server/src/activity-log.ts` — ActivityEvent, CircularBuffer, ActivityLog, globalThis singleton
+- `packages/mcp-server/src/activity-log.test.ts` — 26 tests (unit + integration)
+- `packages/mcp-server/vitest.config.ts` — Vitest config for mcp-server package
+
+**Files modified:**
+- `packages/mcp-server/package.json` — Added vitest devDependency + test script
+- `packages/mcp-server/src/context.ts` — Added `activeEventId?: number` to AgentGateContext
+- `packages/mcp-server/src/hosted.ts` — Added `wrapServerWithLogging`, integrated into `createMcpServer`
+- `packages/mcp-server/src/execute-or-prepare.ts` — Added tx enrichment in both executeOrPrepare and executeOrPrepareMany
+
+---
+
+## Session 13 — Contract Redeploy, Fork Reset & Pool Rebalancing Discussion (Mar 22, 2026 ~16:00 UTC)
+
+**Contract redeploy with aggregate functions** — Discovered the previous deploy (session 6) was compiled from `feat/live-agent-dashboard` branch which lacked the `getTotalVaultStatus()`, `totalPrincipalWstETH`, and `depositorCount` additions from commit `101c4cb`. The `main` branch had the aggregate functions but the working branch didn't. Copied the contract source from `main`, but the Anvil fork's Uniswap pools were heavily drained from prior test swaps (1 ETH → 0.005 wstETH instead of ~0.77).
+
+**Fork reset & full redeploy** — Reset the Anvil fork to get fresh pool liquidity. Re-ran full setup: synced timestamp, funded hackaclaw + merkle with 100 ETH each, deployed AgentTreasury (landed at deterministic address `0xFd027999609d95Ca3Db8B9F78f388816c3c7A380`), dealt 1 wstETH to hackaclaw, deposited 0.5 wstETH, deployed mock Chainlink oracle with 5% rate bump (1.2299 → 1.2914), registered basenames. Updated all env files (root `.env`, `packages/app/.env`) and Vercel env vars.
+
+**Mock oracle approach** — The Anvil fork freezes the Chainlink wstETH/stETH rate at fork time. To simulate yield, we deploy a `MockFeed` contract that returns `block.timestamp` for `updatedAt` (so it never goes stale) and a bumped `answer`, then etch its bytecode at the real Chainlink feed address via `anvil_setCode` + `anvil_setStorageAt`. All vaults see yield equally — the rate is global, just like real Lido.
+
+**Pool rebalancing discussion** — Uniswap pools on the fork degrade over time since no arbitrageurs rebalance them. Discussed approaches:
+- Fork reset: wipes all user state, disruptive to testers — ruled out as routine solution
+- Swap-based rebalancer bot: seed a reserve address with both sides of each pool, cron job checks price drift vs oracle, swaps to push price back. Clean and predictable.
+- Direct `slot0` manipulation: set `sqrtPriceX96` storage directly. Simpler but fragile.
+- Decision: will implement the swap-based rebalancer later.
+
+**Key rule established:** Never reset the Anvil fork without explicit permission — other users may be actively testing.
+
+**Funded external tester** — Gave 10 ETH to `0xE0fF737685fdE7Fd0933Fc280D53978b3d0700D5` via `anvil_setBalance`.
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 21:30 IST / 16:00 UTC (Mar 22)*
