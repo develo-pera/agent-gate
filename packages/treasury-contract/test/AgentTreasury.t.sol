@@ -382,6 +382,98 @@ contract AgentTreasuryUnitTest is Test {
         treasury.withdrawYieldFor(agent, recipient, yield_);
     }
 
+    // ── Aggregate vault status tests ────────────────────────────────
+
+    function test_total_principal_tracks_single_deposit() public {
+        vm.prank(agent);
+        treasury.deposit(1 ether);
+
+        (uint256 totalPrincipal, uint256 totalBalance, , uint256 numDepositors) = treasury.getTotalVaultStatus();
+        assertEq(totalPrincipal, 1 ether);
+        assertEq(totalBalance, 1 ether);
+        assertEq(numDepositors, 1);
+    }
+
+    function test_total_principal_tracks_multi_agent_deposits() public {
+        address agent2 = address(0xA2);
+        wstETH.mint(agent2, 5 ether);
+        vm.prank(agent2);
+        wstETH.approve(address(treasury), type(uint256).max);
+
+        vm.prank(agent);
+        treasury.deposit(1 ether);
+        vm.prank(agent2);
+        treasury.deposit(2 ether);
+
+        (uint256 totalPrincipal, uint256 totalBalance, , uint256 numDepositors) = treasury.getTotalVaultStatus();
+        assertEq(totalPrincipal, 3 ether);
+        assertEq(totalBalance, 3 ether);
+        assertEq(numDepositors, 2);
+    }
+
+    function test_total_principal_decremented_on_withdraw_all() public {
+        address agent2 = address(0xA2);
+        wstETH.mint(agent2, 5 ether);
+        vm.prank(agent2);
+        wstETH.approve(address(treasury), type(uint256).max);
+
+        vm.prank(agent);
+        treasury.deposit(1 ether);
+        vm.prank(agent2);
+        treasury.deposit(2 ether);
+
+        // agent withdraws all
+        vm.prank(agent);
+        treasury.withdrawAll();
+
+        (uint256 totalPrincipal, , , ) = treasury.getTotalVaultStatus();
+        assertEq(totalPrincipal, 2 ether, "only agent2 principal should remain");
+    }
+
+    function test_total_yield_aggregate() public {
+        address agent2 = address(0xA2);
+        wstETH.mint(agent2, 5 ether);
+        vm.prank(agent2);
+        wstETH.approve(address(treasury), type(uint256).max);
+
+        vm.prank(agent);
+        treasury.deposit(1 ether);
+        vm.prank(agent2);
+        treasury.deposit(2 ether);
+
+        // Rate increases — yield appears
+        feed.setPrice(INCREASED_RATE);
+
+        (uint256 totalPrincipal, uint256 totalBalance, uint256 totalYield, ) = treasury.getTotalVaultStatus();
+        assertEq(totalPrincipal, 3 ether, "principal unchanged");
+        assertEq(totalBalance, 3 ether, "balance is contract's wstETH (no real yield transfer)");
+        // totalYield = totalBalance - totalPrincipal = 0 here because the wstETH token balance
+        // doesn't change with rate — yield is virtual based on exchange rate.
+        // The contract balance stays at 3 ether, so totalYield from getTotalVaultStatus is 0.
+        // Individual yield is computed via _availableYield() using oracle rates.
+        assertEq(totalYield, 0, "aggregate yield is balance-based, not oracle-based");
+    }
+
+    function test_depositor_count_not_incremented_on_repeat_deposit() public {
+        vm.prank(agent);
+        treasury.deposit(0.5 ether);
+        vm.prank(agent);
+        treasury.deposit(0.5 ether);
+
+        (, , , uint256 numDepositors) = treasury.getTotalVaultStatus();
+        assertEq(numDepositors, 1, "same depositor should not be double-counted");
+    }
+
+    function test_total_principal_multiple_deposits_same_agent() public {
+        vm.prank(agent);
+        treasury.deposit(0.5 ether);
+        vm.prank(agent);
+        treasury.deposit(0.3 ether);
+
+        (uint256 totalPrincipal, , , ) = treasury.getTotalVaultStatus();
+        assertEq(totalPrincipal, 0.8 ether);
+    }
+
     function test_get_spender_config() public {
         vm.prank(agent);
         treasury.authorizeSpender(spender, true, 0.01 ether, 1 hours, 0.05 ether);

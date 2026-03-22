@@ -39,6 +39,9 @@ contract AgentTreasury is ReentrancyGuard {
 
     mapping(address => Vault) public vaults;
 
+    uint256 public totalPrincipalWstETH;  // aggregate principal across all depositors
+    uint256 public depositorCount;         // number of unique depositors
+
     struct SpenderConfig {
         bool authorized;
         bool yieldOnly;
@@ -100,9 +103,12 @@ contract AgentTreasury is ReentrancyGuard {
         uint256 stETHValue = (amount * rate) / 1e18;
 
         Vault storage v = vaults[msg.sender];
+        if (!v.exists) depositorCount++;
         v.principalWstETH += amount;
         v.principalStETHValue += stETHValue;
         v.exists = true;
+
+        totalPrincipalWstETH += amount;
 
         emit Deposited(msg.sender, amount, stETHValue);
     }
@@ -203,6 +209,7 @@ contract AgentTreasury is ReentrancyGuard {
         uint256 toSend = v.principalWstETH + _availableYield(msg.sender);
         if (toSend > balance) toSend = balance;
 
+        totalPrincipalWstETH -= v.principalWstETH;
         v.principalWstETH = 0;
         v.principalStETHValue = 0;
 
@@ -306,6 +313,25 @@ contract AgentTreasury is ReentrancyGuard {
 
     function getCurrentRate() external view returns (uint256) {
         return _getRate();
+    }
+
+    /**
+     * @notice Aggregate vault status across ALL depositors
+     * @return totalPrincipal Total wstETH principal across all vaults
+     * @return totalBalance Total wstETH held by the contract
+     * @return totalYield totalBalance - totalPrincipal (aggregate yield)
+     * @return numDepositors Number of unique depositors
+     */
+    function getTotalVaultStatus() external view returns (
+        uint256 totalPrincipal,
+        uint256 totalBalance,
+        uint256 totalYield,
+        uint256 numDepositors
+    ) {
+        totalPrincipal = totalPrincipalWstETH;
+        totalBalance = wstETH.balanceOf(address(this));
+        totalYield = totalBalance > totalPrincipal ? totalBalance - totalPrincipal : 0;
+        numDepositors = depositorCount;
     }
 
     // ── Internal ──────────────────────────────────────────────────────
