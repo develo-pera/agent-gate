@@ -1272,4 +1272,52 @@ Assembled the full page at `/agents`:
 
 ---
 
-*This log is updated as the project evolves. Last updated: Mar 22, 2026 ~16:45 UTC*
+## Session 15 — v1.1 Milestone Completion & Production Fixes (Mar 22, 2026)
+
+**Goal:** Archive v1.1 milestone, merge to main, fix production deployment issues.
+
+### Milestone Completion
+
+Ran `/gsd:complete-milestone` to archive v1.1 Live Agent Activity Dashboard:
+
+- **MILESTONES.md** updated with stats: 4 phases, 8 plans, 75 commits, ~10k LOC added in 1 day
+- **PROJECT.md** evolved: 8 v1.1 requirements moved to Validated, 5 new key decisions added, context updated
+- **ROADMAP.md** reorganized: v1.1 collapsed into `<details>` block alongside v1.0
+- **REQUIREMENTS.md** archived to `milestones/v1.1-REQUIREMENTS.md`, original deleted
+- **RETROSPECTIVE.md** updated with v1.1 section and cross-milestone trends
+- **Phase directories** archived to `milestones/v1.1-phases/`
+- **Git tag** `v1.1` created (local only)
+
+### Merge to Main
+
+Merged `feat/live-agent-dashboard` → `main` with `--no-ff` (86 commits, full history preserved). Resolved CONVERSATION_LOG.md merge conflict. Pushed to remote.
+
+### Production Fixes
+
+1. **CRON_SECRET whitespace** — Build failed because `CRON_SECRET` env var on Vercel had trailing `\n`. Fixed by removing and re-adding the var clean. Also added `.trim()` to both cron routes as defensive measure.
+
+2. **Treasury vault data failing** — Production treasury page showed "Failed to load vault data" while local worked fine. Root cause: 5 Vercel env vars had trailing `\n` characters corrupting addresses and URLs:
+   - `NEXT_PUBLIC_CHAIN_ID` → `8453\n`
+   - `NEXT_PUBLIC_RPC_URL` → `...fly.dev/\n`
+   - `NEXT_PUBLIC_TREASURY_ADDRESS` → `...A380\n`
+   - `RPC_URL` → `...fly.dev/\n`
+   - `TREASURY_ADDRESS` → `...A380\n`
+
+   Fixed all 5 by removing and re-adding without trailing newlines. Redeployed successfully.
+
+3. **Treasury Vault Overview card** — Redesigned to show contract-wide vs per-user data:
+   - **Total Principal**: reads from `getTotalVaultStatus()` (aggregate across all depositors)
+   - **Your Balance**: per-user principal + oracle-based virtual yield
+   - **Your Available Yield**: per-user yield (fixed bug where hackaclaw's yield showed 0)
+   - Added `getTotalVaultStatus` to ABI and `useTotalVaultStatus` hook
+   - Root cause of yield bug: `isOwnVault` logic incorrectly zeroed yield for non-owner views
+
+**Key commits:**
+- `c95f876` — chore: complete v1.1 milestone — archive and evolve PROJECT.md
+- `6578c8e` — Merge branch 'feat/live-agent-dashboard' (86 commits)
+- `ffa5d64` — fix: trim CRON_SECRET to prevent whitespace in HTTP headers
+- `a96ecd9` — feat(treasury): show contract-wide total principal in vault overview
+
+---
+
+*This log is updated as the project evolves. Last updated: Mar 22, 2026 ~17:40 UTC*
