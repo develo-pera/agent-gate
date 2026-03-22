@@ -16,6 +16,7 @@ interface AgentSpriteProps {
   status?: "active" | "idle" | "registered";
   action?: string;
   className?: string;
+  isWalking?: boolean;
   onHoverChange?: (hovered: boolean) => void;
 }
 
@@ -24,12 +25,17 @@ export function AgentSprite({
   status = "idle",
   action,
   className,
+  isWalking,
   onHoverChange,
 }: AgentSpriteProps) {
   const [hovered, setHovered] = useState(false);
 
   const bodyColor = addressToSpriteColor(agent.address);
-  const animClass = hovered ? "anim-idle" : statusToAnimation(status);
+  const animClass = hovered
+    ? "anim-idle"
+    : isWalking
+      ? "anim-walk"
+      : statusToAnimation(status);
   const dotColor = statusToColor(status);
   const actionText = statusToActionText(status, action);
 
